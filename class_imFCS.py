@@ -49,13 +49,18 @@ class StackFCS(object):
         self.stack = tifffile.imread(path)[first_n:]
         if background_correc:
             self.stack = self.stack - self.stack.min()
+            print("background correction on")
         if blcorrf is not None:
             corrfactor = blcorrf(self.stack)
             self.stack = self.stack*corrfactor[:,np.newaxis,np.newaxis]
+            print("bleaching correction on")
         self.correl_dicts = {}
         self.dt = dt #TODO
     
     def correlate_stack(self,nSum):
+        
+        if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:
+            raise ValueError("Trying to sum more pixels than present in the stack")
         if nSum not in self.correl_dicts.keys():
             print("correlating stack, binning {}".format(nSum))
             correls = []
@@ -97,7 +102,9 @@ class StackFCS(object):
                 
     def average_curve(self, nSum=1, plot = False):
         self.correlate_stack(nSum)
+        
         correls = self.correl_dicts[nSum]
+        print("Nsum avg curve",nSum)
         avg = correls[:,:,:,1].mean(axis=(0,1))
         if plot:
             plt.figure()
@@ -116,7 +123,7 @@ class StackFCS(object):
             plt.ylabel("Counts")
         return tr
     
-    def binned_average_curves(self, sum_list, plot=True):
+    def binned_average_curves(self, sum_list, plot=True, n_norm = 8):
         if plot:
             fig, axes = plt.subplots(1,2)
         all_corrs = []
@@ -126,7 +133,7 @@ class StackFCS(object):
             if plot:
                 axes[0].semilogx(corr[:,0], corr[:,1], 
                                  label = "Binning {}".format(sl))
-                axes[1].semilogx(corr[:,0], corr[:,1]/corr[:8,1].mean(),
+                axes[1].semilogx(corr[:,0], corr[:,1]/corr[:n_norm,1].mean(),
                                  label = "Binning {}".format(sl))
         if plot:
             axes[1].legend()
@@ -164,12 +171,16 @@ if __name__=="__main__":
     
     path = "C:/Users/abarbotin/Documents/Python Scripts/FCS_analysis/simulation4.tif"
     path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/2_green_beads/Image 13.tif"
+    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/2_green_beads/Image 21_withAF.tif"
+    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/2_green_beads/Image 20_higherpower.tif"
+    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/postprocessed/Image 21_withAF_zoom1.tif"
+    # path = "C:/Users/abarbotin/Desktop/analysis_tmp/bilayer_wohland.tif"
     #path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/60percent_imFCS_001_t1_stack.tif"
     stack = StackFCS(path, first_n=0, blcorrf=None)
     stack.plot_curve(nSum=4)
     stack.get_all_curves(nSum=8, spacing = 0.2)
     t1 = stack.average_curve(nSum=4)
-    t2 = stack.average_curve(nSum=16)
+    t2 = stack.average_curve(nSum=8)
     
     stack.trace()
     
@@ -180,10 +191,10 @@ if __name__=="__main__":
     plt.title("Average curves")
     plt.legend()
     plt.subplot(122)
-    plt.semilogx(t1[:,0],t1[:,1]/t1[:8,1].mean(),label="4 pixel binning")
-    plt.semilogx(t2[:,0],t2[:,1]/t2[:8,1].mean(), label="8 pixel binning")
+    plt.semilogx(t1[:,0],t1[:,1]/t1[:3,1].mean(),label="4 pixel binning")
+    plt.semilogx(t2[:,0],t2[:,1]/t2[:3,1].mean(), label="8 pixel binning")
     plt.title("Normalised")
 
-    nsums = [2,4,8,16]
-    corrs = stack.binned_average_curves(nsums)
+    nsums = [2,4,8,12]
+    corrs = stack.binned_average_curves(nsums, n_norm=3)
     stack.plot_amplitudes(nsums)
