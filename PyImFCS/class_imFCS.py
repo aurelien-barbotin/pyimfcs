@@ -10,6 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.optimize import curve_fit
+    
+from PIL import Image
+from PIL.TiffTags import TAGS
 
 def expf(x,tau,a):
     return a*np.exp(-x/tau)
@@ -41,13 +44,30 @@ def bleaching_correct_sliding(stack, plot = True, wsize = 5000):
         plt.plot(trace)
         plt.plot(new_trace)
     return corrf
+
+def get_image_metadata(path):    
+    with Image.open(path) as img:
+        meta_dict = {TAGS[key] : img.tag[key] for key in img.tag.keys()}
         
+    description = meta_dict['ImageDescription']
+    description = description[0].split('\n')
+    description_dict = {}
+    for d in description:
+        if len(d)>0:
+            k, val = d.split('=')
+            try:
+                description_dict[k] = float(val)
+            except:
+                description_dict[k] = val
+                
+    return description_dict
+    
 class StackFCS(object):
-    def __init__(self, path, mfactor = 8, dt=1, background_correc = True, 
+    def __init__(self, path, mfactor = 8, dt=1, background_correction = True, 
                  blcorrf = None,first_n=0):
         self.path = path
         self.stack = tifffile.imread(path)[first_n:]
-        if background_correc:
+        if background_correction:
             self.stack = self.stack - self.stack.min()
             print("background correction on")
         if blcorrf is not None:
@@ -128,7 +148,7 @@ class StackFCS(object):
             fig, axes = plt.subplots(1,2)
         all_corrs = []
         for sl in sum_list:
-            corr = stack.average_curve(nSum=sl)
+            corr = self.average_curve(nSum=sl)
             all_corrs.append(corr)
             if plot:
                 axes[0].semilogx(corr[:,0], corr[:,1], 
