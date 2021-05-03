@@ -78,20 +78,25 @@ def get_image_metadata(path):
     
 class StackFCS(object):
     def __init__(self, path, mfactor = 8, dt=1, background_correction = True, 
-                 blcorrf = None,first_n=0, last_n = 0):
+                 blcorrf = None,first_n=0, last_n = 0, fitter = None):
         self.path = path
         self.stack = tifffile.imread(path)
         self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
+        self.fitter = fitter
+        
         if background_correction:
             self.stack = self.stack - self.stack.min()
-            print("background correction on")
+            
         if blcorrf is not None:
             self.blcorrf = blcorrf
-            """corrfactor = blcorrf(self.stack)
+            """corrfactor = blcorrf(self.stack.mean(axis=(1,2)))
             self.stack = self.stack*corrfactor[:,np.newaxis,np.newaxis]
             print("bleaching correction on")"""
         self.correl_dicts = {}
         self.traces_dict = {}
+        self.parfit_dict = {}
+        self.yh_dict = {}
+        
         self.dt = dt
     
     def correlate_stack(self,nSum):
@@ -195,6 +200,28 @@ class StackFCS(object):
             axes[1].set_ylabel(r"$\rm G(\tau)$")
         return all_corrs
     
+    def fit_curves(self,fitter):
+        self.fitter = fitter
+        nsums = self.correl_dicts.keys()
+        for nsum in nsums:
+            self.fitter.set_sum(nsum)
+            correls = self.correl_dicts[nsum]
+            popts = []
+            yhs = []
+            for j in range(correls.shape[0]):
+                popt_tmp=[]
+                yh_tmp = []
+                for k in range(correls.shape[1]):
+                    corr = correls[j,k]
+                    popt, yh = fitter.fit(corr)
+                    
+                    popt_tmp.append(popt)
+                    yh_tmp.append(yh)
+                popts.append(popt_tmp)
+                yhs.append(yh_tmp)
+            self.parfit_dict[nsum] = np.array(popts)
+            self.yh_dict[nsum] = np.array(yhs)
+        
     def plot_amplitudes(self,sum_list):
         averages = self.binned_average_curves(sum_list, plot=False)
         nvals = []
@@ -226,7 +253,25 @@ class StackFCS(object):
         plt.xlabel("Time (frames)")
         plt.ylabel("Intensity")
         plt.legend()
-        
+    
+    def plot_fits(self,nSum,maxcurves=None,dz=0.2):
+        curves = self.correl_dicts[nSum]
+        sp1 = np.asarray(curves.shape)
+        fits = self.yh_dict[nSum]
+        indices = np.arange(fits.shape[0])
+        if maxcurves is not None:
+            indices = np.random.choice(np.a)
+        fig,axes = plt.subplots(1,2,sharex=True,sharey=True)
+        jj = 0
+        for j in range(sp1[0]):
+            for k in range(sp1[1]):
+                corr = curves[j,k]
+                yh = fits[j,k]
+                a = corr[:3,1].mean()
+                axes[0].semilogx(corr[:,0],corr[:,1]/a+dz*jj)
+                axes[0].semilogx(corr[:,0],yh/a+dz*jj, color="k",linestyle="--")
+                axes[1].semilogx(yh/a-corr[:,1]/a+dz*jj)
+                jj+=1
 if __name__=="__main__":
     plt.close('all')
     path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/40percent_imFCS_002_t1_stack.tif"
