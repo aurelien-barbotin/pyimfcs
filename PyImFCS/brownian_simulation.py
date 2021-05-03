@@ -21,11 +21,11 @@ def make_image():
 scale = 0.5 #pixels
 # pixel size: 100 nm
 psize = 100
-sigma_psf = 200/np.sqrt(8*np.log(2))/psize
-dt = 2*10**-3 # s
-D = 0.1 #um2/s
+sigma_psf = 110/psize
+dt = 4.7*10**-3 # s
+D = 5 #um2/s
 
-brightness = 18*10**1 #Hz/molecule
+brightness = 18*10**3 #Hz/molecule
 
 npixels = 500
 
@@ -33,7 +33,7 @@ nsteps = 20000
 nparts = 3000
 
 pos0 = np.random.uniform(size = (nparts,2))*npixels-npixels/2
-moves = np.random.normal(scale = scale,size = (nsteps,nparts,2) )
+moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize*10**-3),size = (nsteps,nparts,2) )
 
 positions = np.cumsum(moves,axis=0)
 positions = positions+pos0[np.newaxis,:,:]
@@ -76,4 +76,4 @@ if plot:
 save=True
 if save:
     stack = stack.astype(np.uint16)
-    tifffile.imwrite("simulation4.tif",stack)
+    tifffile.imwrite("simulation2_4p7msexp_D{:.2f}.tif".format(D),stack)

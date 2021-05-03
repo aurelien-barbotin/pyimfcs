@@ -14,19 +14,35 @@ from scipy.optimize import curve_fit
 from PIL import Image
 from PIL.TiffTags import TAGS
 
-def expf(x,tau,a):
-    return a*np.exp(-x/tau)
-
-def bleaching_correct(stack, plot = True):
+def bleaching_correct_exp(stack, plot = True):
+    def expf(x,f0,tau):
+        return f0*np.exp(-x/tau)
     trace = stack.sum(axis=(1,2))
-    x = np.arange(trace.size)
-    popt, _ = curve_fit(expf, x, trace)
+    subtr = trace
+    xt = np.arange(subtr.size)
+    bounds =((trace[0:trace.size//20].mean()*0.8,10),
+             (trace[0:trace.size//20].mean()*1.2,trace.size*20))
     
+    popt,_ = curve_fit(expf,xt,subtr,bounds = bounds)
+    #popt=[4.7*10**6,18]
+    trf = expf(xt,*popt)
+    
+
+    def cortrace(tr,popt):
+        xt = np.arange(tr.size)
+        fi = expf(xt,*popt)
+        f0 = popt[0]
+        new_tr = tr/np.sqrt(fi/f0)+f0*(1-np.sqrt(fi/f0))
+        return new_tr
+    new_tr = cortrace(trace,popt)
     if plot:
-        yh = expf(x,*popt)
         plt.figure()
-        plt.plot(x,trace)
-        plt.plot(x,yh)
+        plt.plot(xt,subtr)
+        plt.plot(xt,trf,color='k',linestyle='--')
+        plt.plot(xt,new_tr)
+    corrf = new_tr/trace
+    #!!! Not clean
+    return corrf
 
 def bleaching_correct_sliding(stack, plot = True, wsize = 5000):
     trace = stack.sum(axis=(1,2))
@@ -46,27 +62,29 @@ def bleaching_correct_sliding(stack, plot = True, wsize = 5000):
     return corrf
 
 def get_image_metadata(path):    
-    with Image.open(path) as img:
-        meta_dict = {TAGS[key] : img.tag[key] for key in img.tag.keys()}
-        
-    description = meta_dict['ImageDescription']
-    description = description[0].split('\n')
-    description_dict = {}
+    img = tifffile.TiffFile(path)
+    meta_dict = img.imagej_metadata
+    description = meta_dict.pop('Info')
+    description = description.split('\n')
     for d in description:
-        if len(d)>0:
+        if len(d)>1 and '=' in d:
             k, val = d.split('=')
+            k = k.strip(' ')
+            val = val.strip(' ')
             try:
-                description_dict[k] = float(val)
+                meta_dict[k] = float(val)
             except:
-                description_dict[k] = val
                 
-    return description_dict
+                meta_dict[k] = val
+                
+    return meta_dict
     
 class StackFCS(object):
     def __init__(self, path, mfactor = 8, dt=1, background_correction = True, 
-                 blcorrf = None,first_n=0):
+                 blcorrf = None,first_n=0, last_n = 0):
         self.path = path
-        self.stack = tifffile.imread(path)[first_n:]
+        self.stack = tifffile.imread(path)
+        self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
         if background_correction:
             self.stack = self.stack - self.stack.min()
             print("background correction on")
@@ -75,7 +93,7 @@ class StackFCS(object):
             self.stack = self.stack*corrfactor[:,np.newaxis,np.newaxis]
             print("bleaching correction on")
         self.correl_dicts = {}
-        self.dt = dt #TODO
+        self.dt = dt
     
     def correlate_stack(self,nSum):
         
@@ -108,18 +126,22 @@ class StackFCS(object):
         plt.figure()
         plt.semilogx(correl[:,0], correl[:,1])
     
-    def get_all_curves(self,nSum=1, spacing=0, npts = None):
+    def get_all_curves(self,nSum=1, spacing=0, npts = None, plot = True):
         self.correlate_stack(nSum)
         correls = self.correl_dicts[nSum]
         u,v = correls.shape[0], correls.shape[1]
         spc = np.percentile(correls[:,:,:,1],95)*spacing
-        
-        plt.figure()
-        for j in range(u):
-            for k in range(v):
-                corr = correls[j,k]
-                plt.semilogx(corr[:,0], corr[:,1]+(j*u+k)*spc)
-                
+        if plot:
+            plt.figure()
+            for j in range(u):
+                for k in range(v):
+                    corr = correls[j,k]
+                    plt.semilogx(corr[:,0], corr[:,1]+(j*u+k)*spc)
+        return correls
+    
+    def get_correlation_dict(self):
+        return self.correl_dicts
+    
     def average_curve(self, nSum=1, plot = False):
         self.correlate_stack(nSum)
         
