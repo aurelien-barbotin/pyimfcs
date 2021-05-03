@@ -14,10 +14,9 @@ from scipy.optimize import curve_fit
 from PIL import Image
 from PIL.TiffTags import TAGS
 
-def bleaching_correct_exp(stack, plot = True):
+def bleaching_correct_exp(trace, plot = False):
     def expf(x,f0,tau):
         return f0*np.exp(-x/tau)
-    trace = stack.sum(axis=(1,2))
     subtr = trace
     xt = np.arange(subtr.size)
     bounds =((trace[0:trace.size//20].mean()*0.8,10),
@@ -26,7 +25,6 @@ def bleaching_correct_exp(stack, plot = True):
     popt,_ = curve_fit(expf,xt,subtr,bounds = bounds)
     #popt=[4.7*10**6,18]
     trf = expf(xt,*popt)
-    
 
     def cortrace(tr,popt):
         xt = np.arange(tr.size)
@@ -44,8 +42,7 @@ def bleaching_correct_exp(stack, plot = True):
     #!!! Not clean
     return corrf
 
-def bleaching_correct_sliding(stack, plot = True, wsize = 5000):
-    trace = stack.sum(axis=(1,2))
+def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
     u = trace.size//wsize
     new_trace = trace.copy()
     m1 = trace[:wsize].mean()
@@ -89,29 +86,40 @@ class StackFCS(object):
             self.stack = self.stack - self.stack.min()
             print("background correction on")
         if blcorrf is not None:
-            corrfactor = blcorrf(self.stack)
+            self.blcorrf = blcorrf
+            """corrfactor = blcorrf(self.stack)
             self.stack = self.stack*corrfactor[:,np.newaxis,np.newaxis]
-            print("bleaching correction on")
+            print("bleaching correction on")"""
         self.correl_dicts = {}
+        self.traces_dict = {}
         self.dt = dt
     
     def correlate_stack(self,nSum):
-        
+        """Only method that correlates """
         if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:
             raise ValueError("Trying to sum more pixels than present in the stack")
         if nSum not in self.correl_dicts.keys():
             print("correlating stack, binning {}".format(nSum))
             correls = []
+            traces = []
             u,v,w = self.stack.shape
             for i in range(v//nSum):
                 ctmp = []
+                trtmp = []
                 for j in range(w//nSum):
                     trace = self.stack[:,i*nSum:i*nSum+nSum,j*nSum:j*nSum+nSum].mean(axis=(1,2))
+                    if self.blcorrf is not None:
+                        corrfactor = self.blcorrf(trace)
+                        trace = trace*corrfactor
                     corr = multipletau.autocorrelate(trace, normalize=True, deltat = self.dt)[1:]
                     ctmp.append(corr)
+                    trtmp.append(trace)
                 correls.append(ctmp)
+                traces.append(trtmp)
             correls = np.asarray(correls)
+            
             self.correl_dicts[nSum] = correls
+            self.traces_dict[nSum] = np.asarray(traces)
             
     def get_curve(self, i0 = 0, j0 =0, nSum=1):
         self.correlate_stack(nSum)
@@ -200,6 +208,23 @@ class StackFCS(object):
         plt.xlabel("Binning")
         plt.ylabel("Sqrt Curve amplitude")
         plt.xscale('log')
+        plt.legend()
+    
+    def plot_random_intensity(self):
+        nSum = min(self.traces_dict.keys())
+        traces_arr = self.traces_dict[nSum]
+        trace_raw = self.stack.mean(axis=(1,2))
+        u,v = traces_arr.shape[:2]
+        u1 = np.random.choice(u)
+        v1 = np.random.choice(v)
+        trace = traces_arr[u1,v1]
+        
+        plt.figure()
+        plt.plot(trace, label = "Corrected")
+        plt.axhline(trace.mean(),color="k",linestyle="--")
+        plt.plot(trace_raw,label = "Raw average intensity")
+        plt.xlabel("Time (frames)")
+        plt.ylabel("Intensity")
         plt.legend()
         
 if __name__=="__main__":
