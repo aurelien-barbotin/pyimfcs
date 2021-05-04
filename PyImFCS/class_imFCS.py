@@ -77,7 +77,7 @@ def get_image_metadata(path):
     return meta_dict
     
 class StackFCS(object):
-    def __init__(self, path, mfactor = 8, dt=1, background_correction = True, 
+    def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None):
         self.path = path
         self.stack = tifffile.imread(path)
@@ -96,8 +96,21 @@ class StackFCS(object):
         self.traces_dict = {}
         self.parfit_dict = {}
         self.yh_dict = {}
-        
+        metadata = get_image_metadata(path)
+        try:
+            dt = metadata['finterval']
+            xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1']*10**6
+            yscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY #1']*10**6
+        except:
+            print('error loading metadata')
+            dt = 1
+            xscale = 1
+            yscale = 1
         self.dt = dt
+        self.xscale = xscale
+        self.yscale = yscale
+        if xscale!=yscale:
+            raise ValueError('Not square pixels')
     
     def correlate_stack(self,nSum):
         """Only method that correlates """
@@ -237,8 +250,9 @@ class StackFCS(object):
         plt.xscale('log')
         plt.legend()
     
-    def plot_random_intensity(self):
-        nSum = min(self.traces_dict.keys())
+    def plot_random_intensity(self, nSum = None):
+        if nSum is None:
+            nSum = min(self.traces_dict.keys())
         traces_arr = self.traces_dict[nSum]
         trace_raw = self.stack.mean(axis=(1,2))
         u,v = traces_arr.shape[:2]
@@ -258,20 +272,41 @@ class StackFCS(object):
         curves = self.correl_dicts[nSum]
         sp1 = np.asarray(curves.shape)
         fits = self.yh_dict[nSum]
-        indices = np.arange(fits.shape[0])
-        if maxcurves is not None:
-            indices = np.random.choice(np.a)
         fig,axes = plt.subplots(1,2,sharex=True,sharey=True)
         jj = 0
-        for j in range(sp1[0]):
-            for k in range(sp1[1]):
-                corr = curves[j,k]
-                yh = fits[j,k]
-                a = corr[:3,1].mean()
-                axes[0].semilogx(corr[:,0],corr[:,1]/a+dz*jj)
-                axes[0].semilogx(corr[:,0],yh/a+dz*jj, color="k",linestyle="--")
-                axes[1].semilogx(yh/a-corr[:,1]/a+dz*jj)
-                jj+=1
+        
+        indices = np.arange(sp1[0]*sp1[1])
+        indices1 = indices//sp1[1]
+        indices2 = indices-(indices1)*sp1[1]
+        if maxcurves is not None:
+            indices = np.random.choice(np.arange(sp1[0]*sp1[1]),maxcurves)
+            
+        for i in indices:
+            j = indices1[i]
+            k = indices2[i]
+            corr = curves[j,k]
+            yh = fits[j,k]
+            a = corr[:3,1].mean()
+            axes[0].semilogx(corr[:,0],corr[:,1]/a+dz*jj)
+            axes[0].semilogx(corr[:,0],yh/a+dz*jj, color="k",linestyle="--")
+            axes[1].semilogx(corr[:,0],yh/a-corr[:,1]/a+dz*jj, 
+                             label = "curve ({},{})".format(j,k))
+            jj+=1
+        axes[1].legend()
+    def plot_D(self):
+        nsums = sorted(self.parfit_dict.keys())
+        ds_means = list()
+        ds_std = list()
+        
+        for ns in nsums:
+            ds = self.parfit_dict[ns][:,:,1]
+            ds_means.append(np.mean(ds))
+            ds_std.append(np.std(ds))
+        plt.figure()
+        plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
+        plt.xlabel("Binning size")
+        plt.ylabel("D (um2/s)")
+        
 if __name__=="__main__":
     plt.close('all')
     path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/40percent_imFCS_002_t1_stack.tif"

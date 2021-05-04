@@ -10,6 +10,8 @@ import numpy as np
 from scipy.special import erf
 from scipy.optimize import curve_fit
 
+from inspect import signature
+
 def make_Gim2D(a,sigma, ginf=False):
     """Creates a fit function taking into account paramters of PSF
     
@@ -167,9 +169,12 @@ class Fitter(object):
     def fit(self,curve):
         try:
             popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1])
+            yh = self.fitter(curve[:,0],*popt)
+            return popt, yh
         except:
             print("Fitting error")
-            popt = -1
-        yh = self.fitter(curve[:,0],*popt)
-        return popt, yh
+            sig = signature(self.fitter)
+            popt = [-1]*(len(sig.parameters)-1)
+            yh = np.zeros_like(curve[:,0])
+            return popt, yh
     
