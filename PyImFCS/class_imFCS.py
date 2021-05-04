@@ -38,9 +38,8 @@ def bleaching_correct_exp(trace, plot = False):
         plt.plot(xt,subtr)
         plt.plot(xt,trf,color='k',linestyle='--')
         plt.plot(xt,new_tr)
-    corrf = new_tr/trace
     #!!! Not clean
-    return corrf
+    return new_tr
 
 def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
     u = trace.size//wsize
@@ -56,7 +55,7 @@ def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
         plt.figure()
         plt.plot(trace)
         plt.plot(new_trace)
-    return corrf
+    return corrf*trace
 
 def get_image_metadata(path):    
     img = tifffile.TiffFile(path)
@@ -78,7 +77,7 @@ def get_image_metadata(path):
     
 class StackFCS(object):
     def __init__(self, path, mfactor = 8, background_correction = True, 
-                 blcorrf = None,first_n=0, last_n = 0, fitter = None):
+                 blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None):
         self.path = path
         self.stack = tifffile.imread(path)
         self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
@@ -86,31 +85,29 @@ class StackFCS(object):
         
         if background_correction:
             self.stack = self.stack - self.stack.min()
-            
-        if blcorrf is not None:
-            self.blcorrf = blcorrf
-            """corrfactor = blcorrf(self.stack.mean(axis=(1,2)))
-            self.stack = self.stack*corrfactor[:,np.newaxis,np.newaxis]
-            print("bleaching correction on")"""
+
+        self.blcorrf = blcorrf
+           
         self.correl_dicts = {}
         self.traces_dict = {}
         self.parfit_dict = {}
         self.yh_dict = {}
-        metadata = get_image_metadata(path)
-        try:
-            dt = metadata['finterval']
-            xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1']*10**6
-            yscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY #1']*10**6
-        except:
-            print('error loading metadata')
-            dt = 1
-            xscale = 1
-            yscale = 1
+        if dt is None:
+            try:
+                metadata = get_image_metadata(path)
+                dt = metadata['finterval']
+                xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1']*10**6
+                yscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY #1']*10**6
+                self.xscale = xscale
+                self.yscale = yscale
+                if xscale!=yscale:
+                    raise ValueError('Not square pixels')
+            except:
+                print('error loading metadata')
+                dt = 1
+                xscale = 1
+                yscale = 1
         self.dt = dt
-        self.xscale = xscale
-        self.yscale = yscale
-        if xscale!=yscale:
-            raise ValueError('Not square pixels')
     
     def correlate_stack(self,nSum):
         """Only method that correlates """
@@ -127,8 +124,7 @@ class StackFCS(object):
                 for j in range(w//nSum):
                     trace = self.stack[:,i*nSum:i*nSum+nSum,j*nSum:j*nSum+nSum].mean(axis=(1,2))
                     if self.blcorrf is not None:
-                        corrfactor = self.blcorrf(trace)
-                        trace = trace*corrfactor
+                        trace = self.blcorrf(trace)
                     corr = multipletau.autocorrelate(trace, normalize=True, deltat = self.dt)[1:]
                     ctmp.append(corr)
                     trtmp.append(trace)
@@ -293,6 +289,7 @@ class StackFCS(object):
                              label = "curve ({},{})".format(j,k))
             jj+=1
         axes[1].legend()
+        
     def plot_D(self):
         nsums = sorted(self.parfit_dict.keys())
         ds_means = list()
@@ -306,7 +303,8 @@ class StackFCS(object):
         plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
         plt.xlabel("Binning size")
         plt.ylabel("D (um2/s)")
-        
+        return nsums, ds_means, ds_std
+    
 if __name__=="__main__":
     plt.close('all')
     path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/40percent_imFCS_002_t1_stack.tif"
