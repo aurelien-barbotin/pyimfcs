@@ -23,7 +23,7 @@ scale = 0.5 #pixels
 psize = 100
 sigma_psf = 110/psize
 dt = 4.7*10**-3 # s
-D = 5 #um2/s
+D =  #um2/s
 
 brightness = 18*10**3 #Hz/molecule
 

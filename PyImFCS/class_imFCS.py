@@ -41,6 +41,62 @@ def bleaching_correct_exp(trace, plot = False):
     #!!! Not clean
     return new_tr
 
+def blexp_offset(trace, plot=False):
+    #!!! Super artisanal
+    def expf(x,f0,tau,c):
+        return f0*np.exp(-x/tau)+c
+    
+    subtr = trace/trace.max()
+    xt = np.arange(subtr.size)
+    
+    popt,_ = curve_fit(expf,xt,subtr)
+    #popt=[4.7*10**6,18]
+    trf = expf(xt,*popt)
+    
+    def cortrace(tr,popt):
+        xt = np.arange(tr.size)
+        fi = expf(xt,*popt)
+        f0 = popt[0]
+        new_tr = tr/np.sqrt(fi/f0)+f0*(1-np.sqrt(fi/f0))
+        return (new_tr+popt[2])
+    new_tr = cortrace(subtr,popt)*trace.max()
+    
+    if plot:
+        plt.figure()
+        plt.plot(subtr)
+        plt.plot(trf,color="k",linestyle="--")
+        plt.plot(new_tr)
+    return new_tr
+
+def blexp_double_offset(trace, plot=False):
+    def expf(x,f0,tau,b,tau2,c):
+        return f0*(np.exp(-x/tau)+b*np.exp(-x/tau2))+c
+    
+    subtr = trace/trace.max()
+    xt = np.arange(subtr.size)
+    p0 = (1,trace.size//10,1,trace.size//10,subtr.min())
+    bounds = ((0, 1, 0, 1, 0),
+              (2, trace.size*10, 1, trace.size*10,1))
+    popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
+    #popt=[4.7*10**6,18]
+    trf = expf(xt,*popt)
+    
+    def cortrace(tr,popt):
+        xt = np.arange(tr.size)
+        fi = expf(xt,*popt)
+        f0 = popt[0]
+        new_tr = tr/np.sqrt(fi/f0)+f0*(1-np.sqrt(fi/f0))
+        return new_tr/new_tr.mean()
+    new_tr = cortrace(subtr,popt)
+    
+    if plot:
+        plt.figure()
+        plt.plot(subtr)
+        plt.plot(trf,color="k",linestyle="--")
+        plt.plot(new_tr)
+        
+    return new_tr*trace.max()
+
 def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
     u = trace.size//wsize
     new_trace = trace.copy()
@@ -209,7 +265,7 @@ class StackFCS(object):
             axes[1].set_ylabel(r"$\rm G(\tau)$")
         return all_corrs
     
-    def fit_curves(self,fitter):
+    def fit_curves(self,fitter,xmax=None):
         self.fitter = fitter
         nsums = self.correl_dicts.keys()
         for nsum in nsums:
@@ -222,8 +278,11 @@ class StackFCS(object):
                 yh_tmp = []
                 for k in range(correls.shape[1]):
                     corr = correls[j,k]
-                    popt, yh = fitter.fit(corr)
-                    
+                    if xmax is None:
+                        popt, yh = fitter.fit(corr)
+                    else:
+                        popt, yh = fitter.fit(corr[corr[:,0]<xmax,:])
+                        
                     popt_tmp.append(popt)
                     yh_tmp.append(yh)
                 popts.append(popt_tmp)
@@ -284,8 +343,8 @@ class StackFCS(object):
             yh = fits[j,k]
             a = corr[:3,1].mean()
             axes[0].semilogx(corr[:,0],corr[:,1]/a+dz*jj)
-            axes[0].semilogx(corr[:,0],yh/a+dz*jj, color="k",linestyle="--")
-            axes[1].semilogx(corr[:,0],yh/a-corr[:,1]/a+dz*jj, 
+            axes[0].semilogx(corr[:yh.size,0],yh/a+dz*jj, color="k",linestyle="--")
+            axes[1].semilogx(corr[:yh.size,0],yh/a-corr[:yh.size,1]/a+dz*jj, 
                              label = "curve ({},{})".format(j,k))
             jj+=1
         axes[1].legend()
