@@ -133,7 +133,8 @@ def get_image_metadata(path):
     
 class StackFCS(object):
     def __init__(self, path, mfactor = 8, background_correction = True, 
-                 blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None):
+                 blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
+                 remove_zeroes=False):
         self.path = path
         self.stack = tifffile.imread(path)
         self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
@@ -161,10 +162,16 @@ class StackFCS(object):
             except:
                 print('error loading metadata')
                 dt = 1
-                xscale = 1
-                yscale = 1
+                self.xscale = 1
+                self.yscale = 1
         self.dt = dt
     
+        if remove_zeroes:
+            print("Achtung! Removing zeroes in the intensity timetrace may lead to artefacts!")
+            trace=self.stack.sum(axis=(1,2))
+            if np.any(trace==0):
+                self.stack=self.stack[trace!=0,:,:]
+                
     def correlate_stack(self,nSum):
         """Only method that correlates """
         if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:
@@ -256,6 +263,10 @@ class StackFCS(object):
                 axes[1].semilogx(corr[:,0], corr[:,1]/corr[:n_norm,1].mean(),
                                  label = "Binning {}".format(sl))
         if plot:
+            axes[1].axvline(self.dt*self.stack.shape[0]/1000,color="k",
+                            label="Max unbiased transit time")
+            axes[1].axvline(self.dt*10,color="k",
+                            label="Min unbiased transit time")
             axes[1].legend()
             axes[0].set_title("Raw curves")
             axes[1].set_title("Normalised curves")
@@ -349,21 +360,117 @@ class StackFCS(object):
             jj+=1
         axes[1].legend()
         
-    def plot_D(self):
+    def plot_D(self, show_acceptable=True):
         nsums = sorted(self.parfit_dict.keys())
+        nsums = np.asarray(nsums)
         ds_means = list()
         ds_std = list()
         
+        if show_acceptable:
+            psize = self.fitter.parameters_dict["a"]
+            if "sigmaxy" in self.fitter.parameters_dict:
+                sigmaxy = self.fitter.parameters_dict["sigmaxy"]
+            else:
+                sigmaxy = self.fitter.parameters_dict["sigma"]
+            sigmaxy = sigmaxy*np.sqrt(8*np.log(2)) #fwhm
+            observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
+            if self.fitter.name=="2D":
+                factor = 4
+            elif self.fitter.name=="3D":
+                factor=6
+            dmax = observation_sizes**2/(factor*self.dt*10)
+            dmins = observation_sizes**2/(factor*self.dt*self.stack.shape[0]/1000)
         for ns in nsums:
             ds = self.parfit_dict[ns][:,:,1]
             ds_means.append(np.mean(ds))
             ds_std.append(np.std(ds))
         plt.figure()
+        if show_acceptable:
+            plt.plot(nsums,dmins,color="gray")
+            plt.plot(nsums,dmax,color="gray")
         plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
         plt.xlabel("Binning size")
         plt.ylabel("D (um2/s)")
         return nsums, ds_means, ds_std
     
+    def plot_taus(self, show_acceptable=True):
+        nsums = sorted(self.parfit_dict.keys())
+        nsums = np.asarray(nsums)
+        ds_means = list()
+        ds_std = list()
+        
+        if show_acceptable:
+            psize = self.fitter.parameters_dict["a"]
+            if "sigmaxy" in self.fitter.parameters_dict:
+                sigmaxy = self.fitter.parameters_dict["sigmaxy"]
+            else:
+                sigmaxy = self.fitter.parameters_dict["sigma"]
+            sigmaxy = sigmaxy*np.sqrt(8*np.log(2)) #fwhm
+            observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
+
+            dmax = np.ones_like(nsums)*(self.dt*10)
+            dmins = np.ones_like(nsums)*self.dt*self.stack.shape[0]/1000
+        
+        for j,ns in enumerate(nsums):
+            ds = self.parfit_dict[ns][:,:,1]
+            taus = observation_sizes[j]**2/ds
+            ds_means.append(np.mean(taus))
+            ds_std.append(np.std(taus))
+        ds_means=np.asarray(ds_means)
+        
+        plt.figure()
+        if show_acceptable:
+            plt.plot(nsums,dmins,color="gray")
+            plt.plot(nsums,dmax,color="gray")
+        plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
+        plt.xlabel("Binning size")
+        plt.ylabel("tau (s)")
+        return nsums, ds_means, ds_std
+    
+    def parameter_map(self,nsum = None,parn=1):
+        if nsum is None:
+            nsum = min(self.parfit_dict.keys())
+        out = self.parfit_dict[nsum][:,:,parn]
+        out = np.repeat(out,nsum,axis=0)
+        out = np.repeat(out,nsum,axis=1)
+        return out
+    
+    def plot_parameter_maps(self,nsums, parn=1):
+        assert len(nsums)>=1
+        assert len(nsums)<=5
+        
+        nr = int(np.sqrt(len(nsums)+1))
+        nc = (len(nsums)+1)//nr
+     
+        fig,axes = plt.subplots(nr,nc, sharex = True, sharey = True)
+        axes=axes.ravel()
+        ax0 = axes[0]
+        ax0.imshow(self.stack.mean(axis=0),cmap="gray")
+        parmaps = list()
+        for j in range(len(nsums)):
+            nsum = nsums[j]
+            parmap = self.parameter_map(nsum=nsum,parn=parn)
+            parmaps.append(parmap)
+        vmin = min([w.min() for w in parmaps])
+        vmax = max([w.max() for w in parmaps])
+        for j in range(len(nsums)):
+            im=axes[j+1].imshow(parmap,cmap="hot")
+            fig.colorbar(im,ax=axes[j+1])
+            
+    def plot_intensity_correlation(self,nsum,parn=1):
+        parmap = self.parfit_dict[nsum][:,:,parn]
+        parameters = list()
+        intensities = list()
+        stack_avg = self.stack.mean(axis=0)
+        for j in range(parmap.shape[0]):
+            for k in range(parmap.shape[0]):
+                parameters.append(parmap[j,k])
+                intensities.append(stack_avg[j*nsum:(j+1)*nsum, 
+                                             k*nsum:(k+1)*nsum].mean())
+        plt.figure()
+        plt.scatter(parameters,intensities)
+        plt.xlabel("Parameter")
+        plt.ylabel("Intensity")
 if __name__=="__main__":
     plt.close('all')
     path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/40percent_imFCS_002_t1_stack.tif"
