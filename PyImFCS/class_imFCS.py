@@ -13,6 +13,8 @@ from scipy.optimize import curve_fit
     
 from PIL import Image
 from PIL.TiffTags import TAGS
+import h5py
+import os
 
 def bleaching_correct_exp(trace, plot = False):
     def expf(x,f0,tau):
@@ -132,6 +134,9 @@ def get_image_metadata(path):
     return meta_dict
     
 class StackFCS(object):
+    dic_names = ["correlations", "traces", "parameters_fits","yhat"]
+    parameters_names = ["dt","xscale","yscale","path"]
+    
     def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
                  remove_zeroes=False):
@@ -170,8 +175,53 @@ class StackFCS(object):
             print("Achtung! Removing zeroes in the intensity timetrace may lead to artefacts!")
             trace=self.stack.sum(axis=(1,2))
             if np.any(trace==0):
+                print('frames removed')
                 self.stack=self.stack[trace!=0,:,:]
                 
+    def save(self,name = None):
+        
+        if name is None:
+            name = os.path.splitext(self.path)[0]+".h5"
+        if not name.endswith(".h5"):
+            name+=".h5"
+        if os.path.isfile(name):
+            os.remove(name)
+            print("Removing existing file with same name")
+        h5f = h5py.File(name, "w")
+        
+        dicts_to_save = [self.correl_dicts,self.traces_dict,self.parfit_dict, self.yh_dict]
+        for j, dic in enumerate(dicts_to_save):
+            dname = self.dic_names[j]
+            for key, item in dic.items():
+                h5f[dname+"/"+str(key)] = item
+        
+        for pn in self.parameters_names:
+            h5f["parameters/"+pn] = getattr(self,pn)
+        h5f["blcorrf"] = self.blcorrf.__name__
+        
+    def load(self,name = None):
+        if name is None:
+            name = os.path.splitext(self.path)[0]+".h5"
+            
+        h5f = h5py.File(name, "r")
+        dicts_to_load  = {"correlations":self.correl_dicts,
+                          "traces":self.traces_dict,
+                          "parameters_fits":self.parfit_dict, 
+                          "yhat": self.yh_dict}
+        
+        for j in range(len(dicts_to_load)):
+            dname = self.dic_names[j]
+            if dname not in h5f.keys():
+                print("grougrou")
+                continue
+            out_dic = dicts_to_load[dname]
+            ds = h5f[dname]
+            for key in ds.keys():
+                dd = ds[key][()]
+                out_dic[int(key)] = dd
+    
+        for par in h5f["parameters"].keys():
+            setattr(self,par,h5f["parameters"][par][()])
     def correlate_stack(self,nSum):
         """Only method that correlates """
         if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:
@@ -441,7 +491,8 @@ class StackFCS(object):
         
         nr = int(np.sqrt(len(nsums)+1))
         nc = (len(nsums)+1)//nr
-     
+        if nr*nc<len(nsums)+1:
+            nc+=1
         fig,axes = plt.subplots(nr,nc, sharex = True, sharey = True)
         axes=axes.ravel()
         ax0 = axes[0]
@@ -454,7 +505,7 @@ class StackFCS(object):
         vmin = min([w.min() for w in parmaps])
         vmax = max([w.max() for w in parmaps])
         for j in range(len(nsums)):
-            im=axes[j+1].imshow(parmap,cmap="hot")
+            im=axes[j+1].imshow(parmaps[j],cmap="hot")
             fig.colorbar(im,ax=axes[j+1])
             
     def plot_intensity_correlation(self,nsum,parn=1):
