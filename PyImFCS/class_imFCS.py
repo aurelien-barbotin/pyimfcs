@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 
 from scipy.optimize import curve_fit
     
-from PIL import Image
-from PIL.TiffTags import TAGS
 import h5py
 import os
 
