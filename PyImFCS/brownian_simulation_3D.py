@@ -22,18 +22,21 @@ scale = 0.5 #pixels
 # pixel size: 100 nm
 psize = 100
 sigma_psf = 110/psize
+sigmaz = 440/psize
+
 dt = 4.7*10**-3 # s
-D = 1 #um2/s
+D = 0.2 #um2/s
 
 brightness = 18*10**3 #Hz/molecule
 
 npixels = 500
 
 nsteps = 20000
-nparts = 20
+nparts = 200
 
-pos0 = np.random.uniform(size = (nparts,2))*npixels-npixels/2
-moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize*10**-3),size = (nsteps,nparts,2) )
+pos0 = np.random.uniform(size = (nparts,3))*npixels-npixels/2
+moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize*10**-3),size = (nsteps,nparts,3) )
+#!!! might be error in scaling factor
 
 positions = np.cumsum(moves,axis=0)
 positions = positions+pos0[np.newaxis,:,:]
@@ -47,11 +50,16 @@ stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
 for j in range(nsteps):
     
     positions_new = positions[j]
-    positions_new = positions_new[np.logical_and(np.abs(positions_new[:,0])<=npix_img+1,np.abs(positions_new[:,1])<=npix_img+1 )]
-    positions_new = positions_new.astype(int) + npix_img
+    positions_new = positions_new[
+         np.logical_and(np.logical_and(np.abs(positions_new[:,0])<=npix_img+1,
+                       np.abs(positions_new[:,1])<=npix_img+1),
+                       np.abs(positions_new[:,2])<=npix_img+1)]
+    positions_new = positions_new + npix_img
+    subst = np.zeros((npix_img*2+1, npix_img*2+1, npix_img*2+1))
     for k in range(len(positions_new)):
-        stack[j, positions_new[k, 0],positions_new[k, 1]]+=1
-    stack[j] = gaussian(stack[j],sigma = sigma_psf)
+        subst[int(positions_new[k, 0]),int(positions_new[k, 1]), int(positions_new[k, 2])]+= 400
+    subst = gaussian(subst,sigma=(sigma_psf,sigma_psf,sigmaz))
+    stack[j] = subst[:,:,npix_img]
     
     if j%500==0:
         print("Processing frame {}".format(j))
@@ -66,14 +74,15 @@ plt.figure()
 plt.imshow(stack[0])
 if plot:
     plt.figure()
-    plt.subplot(121)
-    plt.plot(positions[:,50,0], positions[:,50,1])
+    plt.subplot(131)
+    plt.plot(positions[:,0,0], positions[:,0,1])
     
-    plt.subplot(122)
+    plt.subplot(132)
     for j in range(10):
         plt.plot(positions[:,j,0], positions[:,j,1])
+    plt.subplot(133)
+    plt.imshow(stack[3000])
 
 save=True
 if save:
-    stack = stack.astype(np.uint16)
-    tifffile.imwrite("simulation2_4p7msexp_D{:.2f}.tif".format(D),stack)
+    tifffile.imwrite("3Dsimulation2_4p7msexp_D{:.2f}.tif".format(D),stack.astype(np.uint16))
