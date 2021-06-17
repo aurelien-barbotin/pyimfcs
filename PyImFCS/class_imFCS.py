@@ -14,6 +14,8 @@ from scipy.optimize import curve_fit
 import h5py
 import os
 
+from skimage.filters import threshold_otsu
+
 def bleaching_correct_exp(trace, plot = False):
     def expf(x,f0,tau):
         return f0*np.exp(-x/tau)
@@ -77,7 +79,10 @@ def blexp_double_offset(trace, plot=False):
     p0 = (1,trace.size//10,1,trace.size//10,subtr.min())
     bounds = ((0, 1, 0, 1, 0),
               (2, trace.size*10, 1, trace.size*10,1))
-    popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
+    try:
+        popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
+    except:
+        return trace
     #popt=[4.7*10**6,18]
     trf = expf(xt,*popt)
     
@@ -113,7 +118,7 @@ def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
         plt.plot(new_trace)
     return corrf*trace
 
-def get_image_metadata(path):    
+def get_image_metadata(path):
     img = tifffile.TiffFile(path)
     meta_dict = img.imagej_metadata
     description = meta_dict.pop('Info')
@@ -167,6 +172,10 @@ class StackFCS(object):
                 dt = 1
                 self.xscale = 1
                 self.yscale = 1
+        else:
+            self.xscale = 1
+            self.yscale = 1
+            
         self.dt = dt
     
         if remove_zeroes:
@@ -195,8 +204,11 @@ class StackFCS(object):
         
         for pn in self.parameters_names:
             h5f["parameters/"+pn] = getattr(self,pn)
-        h5f["blcorrf"] = self.blcorrf.__name__
-        
+        if self.blcorrf is not None:
+            h5f["blcorrf"] = self.blcorrf.__name__
+        else:
+            h5f["blcorrf"] = 'None'
+            
     def load(self,name = None):
         if name is None:
             name = os.path.splitext(self.path)[0]+".h5"
@@ -220,6 +232,7 @@ class StackFCS(object):
     
         for par in h5f["parameters"].keys():
             setattr(self,par,h5f["parameters"][par][()])
+            
     def correlate_stack(self,nSum):
         """Only method that correlates """
         if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:
@@ -275,12 +288,21 @@ class StackFCS(object):
     def get_correlation_dict(self):
         return self.correl_dicts
     
-    def average_curve(self, nSum=1, plot = False):
+    def average_curve(self, nSum=1, plot = False, threshold = False):
         self.correlate_stack(nSum)
         
         correls = self.correl_dicts[nSum]
+        if threshold:
+            th = self.get_threshold_map(nSum)
+            print(correls.shape)
+            print(th.shape)
+            cs=correls[th]
+            print(cs.shape)
+            avg = cs[:,:,1].mean(axis=(0))
+        else:
+            avg = correls[:,:,:,1].mean(axis=(0,1))
+        
         print("Nsum avg curve",nSum)
-        avg = correls[:,:,:,1].mean(axis=(0,1))
         if plot:
             plt.figure()
             plt.semilogx(correls[0,0,:,0],avg)
@@ -298,12 +320,16 @@ class StackFCS(object):
             plt.ylabel("Counts")
         return tr
     
-    def binned_average_curves(self, sum_list, plot=True, n_norm = 8):
+    def plot_sum_img(self):
+        plt.figure()
+        plt.imshow(self.stack.mean(axis=0))
+        
+    def binned_average_curves(self, sum_list, plot=True, n_norm = 8, threshold = False):
         if plot:
             fig, axes = plt.subplots(1,2)
         all_corrs = []
         for sl in sum_list:
-            corr = self.average_curve(nSum=sl)
+            corr = self.average_curve(nSum=sl, threshold = threshold)
             all_corrs.append(corr)
             if plot:
                 axes[0].semilogx(corr[:,0], corr[:,1], 
@@ -311,7 +337,7 @@ class StackFCS(object):
                 axes[1].semilogx(corr[:,0], corr[:,1]/corr[:n_norm,1].mean(),
                                  label = "Binning {}".format(sl))
         if plot:
-            axes[1].axvline(self.dt*self.stack.shape[0]/1000,color="k",
+            axes[1].axvline(self.dt*self.stack.shape[0]/100,color="k",
                             label="Max unbiased transit time")
             axes[1].axvline(self.dt*10,color="k",
                             label="Min unbiased transit time")
@@ -427,11 +453,14 @@ class StackFCS(object):
             elif self.fitter.name=="3D":
                 factor=6
             dmax = observation_sizes**2/(factor*self.dt*10)
-            dmins = observation_sizes**2/(factor*self.dt*self.stack.shape[0]/1000)
+            dmins = observation_sizes**2/(factor*self.dt*self.stack.shape[0]/100)
         for ns in nsums:
             ds = self.parfit_dict[ns][:,:,1]
-            ds_means.append(np.mean(ds))
-            ds_std.append(np.std(ds))
+            ds_means.append(np.median(ds))
+            ds_std.append( (np.percentile(ds,75)-np.percentile(ds,25))/2)
+        ds_means = np.asarray(ds_means)
+        ds_std = np.asarray(ds_std)
+        
         plt.figure()
         if show_acceptable:
             plt.plot(nsums,dmins,color="gray")
@@ -439,6 +468,9 @@ class StackFCS(object):
         plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
         plt.xlabel("Binning size")
         plt.ylabel("D (um2/s)")
+        ymin = np.min(ds_means-ds_std)
+        ymax = np.max(ds_means+ds_std)
+        plt.ylim(bottom=ymin, top = ymax)
         return nsums, ds_means, ds_std
     
     def plot_taus(self, show_acceptable=True):
@@ -457,13 +489,13 @@ class StackFCS(object):
             observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
 
             dmax = np.ones_like(nsums)*(self.dt*10)
-            dmins = np.ones_like(nsums)*self.dt*self.stack.shape[0]/1000
+            dmins = np.ones_like(nsums)*self.dt*self.stack.shape[0]/100
         
         for j,ns in enumerate(nsums):
             ds = self.parfit_dict[ns][:,:,1]
             taus = observation_sizes[j]**2/ds
-            ds_means.append(np.mean(taus))
-            ds_std.append(np.std(taus))
+            ds_means.append(np.median(taus))
+            ds_std.append((np.percentile(taus,75)-np.percentile(taus,25)))
         ds_means=np.asarray(ds_means)
         
         plt.figure()
@@ -482,6 +514,47 @@ class StackFCS(object):
         out = np.repeat(out,nsum,axis=0)
         out = np.repeat(out,nsum,axis=1)
         return out
+    
+    def get_param_threshold(self,nsum,thf=None, plot = False, parn = 1):
+                
+        img = self.stack.mean(axis=0).astype(float)
+        if thf is None:
+            thf = threshold_otsu
+        thresholded = img>thf(img)
+
+        th = thresholded.astype(float)
+        uu = thresholded.shape[0] - thresholded.shape[0]%nsum
+        vv = thresholded.shape[1] - thresholded.shape[1]%nsum
+        
+        
+        out = np.zeros((thresholded.shape[0]//nsum, thresholded.shape[1]//nsum))
+        for j in range(nsum):
+            for k in range(nsum):
+                out+=th[:uu,:vv][j::nsum,k::nsum]
+        
+        to_keep = out==nsum**2
+        if plot:
+            plt.figure()
+            plt.subplot(121)
+            plt.imshow(img)
+            
+            plt.subplot(122)
+            plt.imshow(to_keep)
+            
+        return self.parfit_dict[nsum][:uu,:vv,parn][to_keep]
+    
+    def get_threshold_map(self,nsum,thf=None):
+        img = self.stack.sum(axis=0).astype(float)
+        if thf is None:
+            thf = threshold_otsu
+        thresholded = (img>thf(img)).astype(float)
+        out = np.zeros((thresholded.shape[0]//nsum, thresholded.shape[1]//nsum))
+        for j in range(nsum):
+            for k in range(nsum):
+                out+=thresholded[j::nsum,k::nsum]
+        
+        to_keep = out==nsum**2
+        return to_keep
     
     def plot_parameter_maps(self,nsums, parn=1):
         assert len(nsums)>=1
