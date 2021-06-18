@@ -148,6 +148,8 @@ class StackFCS(object):
         self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
         self.fitter = fitter
         
+        self.threshold_map = None
+        
         if background_correction:
             self.stack = self.stack - self.stack.min()
 
@@ -233,6 +235,9 @@ class StackFCS(object):
         for par in h5f["parameters"].keys():
             setattr(self,par,h5f["parameters"][par][()])
             
+    def set_threshold_map(self,th_map):
+        self.threshold_map = th_map
+        
     def correlate_stack(self,nSum):
         """Only method that correlates """
         if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:
@@ -275,6 +280,10 @@ class StackFCS(object):
     def get_all_curves(self,nSum=1, spacing=0, npts = None, plot = True):
         self.correlate_stack(nSum)
         correls = self.correl_dicts[nSum]
+        
+        if self.threshold_map is not None:
+            pass
+        
         u,v = correls.shape[0], correls.shape[1]
         spc = np.percentile(correls[:,:,:,1],95)*spacing
         if plot:
@@ -288,16 +297,13 @@ class StackFCS(object):
     def get_correlation_dict(self):
         return self.correl_dicts
     
-    def average_curve(self, nSum=1, plot = False, threshold = False):
+    def average_curve(self, nSum=1, plot = False):
         self.correlate_stack(nSum)
         
         correls = self.correl_dicts[nSum]
-        if threshold:
+        if self.threshold_map is not None:
             th = self.get_threshold_map(nSum)
-            print(correls.shape)
-            print(th.shape)
             cs=correls[th]
-            print(cs.shape)
             avg = cs[:,:,1].mean(axis=(0))
         else:
             avg = correls[:,:,:,1].mean(axis=(0,1))
@@ -324,12 +330,12 @@ class StackFCS(object):
         plt.figure()
         plt.imshow(self.stack.mean(axis=0))
         
-    def binned_average_curves(self, sum_list, plot=True, n_norm = 8, threshold = False):
+    def binned_average_curves(self, sum_list, plot=True, n_norm = 8):
         if plot:
             fig, axes = plt.subplots(1,2)
         all_corrs = []
         for sl in sum_list:
-            corr = self.average_curve(nSum=sl, threshold = threshold)
+            corr = self.average_curve(nSum=sl)
             all_corrs.append(corr)
             if plot:
                 axes[0].semilogx(corr[:,0], corr[:,1], 
@@ -508,6 +514,7 @@ class StackFCS(object):
         return nsums, ds_means, ds_std
     
     def parameter_map(self,nsum = None,parn=1):
+        print('Caution! You are using a resampled parameter map')
         if nsum is None:
             nsum = min(self.parfit_dict.keys())
         out = self.parfit_dict[nsum][:,:,parn]
@@ -522,17 +529,10 @@ class StackFCS(object):
             thf = threshold_otsu
         thresholded = img>thf(img)
 
-        th = thresholded.astype(float)
         uu = thresholded.shape[0] - thresholded.shape[0]%nsum
         vv = thresholded.shape[1] - thresholded.shape[1]%nsum
         
-        
-        out = np.zeros((thresholded.shape[0]//nsum, thresholded.shape[1]//nsum))
-        for j in range(nsum):
-            for k in range(nsum):
-                out+=th[:uu,:vv][j::nsum,k::nsum]
-        
-        to_keep = out==nsum**2
+        to_keep=self.get_threshold_map(nsum, thf=thf)
         if plot:
             plt.figure()
             plt.subplot(121)
@@ -543,41 +543,79 @@ class StackFCS(object):
             
         return self.parfit_dict[nsum][:uu,:vv,parn][to_keep]
     
+    def get_param_coord(self, nsum,i0,j0,parn=1):
+        sums = self.correl_dicts.keys()
+        sums = sorted([w for w in sums if w<=nsum])
+        ds_means=list()
+        ds_std=list()
+        for ns in sums:
+            factor = nsum//ns
+            i00 = int(np.ceil(i0*nsum/ns))
+            i01 = int(np.floor((i0+1)*nsum/ns))
+            
+            j00 = int(np.ceil(j0*nsum/ns))
+            j01 = int(np.floor((j0+1)*nsum/ns))
+            # print("ns",ns,i00,i01,"j",j00,j01)
+            ds = self.parfit_dict[nsum][i00:i01,j00:j01, parn]
+            # print(ds.size)
+            ds_means.append(np.mean(ds))
+            ds_std.append(np.std(ds))
+        sums = np.asarray(sums)
+        ds_means = np.asarray(ds_means)
+        ds_std = np.asarray(ds_std)
+        mask = ~np.isnan(ds_means)
+        return sums[mask], ds_means[mask], ds_std[mask]
+    
     def get_threshold_map(self,nsum,thf=None):
         img = self.stack.sum(axis=0).astype(float)
         if thf is None:
             thf = threshold_otsu
         thresholded = (img>thf(img)).astype(float)
+        
+        uu = thresholded.shape[0] - thresholded.shape[0]%nsum
+        vv = thresholded.shape[1] - thresholded.shape[1]%nsum
+        
         out = np.zeros((thresholded.shape[0]//nsum, thresholded.shape[1]//nsum))
         for j in range(nsum):
             for k in range(nsum):
-                out+=thresholded[j::nsum,k::nsum]
+                out+=thresholded[:uu,:vv][j::nsum,k::nsum]
         
         to_keep = out==nsum**2
         return to_keep
+    def downsample_image(self, nsum):
+        u,v,w=self.stack.shape
+        
+        img = self.stack.mean(axis=0)
+        out = np.zeros((v//nsum,w//nsum))
+        for i in range(v//nsum):
+            for j in range(w//nsum):
+                px = img[i*nsum:i*nsum+nsum,j*nsum:j*nsum+nsum].mean()
+                out[i,j] = px
+        return out
     
-    def plot_parameter_maps(self,nsums, parn=1):
+    def plot_parameter_maps(self,nsums, parn=1, cmap="jet"):
         assert len(nsums)>=1
         assert len(nsums)<=5
         
-        nr = int(np.sqrt(len(nsums)+1))
-        nc = (len(nsums)+1)//nr
-        if nr*nc<len(nsums)+1:
-            nc+=1
-        fig,axes = plt.subplots(nr,nc, sharex = True, sharey = True)
-        axes=axes.ravel()
-        ax0 = axes[0]
-        ax0.imshow(self.stack.mean(axis=0),cmap="gray")
+        nr = 2
+        nc = len(nsums)
+        
+        fig,axes = plt.subplots(nr,nc, sharex = "col", sharey = "col")
+        
         parmaps = list()
         for j in range(len(nsums)):
             nsum = nsums[j]
-            parmap = self.parameter_map(nsum=nsum,parn=parn)
+            parmap = self.parfit_dict[nsum][:,:,parn]
+            im=self.downsample_image(nsum)
             parmaps.append(parmap)
-        vmin = min([w.min() for w in parmaps])
-        vmax = max([w.max() for w in parmaps])
-        for j in range(len(nsums)):
-            im=axes[j+1].imshow(parmaps[j],cmap="hot")
-            fig.colorbar(im,ax=axes[j+1])
+            ax0 = axes[0,j]
+            ax1 = axes[1,j]
+            ax0.imshow(im,cmap="gray")
+            ax0.set_title('Binning {}'.format(nsum))
+            
+            im1 = ax1.imshow(parmap,cmap=cmap)
+            fig.colorbar(im1,ax=ax1)
+            
             
     def plot_intensity_correlation(self,nsum,parn=1):
         parmap = self.parfit_dict[nsum][:,:,parn]
