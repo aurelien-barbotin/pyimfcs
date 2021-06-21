@@ -544,12 +544,12 @@ class StackFCS(object):
         return self.parfit_dict[nsum][:uu,:vv,parn][to_keep]
     
     def get_param_coord(self, nsum,i0,j0,parn=1):
+        """Get the value of given parameters for all binning values below nsum"""
         sums = self.correl_dicts.keys()
         sums = sorted([w for w in sums if w<=nsum])
         ds_means=list()
         ds_std=list()
         for ns in sums:
-            factor = nsum//ns
             i00 = int(np.ceil(i0*nsum/ns))
             i01 = int(np.floor((i0+1)*nsum/ns))
             
@@ -565,6 +565,30 @@ class StackFCS(object):
         ds_std = np.asarray(ds_std)
         mask = ~np.isnan(ds_means)
         return sums[mask], ds_means[mask], ds_std[mask]
+    
+    def get_acf_coord(self, nsum,i0,j0,parn=1):
+        
+        sums = self.correl_dicts.keys()
+        sums = sorted([w for w in sums if w<=nsum])
+        all_corrs=list()
+        all_yhs =list()
+        all_ns = list()
+        for ns in sums:
+            i00 = int(np.ceil(i0*nsum/ns))
+            i01 = int(np.floor((i0+1)*nsum/ns))
+            
+            j00 = int(np.ceil(j0*nsum/ns))
+            j01 = int(np.floor((j0+1)*nsum/ns))
+            corrs = self.correl_dicts[ns][i00:i01,j00:j01].mean(axis=(0,1))
+            yhs=self.yh_dict[ns][i00:i01,j00:j01].mean(axis=(0,1))
+            if not np.isnan(corrs).all():
+                all_corrs.append(corrs)
+                all_yhs.append(yhs)
+                all_ns.append(ns)
+        sums = np.asarray(sums)
+        all_corrs = np.asarray(all_corrs)
+        all_yhs = np.asarray(all_yhs)
+        return all_ns, all_corrs, all_yhs
     
     def get_threshold_map(self,nsum,thf=None):
         img = self.stack.sum(axis=0).astype(float)
