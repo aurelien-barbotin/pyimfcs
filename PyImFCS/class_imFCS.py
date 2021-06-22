@@ -573,12 +573,14 @@ class StackFCS(object):
         all_corrs=list()
         all_yhs =list()
         all_ns = list()
+        print("i0 {}, j0 {}".format(i0,j0))
         for ns in sums:
             i00 = int(np.ceil(i0*nsum/ns))
             i01 = int(np.floor((i0+1)*nsum/ns))
             
             j00 = int(np.ceil(j0*nsum/ns))
             j01 = int(np.floor((j0+1)*nsum/ns))
+            print("ns {}, i {}-{}, j {}-{}".format(ns,i00,i01,j00,j01))
             corrs = self.correl_dicts[ns][i00:i01,j00:j01].mean(axis=(0,1))
             yhs=self.yh_dict[ns][i00:i01,j00:j01].mean(axis=(0,1))
             if not np.isnan(corrs).all():
