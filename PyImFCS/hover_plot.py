@@ -24,58 +24,74 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
         Y_coordinate = event.ydata
         mutable_object['click'] = X_coordinate
         
-        i,j=math.floor(event.xdata+0.5), math.floor(event.ydata+0.5)
-        trace = stack.traces_dict[nsum][j,i]
-        line0.set_data(j,i)
+        ii0,jj0=math.floor(event.xdata+0.5), math.floor(event.ydata+0.5)
+        trace = stack.traces_dict[nsum][jj0,ii0]
+        trace_raw = stack.stack[:,jj0*nsum:jj0*nsum+nsum,
+                            ii0*nsum:ii0*nsum+nsum].mean(axis=(1,2))
+        trace_raw = trace_raw-trace_raw.min()+trace.max()
+        line0.set_data(ii0,jj0)
         line1.set_data([xt,trace])
-        axes[2].set_ylim(bottom=trace.min()*0.8, top=trace.max()*1.2)
+        line10.set_data([xt2,trace_raw])
+        
+        axes[2].set_ylim(bottom=trace.min()*0.95, top=trace_raw.max()*1.05)
         
         axes[3].cla()
         axes[4].cla()
-        ns, corrs1, fits1 = stack.get_acf_coord(nsum,j,i)
-        for j in range(len(ns)):
-            curve = corrs1[j]
-            fits = fits1[j]
+        ns, corrs1, fits1 = stack.get_acf_coord(nsum,jj0,ii0)
+        for k in range(len(ns)):
+            curve = corrs1[k]
+            fits = fits1[k]
             axes[3].semilogx(curve[:,0], curve[:,1]/curve[:normsize,1].mean(),
-                             label=ns[j],color="C{}".format(ns[j]))
+                             label=ns[k],color="C{}".format(ns[k]))
             axes[3].semilogx(curve[:,0], fits/curve[:normsize,1].mean(), color="k",linestyle='--')
     
             axes[4].semilogx(curve[:,0], curve[:,1],
-                             label=ns[j],color="C{}".format(ns[j]))
+                             label=ns[k],color="C{}".format(ns[k]))
             axes[4].semilogx(curve[:,0], fits, color="k",linestyle='--')
             
         axes[3].legend()
         
-        ns, dm, ds = stack.get_param_coord(nsum,j,i)
+        ns, dm, ds = stack.get_param_coord(nsum,jj0,ii0,parn=1)
         axes[5].cla()
         axes[5].errorbar(ns,dm,yerr=ds,capsize=5)
-        """ns, dm, ds = stack.get_param_coord(nsum,i,j)
-        line4[0].set_data(ns,dm)
-        line4[1].set_data(ns,ds)"""
+
+            
+        axes[2].set_title("Intensity timetrace")
+        axes[2].set_xlabel("Time (frames)")
+        axes[2].set_ylabel("Counts")
+        
+        axes[3].set_title("FCS curves (normalised)")
+        axes[3].set_xlabel(r"$\rm \tau$")
+        axes[3].set_ylabel(r"$\rm G(\tau)$")
+        
+        axes[4].set_title("FCS curves")
+        axes[4].set_xlabel(r"$\rm \tau$")
+        axes[4].set_ylabel(r"$\rm G(\tau)$")
+        
+        axes[5].set_xlabel("Binning (pixels)")
+        axes[5].set_ylabel(r"$\rm D\ [\mu m^2/s]$")
         
         fig.canvas.draw_idle()
         
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
     im = axes[0].imshow(stack.downsample_image(nsum))
-    line0 = axes[0].plot(0,0,"x",color="red")
+    line0, = axes[0].plot(0,0,"x",color="red")
     axes[0].set_title("Intensity")
     im2 = axes[1].imshow(stack.parfit_dict[nsum][:,:,parn])
     axes[1].set_title("Diffusion coeff.")
     fig.colorbar(im2,ax=axes[1])
     
     trace = stack.traces_dict[nsum][0,0]
-    
+    i,j=0,0
+    trace_raw = stack.stack[:,i*nsum:i*nsum+nsum,
+                            j*nsum:j*nsum+nsum].mean(axis=(1,2))
     dt = stack.dt
     xt = np.arange(trace.size)*dt
+    xt2 = np.arange(trace_raw.size)*dt
     line1, = axes[2].plot(xt,trace)
-    
-    axes[2].set_title("Intensity timetrace")
-    axes[2].set_xlabel("Time (frames)")
-    axes[2].set_ylabel("Counts")
-    
-    axes[3].set_title("FCS curves (normalised)")
-    axes[3].set_xlabel(r"$\rm \tau$")
-    axes[3].set_ylabel(r"$\rm G(\tau)$")
+    line10, = axes[2].plot(xt2,trace_raw/trace_raw[0]*trace[0])
+
     onclick(FakeEvent(axes[0]))
     fig.tight_layout()
-multiplot_stack(stack,6)
+
+# multiplot_stack(stack,6)
