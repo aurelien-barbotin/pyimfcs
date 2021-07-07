@@ -104,10 +104,11 @@ def blexp_double_offset(trace, plot=False):
 
 def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
     u = trace.size//wsize
+    trace = trace[:u*wsize]
     new_trace = trace.copy()
     m1 = trace[:wsize].mean()
     corrf = np.ones_like(trace).astype(float)
-    for j in range(1,u+1):
+    for j in range(1,u):
         cf = m1/trace[j*wsize:j*wsize+wsize].mean()
         new_trace[j*wsize:j*wsize+wsize] = trace[j*wsize:j*wsize+wsize]*cf
         corrf[j*wsize:j*wsize+wsize] = cf
@@ -135,6 +136,16 @@ def get_image_metadata(path):
                 meta_dict[k] = val
                 
     return meta_dict
+
+def save_tiff_withmetadata(file, st, metadata):
+    file = "/home/aurelien/Data/2021_06_03/test.tif"
+    path = "/home/aurelien/Data/2021_06_03/imFCS1.tif"
+    img = tifffile.TiffFile(path)
+    meta_dict = img.imagej_metadata
+    st = stack.stack
+    
+    writer = tifffile.TiffWriter(file,imagej=True)
+    writer.write(st,metadata=meta_dict)
     
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits","yhat"]
@@ -251,7 +262,8 @@ class StackFCS(object):
                 ctmp = []
                 trtmp = []
                 for j in range(w//nSum):
-                    trace = self.stack[:,i*nSum:i*nSum+nSum,j*nSum:j*nSum+nSum].mean(axis=(1,2))
+                    trace = self.stack[:,i*nSum:i*nSum+nSum,
+                                       j*nSum:j*nSum+nSum].mean(axis=(1,2))
                     if self.blcorrf is not None:
                         trace = self.blcorrf(trace)
                     corr = multipletau.autocorrelate(trace, normalize=True, deltat = self.dt)[1:]
@@ -543,7 +555,7 @@ class StackFCS(object):
             
         return self.parfit_dict[nsum][:uu,:vv,parn][to_keep]
     
-    def get_param_coord(self, nsum,i0,j0,parn=1):
+    def get_param_coord(self, nsum,i0,j0,parn=1, exclude_neg = True):
         """Get the value of given parameters for all binning values below nsum"""
         sums = self.correl_dicts.keys()
         sums = sorted([w for w in sums if w<=nsum])
@@ -556,8 +568,11 @@ class StackFCS(object):
             j00 = int(np.ceil(j0*nsum/ns))
             j01 = int(np.floor((j0+1)*nsum/ns))
             # print("ns",ns,i00,i01,"j",j00,j01)
-            ds = self.parfit_dict[nsum][i00:i01,j00:j01, parn]
-            # print(ds.size)
+            #print("ns {}, i {}-{}, j {}-{}".format(ns,i00,i01,j00,j01))
+            
+            ds = self.parfit_dict[ns][i00:i01,j00:j01, parn]
+            if exclude_neg:
+                ds = ds[ds>=0]
             ds_means.append(np.mean(ds))
             ds_std.append(np.std(ds))
         sums = np.asarray(sums)
@@ -573,14 +588,12 @@ class StackFCS(object):
         all_corrs=list()
         all_yhs =list()
         all_ns = list()
-        print("i0 {}, j0 {}".format(i0,j0))
         for ns in sums:
             i00 = int(np.ceil(i0*nsum/ns))
             i01 = int(np.floor((i0+1)*nsum/ns))
             
             j00 = int(np.ceil(j0*nsum/ns))
             j01 = int(np.floor((j0+1)*nsum/ns))
-            print("ns {}, i {}-{}, j {}-{}".format(ns,i00,i01,j00,j01))
             corrs = self.correl_dicts[ns][i00:i01,j00:j01].mean(axis=(0,1))
             yhs=self.yh_dict[ns][i00:i01,j00:j01].mean(axis=(0,1))
             if not np.isnan(corrs).all():
@@ -619,7 +632,7 @@ class StackFCS(object):
                 out[i,j] = px
         return out
     
-    def plot_parameter_maps(self,nsums, parn=1, cmap="jet"):
+    def plot_parameter_maps(self,nsums, parn=1, cmap="jet", vmin = None, vmax = None):
         assert len(nsums)>=1
         assert len(nsums)<=5
         
@@ -636,11 +649,12 @@ class StackFCS(object):
             parmaps.append(parmap)
             ax0 = axes[0,j]
             ax1 = axes[1,j]
-            ax0.imshow(im,cmap="gray")
+            im0 = ax0.imshow(im,cmap="gray")
             ax0.set_title('Binning {}'.format(nsum))
             
-            im1 = ax1.imshow(parmap,cmap=cmap)
+            im1 = ax1.imshow(parmap,cmap=cmap, vmin = vmin, vmax = vmax)
             fig.colorbar(im1,ax=ax1)
+            fig.colorbar(im0,ax=ax0)
             
             
     def plot_intensity_correlation(self,nsum,parn=1):
