@@ -15,6 +15,8 @@ import h5py
 import os
 
 from skimage.filters import threshold_otsu
+from scipy.stats import chisquare
+from inspect import signature
 
 def bleaching_correct_exp(trace, plot = False):
     def expf(x,f0,tau):
@@ -170,6 +172,8 @@ class StackFCS(object):
         self.traces_dict = {}
         self.parfit_dict = {}
         self.yh_dict = {}
+        self.chisquares_dict = {}
+        
         if dt is None:
             try:
                 metadata = get_image_metadata(path)
@@ -275,7 +279,7 @@ class StackFCS(object):
             
             self.correl_dicts[nSum] = correls
             self.traces_dict[nSum] = np.asarray(traces)
-            
+    
     def get_curve(self, i0 = 0, j0 =0, nSum=1):
         self.correlate_stack(nSum)
             
@@ -376,155 +380,34 @@ class StackFCS(object):
             correls = self.correl_dicts[nsum]
             popts = []
             yhs = []
+            chisquares = []
             for j in range(correls.shape[0]):
                 popt_tmp=[]
                 yh_tmp = []
+                chisquares_tmp = []
                 for k in range(correls.shape[1]):
                     corr = correls[j,k]
                     if xmax is None:
                         popt, yh = fitter.fit(corr)
                     else:
-                        popt, yh = fitter.fit(corr[corr[:,0]<xmax,:])
-                        
+                        corr = corr[corr[:,0]<xmax,:]
+                        popt, yh = fitter.fit(corr)
+                    # sig = signature(fitter.fitter)
+                    # ddof=len(sig.parameters)-1
+                    #print(corr[:,1].dtype,yh.dtype, corr[:,1].dtype,yh.dtype)
+                    chi = np.square(corr[:,1]-yh).mean()/yh[0]**2
                     popt_tmp.append(popt)
                     yh_tmp.append(yh)
+                    chisquares_tmp.append(chi)
+                    
                 popts.append(popt_tmp)
                 yhs.append(yh_tmp)
+                chisquares.append(chisquares_tmp)
+                
             self.parfit_dict[nsum] = np.array(popts)
             self.yh_dict[nsum] = np.array(yhs)
-        
-    def plot_amplitudes(self,sum_list):
-        averages = self.binned_average_curves(sum_list, plot=False)
-        nvals = []
-        for j in range(len(sum_list)):
-            nn = averages[j][:8,1].mean()
-            nvals.append(nn)
-        plt.figure()
-        plt.plot(sum_list, np.sqrt(nvals), label="measured")
-        plt.plot(sum_list, np.sqrt(nvals)[0]*sum_list[0]/np.array(sum_list), 
-                 color="k", linestyle="--",label="theory")
-        plt.xlabel("Binning")
-        plt.ylabel("Sqrt Curve amplitude")
-        plt.xscale('log')
-        plt.legend()
-    
-    def plot_random_intensity(self, nSum = None):
-        if nSum is None:
-            nSum = min(self.traces_dict.keys())
-        traces_arr = self.traces_dict[nSum]
-        trace_raw = self.stack.mean(axis=(1,2))
-        u,v = traces_arr.shape[:2]
-        u1 = np.random.choice(u)
-        v1 = np.random.choice(v)
-        trace = traces_arr[u1,v1]
-        
-        plt.figure()
-        plt.plot(trace, label = "Corrected")
-        plt.axhline(trace.mean(),color="k",linestyle="--")
-        plt.plot(trace_raw,label = "Raw average intensity")
-        plt.xlabel("Time (frames)")
-        plt.ylabel("Intensity")
-        plt.legend()
-    
-    def plot_fits(self,nSum,maxcurves=None,dz=0.2):
-        curves = self.correl_dicts[nSum]
-        sp1 = np.asarray(curves.shape)
-        fits = self.yh_dict[nSum]
-        fig,axes = plt.subplots(1,2,sharex=True,sharey=True)
-        jj = 0
-        
-        indices = np.arange(sp1[0]*sp1[1])
-        indices1 = indices//sp1[1]
-        indices2 = indices-(indices1)*sp1[1]
-        if maxcurves is not None:
-            indices = np.random.choice(np.arange(sp1[0]*sp1[1]),maxcurves)
+            self.chisquares_dict[nsum] = np.array(chisquares)
             
-        for i in indices:
-            j = indices1[i]
-            k = indices2[i]
-            corr = curves[j,k]
-            yh = fits[j,k]
-            a = corr[:3,1].mean()
-            axes[0].semilogx(corr[:,0],corr[:,1]/a+dz*jj)
-            axes[0].semilogx(corr[:yh.size,0],yh/a+dz*jj, color="k",linestyle="--")
-            axes[1].semilogx(corr[:yh.size,0],yh/a-corr[:yh.size,1]/a+dz*jj, 
-                             label = "curve ({},{})".format(j,k))
-            jj+=1
-        axes[1].legend()
-        
-    def plot_D(self, show_acceptable=True):
-        nsums = sorted(self.parfit_dict.keys())
-        nsums = np.asarray(nsums)
-        ds_means = list()
-        ds_std = list()
-        
-        if show_acceptable:
-            psize = self.fitter.parameters_dict["a"]
-            if "sigmaxy" in self.fitter.parameters_dict:
-                sigmaxy = self.fitter.parameters_dict["sigmaxy"]
-            else:
-                sigmaxy = self.fitter.parameters_dict["sigma"]
-            sigmaxy = sigmaxy*np.sqrt(8*np.log(2)) #fwhm
-            observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
-            if self.fitter.name=="2D":
-                factor = 4
-            elif self.fitter.name=="3D":
-                factor=6
-            dmax = observation_sizes**2/(factor*self.dt*10)
-            dmins = observation_sizes**2/(factor*self.dt*self.stack.shape[0]/100)
-        for ns in nsums:
-            ds = self.parfit_dict[ns][:,:,1]
-            ds_means.append(np.median(ds))
-            ds_std.append( (np.percentile(ds,75)-np.percentile(ds,25))/2)
-        ds_means = np.asarray(ds_means)
-        ds_std = np.asarray(ds_std)
-        
-        plt.figure()
-        if show_acceptable:
-            plt.plot(nsums,dmins,color="gray")
-            plt.plot(nsums,dmax,color="gray")
-        plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
-        plt.xlabel("Binning size")
-        plt.ylabel("D (um2/s)")
-        ymin = np.min(ds_means-ds_std)
-        ymax = np.max(ds_means+ds_std)
-        plt.ylim(bottom=ymin, top = ymax)
-        return nsums, ds_means, ds_std
-    
-    def plot_taus(self, show_acceptable=True):
-        nsums = sorted(self.parfit_dict.keys())
-        nsums = np.asarray(nsums)
-        ds_means = list()
-        ds_std = list()
-        
-        if show_acceptable:
-            psize = self.fitter.parameters_dict["a"]
-            if "sigmaxy" in self.fitter.parameters_dict:
-                sigmaxy = self.fitter.parameters_dict["sigmaxy"]
-            else:
-                sigmaxy = self.fitter.parameters_dict["sigma"]
-            sigmaxy = sigmaxy*np.sqrt(8*np.log(2)) #fwhm
-            observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
-
-            dmax = np.ones_like(nsums)*(self.dt*10)
-            dmins = np.ones_like(nsums)*self.dt*self.stack.shape[0]/100
-        
-        for j,ns in enumerate(nsums):
-            ds = self.parfit_dict[ns][:,:,1]
-            taus = observation_sizes[j]**2/ds
-            ds_means.append(np.median(taus))
-            ds_std.append((np.percentile(taus,75)-np.percentile(taus,25)))
-        ds_means=np.asarray(ds_means)
-        
-        plt.figure()
-        if show_acceptable:
-            plt.plot(nsums,dmins,color="gray")
-            plt.plot(nsums,dmax,color="gray")
-        plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
-        plt.xlabel("Binning size")
-        plt.ylabel("tau (s)")
-        return nsums, ds_means, ds_std
-    
     def parameter_map(self,nsum = None,parn=1):
         print('Caution! You are using a resampled parameter map')
         if nsum is None:
@@ -655,8 +538,61 @@ class StackFCS(object):
             im1 = ax1.imshow(parmap,cmap=cmap, vmin = vmin, vmax = vmax)
             fig.colorbar(im1,ax=ax1)
             fig.colorbar(im0,ax=ax0)
-            
-            
+     
+    def plot_amplitudes(self,sum_list):
+        averages = self.binned_average_curves(sum_list, plot=False)
+        nvals = []
+        for j in range(len(sum_list)):
+            nn = averages[j][:8,1].mean()
+            nvals.append(nn)
+        plt.figure()
+        plt.plot(sum_list, np.sqrt(nvals), label="measured")
+        plt.plot(sum_list, np.sqrt(nvals)[0]*sum_list[0]/np.array(sum_list), 
+                 color="k", linestyle="--",label="theory")
+        plt.xlabel("Binning")
+        plt.ylabel("Sqrt Curve amplitude")
+        plt.xscale('log')
+        plt.legend()
+
+    def plot_D(self, show_acceptable=True):
+        nsums = sorted(self.parfit_dict.keys())
+        nsums = np.asarray(nsums)
+        ds_means = list()
+        ds_std = list()
+        
+        if show_acceptable:
+            psize = self.fitter.parameters_dict["a"]
+            if "sigmaxy" in self.fitter.parameters_dict:
+                sigmaxy = self.fitter.parameters_dict["sigmaxy"]
+            else:
+                sigmaxy = self.fitter.parameters_dict["sigma"]
+            sigmaxy = sigmaxy*np.sqrt(8*np.log(2)) #fwhm
+            observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
+            if self.fitter.name=="2D":
+                factor = 4
+            elif self.fitter.name=="3D":
+                factor=6
+            dmax = observation_sizes**2/(factor*self.dt*10)
+            dmins = observation_sizes**2/(factor*self.dt*self.stack.shape[0]/100)
+        for ns in nsums:
+            ds = self.parfit_dict[ns][:,:,1]
+            ds_means.append(np.median(ds))
+            ds_std.append( (np.percentile(ds,75)-np.percentile(ds,25))/2)
+        ds_means = np.asarray(ds_means)
+        ds_std = np.asarray(ds_std)
+        
+        plt.figure()
+        if show_acceptable:
+            plt.plot(nsums,dmins,color="gray")
+            plt.plot(nsums,dmax,color="gray")
+        plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
+        plt.xlabel("Binning size")
+        plt.ylabel("D (um2/s)")
+        ymin = np.min(ds_means-ds_std)
+        ymax = np.max(ds_means+ds_std)
+        plt.ylim(bottom=ymin, top = ymax)
+        return nsums, ds_means, ds_std
+
     def plot_intensity_correlation(self,nsum,parn=1):
         parmap = self.parfit_dict[nsum][:,:,parn]
         parameters = list()
@@ -671,41 +607,113 @@ class StackFCS(object):
         plt.scatter(parameters,intensities)
         plt.xlabel("Parameter")
         plt.ylabel("Intensity")
-if __name__=="__main__":
-    plt.close('all')
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/40percent_imFCS_002_t1_stack.tif"
-    # path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/40percent_imFCS_001_t1_stack.tif"
-    # path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/test3_40percent/imFCS_000_stack.tif"
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_03_31_Zeiss/50percentSucrose/ImFCS2_bleachingbefore.tif"
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_03_31_Zeiss/100percentSucrose/imFCS3_40min.tif"
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_03_24_Elyra7/ImFCS6.tif"
     
-    path = "C:/Users/abarbotin/Documents/Python Scripts/FCS_analysis/simulation4.tif"
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/2_green_beads/Image 13.tif"
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/2_green_beads/Image 21_withAF.tif"
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/2_green_beads/Image 20_higherpower.tif"
-    path = "C:/Users/abarbotin/Desktop/analysis_tmp/2021_04_09/postprocessed/Image 21_withAF_zoom1.tif"
-    # path = "C:/Users/abarbotin/Desktop/analysis_tmp/bilayer_wohland.tif"
-    #path = "C:/Users/abarbotin/Desktop/analysis_tmp/2020_04_07/60percent_imFCS_001_t1_stack.tif"
-    stack = StackFCS(path, first_n=0, blcorrf=None)
-    stack.plot_curve(nSum=4)
-    stack.get_all_curves(nSum=8, spacing = 0.2)
-    t1 = stack.average_curve(nSum=4)
-    t2 = stack.average_curve(nSum=8)
-    
-    stack.trace()
-    
-    plt.figure()
-    plt.subplot(121)
-    plt.semilogx(t1[:,0],t1[:,1],label="4 pixel binning")
-    plt.semilogx(t2[:,0],t2[:,1], label="8 pixel binning")
-    plt.title("Average curves")
-    plt.legend()
-    plt.subplot(122)
-    plt.semilogx(t1[:,0],t1[:,1]/t1[:3,1].mean(),label="4 pixel binning")
-    plt.semilogx(t2[:,0],t2[:,1]/t2[:3,1].mean(), label="8 pixel binning")
-    plt.title("Normalised")
+    def plot_fits(self,nSum,maxcurves=None,dz=0.2):
+        curves = self.correl_dicts[nSum]
+        chisquares = self.chisquares_dict[nSum]
+        sp1 = np.asarray(curves.shape)
+        fits = self.yh_dict[nSum]
+        fig,axes = plt.subplots(1,2,sharex=True,sharey=True)
+        jj = 0
+        
+        indices = np.arange(sp1[0]*sp1[1])
+        indices1 = indices//sp1[1]
+        indices2 = indices-(indices1)*sp1[1]
+        if maxcurves is not None:
+            indices = np.random.choice(np.arange(sp1[0]*sp1[1]),maxcurves)
+            
+        for i in indices:
+            j = indices1[i]
+            k = indices2[i]
+            corr = curves[j,k]
+            chi = chisquares[j,k]
+            yh = fits[j,k]
+            a = corr[:3,1].mean()
+            axes[0].semilogx(corr[:,0],corr[:,1]/a+dz*jj)
+            axes[0].semilogx(corr[:yh.size,0],yh/a+dz*jj, color="k",linestyle="--")
+            axes[1].semilogx(corr[:yh.size,0],yh/a-corr[:yh.size,1]/a+dz*jj, 
+                             label = "curve ({},{}), chisquare {}".format(j,k, chi))
+            jj+=1
+        axes[1].legend()
 
-    nsums = [2,4,8,12]
-    corrs = stack.binned_average_curves(nsums, n_norm=3)
-    stack.plot_amplitudes(nsums)
+    def plot_fits_ordered(self,nSum,maxcurves=None,dz=-0.2, order_dict = None):
+        """Plots FCS curves ordered following values contained in a specific 
+        dictionary"""
+        assert order_dict is not None
+        
+        curves = self.correl_dicts[nSum].reshape(-1,*self.correl_dicts[nSum].shape[2:])
+        parameters = order_dict[nSum].reshape(-1)
+        fits = self.yh_dict[nSum].reshape(-1,*self.yh_dict[nSum].shape[2:])
+        fig,axes = plt.subplots(1,2,sharex=True,sharey=True)
+        jj = 0
+        
+        indices = np.arange(curves.shape[0])
+        if maxcurves is not None and maxcurves<curves.shape[0]:
+            indices = np.random.choice(curves.shape[0],maxcurves)
+        
+        indices = [x for _, x in sorted(zip(parameters[indices], indices))]
+        
+        for i in indices:
+            corr = curves[i]
+            param = parameters[i]
+            yh = fits[i]
+            a = yh[0]
+            axes[0].semilogx(corr[:,0],corr[:,1]/a+dz*jj)
+            axes[0].semilogx(corr[:yh.size,0],yh/a+dz*jj, color="k",linestyle="--")
+            axes[1].semilogx(corr[:yh.size,0],yh/a-corr[:yh.size,1]/a+dz*jj, 
+                             label = "corder parameter {}".format(param))
+            jj+=1
+        axes[1].legend()
+        
+    def plot_random_intensity(self, nSum = None):
+        if nSum is None:
+            nSum = min(self.traces_dict.keys())
+        traces_arr = self.traces_dict[nSum]
+        trace_raw = self.stack.mean(axis=(1,2))
+        u,v = traces_arr.shape[:2]
+        u1 = np.random.choice(u)
+        v1 = np.random.choice(v)
+        trace = traces_arr[u1,v1]
+        
+        plt.figure()
+        plt.plot(trace, label = "Corrected")
+        plt.axhline(trace.mean(),color="k",linestyle="--")
+        plt.plot(trace_raw,label = "Raw average intensity")
+        plt.xlabel("Time (frames)")
+        plt.ylabel("Intensity")
+        plt.legend()
+        
+    def plot_taus(self, show_acceptable=True):
+        nsums = sorted(self.parfit_dict.keys())
+        nsums = np.asarray(nsums)
+        ds_means = list()
+        ds_std = list()
+        
+        if show_acceptable:
+            psize = self.fitter.parameters_dict["a"]
+            if "sigmaxy" in self.fitter.parameters_dict:
+                sigmaxy = self.fitter.parameters_dict["sigmaxy"]
+            else:
+                sigmaxy = self.fitter.parameters_dict["sigma"]
+            sigmaxy = sigmaxy*np.sqrt(8*np.log(2)) #fwhm
+            observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
+
+            dmax = np.ones_like(nsums)*(self.dt*10)
+            dmins = np.ones_like(nsums)*self.dt*self.stack.shape[0]/100
+        
+        for j,ns in enumerate(nsums):
+            ds = self.parfit_dict[ns][:,:,1]
+            taus = observation_sizes[j]**2/ds
+            ds_means.append(np.median(taus))
+            ds_std.append((np.percentile(taus,75)-np.percentile(taus,25)))
+        ds_means=np.asarray(ds_means)
+        
+        plt.figure()
+        if show_acceptable:
+            plt.plot(nsums,dmins,color="gray")
+            plt.plot(nsums,dmax,color="gray")
+        plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
+        plt.xlabel("Binning size")
+        plt.ylabel("tau (s)")
+        return nsums, ds_means, ds_std
+    
