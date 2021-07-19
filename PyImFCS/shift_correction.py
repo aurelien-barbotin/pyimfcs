@@ -99,3 +99,27 @@ def registration(stack,ns, plot = False, method='interpolation'):
         new_stack[j] = corrected_image
     
     return new_stack
+
+def correct_local_dips(st, plot=True):
+    
+    stm = st.mean(axis=(1,2))
+    stdiff = np.diff(stm[::-1])[::-1]
+    
+    threshold = np.percentile(stdiff,99)*3
+    xxs = np.arange(stdiff.size)[stdiff>threshold]+1
+    
+    fig, axes = plt.subplots(1,2,sharex=True)
+    
+    axes[0].plot(stdiff)
+    axes[0].plot(xxs-1,stdiff[xxs-1],color="red",marker="x",linestyle='')
+    axes[0].set_title('Localising dips')
+    
+    axes[1].plot(stm)
+    axes[1].plot(xxs,stm[xxs],color="red",marker="x",linestyle='')
+    axes[1].set_title("Dips in intensity trace")
+    # np.mean(st[xxs-1],axis = (1,2))[:,None,None]/np.mean(st[xxs],axis=(1,2))[:,None,None]
+    st[xxs] = st[xxs]* (stm[xxs-1]/stm[xxs])[:,None,None]
+    # print(np.mean(st[xxs-1],axis = (1,2))[:,None,None]/np.mean(st[xxs],axis=(1,2))[:,None,None])
+    # print(stm[xxs-1]/stm[xxs])
+    print(xxs)
+    return st
