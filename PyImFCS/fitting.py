@@ -151,7 +151,7 @@ fit_functions = {"2D":gim2D,
 
 class Fitter(object):
     
-    def __init__(self,name, parameters_dict, ginf=False):
+    def __init__(self,name, parameters_dict, ginf=False, p0 = None):
         self.parameters_dict = parameters_dict
         self.ginf = ginf
         self.name = name
@@ -160,6 +160,7 @@ class Fitter(object):
         
         self.full_parameters_dict = parameters_dict.copy() # takes nsum in account
         self.fitter = fit_functions[self.name](**parameters_dict,ginf=ginf)
+        self.p0 = p0
         
     def set_sum(self,nsum):
         self.full_parameters_dict["a"] = self.parameters_dict["a"]*nsum
@@ -168,7 +169,7 @@ class Fitter(object):
         
     def fit(self,curve):
         try:
-            popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1])
+            popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1], p0=self.p0)
             yh = self.fitter(curve[:,0],*popt)
             return popt, yh
         except:
