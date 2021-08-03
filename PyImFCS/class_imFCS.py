@@ -17,6 +17,12 @@ import os
 from skimage.filters import threshold_otsu
 from scipy.stats import chisquare
 from inspect import signature
+from scipy.signal import fftconvolve
+
+def cortrace(tr,fi):
+    f0 = fi[0]
+    new_tr = (tr)/np.sqrt(fi/f0)+f0*(1-np.sqrt(fi/f0))
+    return new_tr
 
 def bleaching_correct_exp(trace, plot = False):
     def expf(x,f0,tau):
@@ -57,13 +63,7 @@ def blexp_offset(trace, plot=False):
     #popt=[4.7*10**6,18]
     trf = expf(xt,*popt)
     
-    def cortrace(tr,popt):
-        xt = np.arange(tr.size)
-        fi = expf(xt,*popt)
-        f0 = popt[0]
-        new_tr = tr/np.sqrt(fi/f0)+f0*(1-np.sqrt(fi/f0))
-        return (new_tr+popt[2])
-    new_tr = cortrace(subtr,popt)*trace.max()
+    new_tr = cortrace(subtr,trf)*trace.max()
     
     if plot:
         plt.figure()
@@ -80,21 +80,15 @@ def blexp_double_offset(trace, plot=False):
     xt = np.arange(subtr.size)
     p0 = (1,trace.size//10,1,trace.size//10,subtr.min())
     bounds = ((0, 1, 0, 1, 0),
-              (2, trace.size*10, 1, trace.size*10,1))
+              (2, trace.size*10, 1, trace.size*10,0.8))
     try:
         popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
     except:
+        print("Fitting failed arzo")
         return trace
     #popt=[4.7*10**6,18]
     trf = expf(xt,*popt)
-    
-    def cortrace(tr,popt):
-        xt = np.arange(tr.size)
-        fi = expf(xt,*popt)
-        f0 = popt[0]
-        new_tr = tr/np.sqrt(fi/f0)+f0*(1-np.sqrt(fi/f0))
-        return new_tr/new_tr.mean()
-    new_tr = cortrace(subtr,popt)
+    new_tr = cortrace(subtr,trf)
     
     if plot:
         plt.figure()
@@ -121,6 +115,37 @@ def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
         plt.plot(new_trace)
     return corrf*trace
 
+def bleaching_correct_segment(trace, plot = False, wsize = 5000):
+    if wsize%2==0:
+        wsize+=1
+    tr2 = np.pad(trace,wsize//2,mode='reflect', reflect_type='even')
+    kernel = np.ones(wsize)/wsize
+    # much faster
+    conv = fftconvolve(tr2,kernel, mode='valid')
+    new_trace = cortrace(trace,conv)
+    if plot:
+        plt.figure()
+        plt.subplot(121)
+        plt.plot(trace,label="raw")
+        plt.plot(conv,'k--')
+        
+        ntr = new_trace+trace.max()-new_trace.min()
+        ntr2 = np.pad(ntr,wsize//2,mode='symmetric')
+        nconv = np.convolve(ntr2,kernel, mode='valid')
+        plt.plot(ntr,label="corrected")
+        plt.plot(nconv,'k--')
+        plt.legend()
+        plt.title('Traces')
+        
+        plt.subplot(122)
+        plt.title('Residuals')
+        r1 = trace-conv
+        plt.plot(r1,label="Residuals from fit")
+        r2 = ntr - nconv
+        plt.plot(r2+r1.max()-r2.min())
+        
+    return new_trace
+
 def get_image_metadata(path):
     img = tifffile.TiffFile(path)
     meta_dict = img.imagej_metadata
@@ -134,9 +159,7 @@ def get_image_metadata(path):
             try:
                 meta_dict[k] = float(val)
             except:
-                
                 meta_dict[k] = val
-                
     return meta_dict
 
 def save_tiff_withmetadata(file, st, metadata):
@@ -144,24 +167,50 @@ def save_tiff_withmetadata(file, st, metadata):
     path = "/home/aurelien/Data/2021_06_03/imFCS1.tif"
     img = tifffile.TiffFile(path)
     meta_dict = img.imagej_metadata
-    st = stack.stack
     
     writer = tifffile.TiffWriter(file,imagej=True)
     writer.write(st,metadata=meta_dict)
     
+def new_chi_square(y,yh):
+    diff = (y-yh)/yh[0]
+    diffpos = diff>0
+    diffneg = diff<0
+    
+    diff =  diff**2
+    from scipy.ndimage import label
+    
+    chi = 0
+    
+    lab, num_features = label(diffpos)
+    for j in range(1,num_features+1):
+        msk = lab==j
+        chi+=diff[msk].sum()*(np.count_nonzero(msk)-1)
+        
+    lab, num_features = label(diffneg)
+    for j in range(1,num_features+1):
+        msk = lab==j
+        chi+=diff[msk].sum()*(np.count_nonzero(msk)-1)
+    
+    return chi/yh.size
+
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits","yhat"]
     parameters_names = ["dt","xscale","yscale","path"]
     
     def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
-                 remove_zeroes=False):
+                 remove_zeroes=False, clipval = None):
         self.path = path
         self.stack = tifffile.imread(path)
         self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
         self.fitter = fitter
         
         self.threshold_map = None
+        
+        # removes clipval points before and after the intensity timetrace
+        # before correlation. To remove artefacts from bleaching correction
+        # or image registration
+        self.clipval = clipval 
         
         if background_correction:
             self.stack = self.stack - self.stack.min()
@@ -270,6 +319,10 @@ class StackFCS(object):
                                        j*nSum:j*nSum+nSum].mean(axis=(1,2))
                     if self.blcorrf is not None:
                         trace = self.blcorrf(trace)
+                        
+                    if self.clipval is not None:
+                        trace = trace[self.clipval:-self.clipval]
+                        
                     corr = multipletau.autocorrelate(trace, normalize=True, deltat = self.dt)[1:]
                     ctmp.append(corr)
                     trtmp.append(trace)
@@ -286,12 +339,6 @@ class StackFCS(object):
         correls = self.correl_dicts[nSum]
         correl = correls[i0,j0]
         return correl
-    
-    def plot_curve(self, i0 = 0, j0 =0, nSum=1):
-        correl = self.get_curve(i0 = i0, j0=j0,nSum=nSum)
-        
-        plt.figure()
-        plt.semilogx(correl[:,0], correl[:,1])
     
     def get_all_curves(self,nSum=1, spacing=0, npts = None, plot = True):
         self.correlate_stack(nSum)
@@ -370,6 +417,8 @@ class StackFCS(object):
             axes[0].set_ylabel(r"$\rm G(\tau)$")
             axes[1].set_xlabel(r"$\rm \tau (A.U)$")
             axes[1].set_ylabel(r"$\rm G(\tau)$")
+            axes[0].axhline(0,color="k")
+            axes[1].axhline(0,color="k")
         return all_corrs
     
     def fit_curves(self,fitter,xmax=None):
@@ -464,7 +513,7 @@ class StackFCS(object):
         mask = ~np.isnan(ds_means)
         return sums[mask], ds_means[mask], ds_std[mask]
     
-    def get_acf_coord(self, nsum,i0,j0,parn=1):
+    def get_acf_coord(self, nsum,i0,j0,parn=1, average = True):
         
         sums = self.correl_dicts.keys()
         sums = sorted([w for w in sums if w<=nsum])
@@ -477,8 +526,11 @@ class StackFCS(object):
             
             j00 = int(np.ceil(j0*nsum/ns))
             j01 = int(np.floor((j0+1)*nsum/ns))
-            corrs = self.correl_dicts[ns][i00:i01,j00:j01].mean(axis=(0,1))
-            yhs=self.yh_dict[ns][i00:i01,j00:j01].mean(axis=(0,1))
+            corrs = self.correl_dicts[ns][i00:i01,j00:j01]
+            yhs=self.yh_dict[ns][i00:i01,j00:j01]
+            if average:
+                corrs = corrs.mean(axis=(0,1))
+                yhs=yhs.mean(axis=(0,1))
             if not np.isnan(corrs).all():
                 all_corrs.append(corrs)
                 all_yhs.append(yhs)
@@ -504,6 +556,7 @@ class StackFCS(object):
         
         to_keep = out==nsum**2
         return to_keep
+    
     def downsample_image(self, nsum):
         u,v,w=self.stack.shape
         
@@ -515,7 +568,8 @@ class StackFCS(object):
                 out[i,j] = px
         return out
     
-    def plot_parameter_maps(self,nsums, parn=1, cmap="jet", vmin = None, vmax = None):
+    def plot_parameter_maps(self,nsums, parn=1, cmap="jet", vmin = None, 
+                            vmax = None, maxval = None):
         assert len(nsums)>=1
         assert len(nsums)<=5
         
@@ -527,7 +581,9 @@ class StackFCS(object):
         parmaps = list()
         for j in range(len(nsums)):
             nsum = nsums[j]
-            parmap = self.parfit_dict[nsum][:,:,parn]
+            parmap = self.parfit_dict[nsum][:,:,parn].copy()
+            if maxval is not None:
+                parmap[parmap>maxval]=np.nan
             im=self.downsample_image(nsum)
             parmaps.append(parmap)
             ax0 = axes[0,j]
@@ -553,7 +609,13 @@ class StackFCS(object):
         plt.ylabel("Sqrt Curve amplitude")
         plt.xscale('log')
         plt.legend()
-
+        
+    def plot_curve(self, i0 = 0, j0 =0, nSum=1):
+        correl = self.get_curve(i0 = i0, j0=j0,nSum=nSum)
+        
+        plt.figure()
+        plt.semilogx(correl[:,0], correl[:,1])
+        
     def plot_D(self, show_acceptable=True):
         nsums = sorted(self.parfit_dict.keys())
         nsums = np.asarray(nsums)
@@ -607,6 +669,7 @@ class StackFCS(object):
         plt.scatter(parameters,intensities)
         plt.xlabel("Parameter")
         plt.ylabel("Intensity")
+        return np.asarray(parameters),np.asarray(intensities)
     
     def plot_fits(self,nSum,maxcurves=None,dz=0.2):
         curves = self.correl_dicts[nSum]
@@ -674,6 +737,7 @@ class StackFCS(object):
         u1 = np.random.choice(u)
         v1 = np.random.choice(v)
         trace = traces_arr[u1,v1]
+        trace_raw = self.stack[:,u1*nSum:(u1+1)*nSum,v1*nSum:(v1+1)*nSum].mean(axis=(1,2))
         
         plt.figure()
         plt.plot(trace, label = "Corrected")
