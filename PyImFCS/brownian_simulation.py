@@ -23,14 +23,14 @@ scale = 0.5 #pixels
 psize = 100
 sigma_psf = 110/psize
 dt = 4.7*10**-3 # s
-D = 1 #um2/s
+D = 10 #um2/s
 
 brightness = 18*10**3 #Hz/molecule
 
 npixels = 500
 
 nsteps = 20000
-nparts = 20
+nparts = 5000
 
 pos0 = np.random.uniform(size = (nparts,2))*npixels-npixels/2
 moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize*10**-3),size = (nsteps,nparts,2) )
@@ -47,8 +47,9 @@ stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
 for j in range(nsteps):
     
     positions_new = positions[j]
-    positions_new = positions_new[np.logical_and(np.abs(positions_new[:,0])<=npix_img+1,np.abs(positions_new[:,1])<=npix_img+1 )]
-    positions_new = positions_new.astype(int) + npix_img
+    # round is necessary to ensure fair distribution of parts and not concentration in the centre
+    positions_new = np.round(positions_new).astype(int) + npix_img
+    positions_new = positions_new[np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1),:]
     for k in range(len(positions_new)):
         stack[j, positions_new[k, 0],positions_new[k, 1]]+=1
     stack[j] = gaussian(stack[j],sigma = sigma_psf)
