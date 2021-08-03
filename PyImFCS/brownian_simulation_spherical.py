@@ -12,6 +12,36 @@ import tifffile
 
 plt.close('all')
 
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
+
+    from SO: https://stackoverflow.com/questions/13685386/
+    matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+    
 def gauss(x,sig):
     return np.exp(-2*x**2/(sig**2))
 
@@ -40,8 +70,16 @@ def spherical2cart_special(R,theta,phi):
     y = R*np.sqrt(1-np.cos(theta)**2-np.cos(phi)**2)*np.sign(np.sin(theta)*np.sin(phi))
     z = R*np.cos(phi)+R
     return x, y, z
+
+def sphere2ellipsoid(coords,b):
+    a = 1/np.sqrt(b)
+    mat = np.eye(3)*a
+    mat[-1,-1] = b
+    new_coords = np.dot(mat,coords)
+    return new_coords
+
 plot = True
-save = False
+save = True
 
 psize = 0.16
 sigma_psf = 0.2/psize
@@ -52,15 +90,24 @@ dt = 1*10**-3 # s
 D = 3 #um2/s
 
 R = 8 #um
-
 brightness = 18*10**4 #Hz/molecule
 
 nsteps = 20000
-nparts = 2000
+nparts = 1000
 
+# ------ GUV compression ----------------------
+
+motion_period = 3500*dt
+motion_freq = 2*np.pi/motion_period
+motion_amplitude = 0.3
+motion_z = 1-motion_amplitude + np.cos(motion_freq*np.arange(nsteps)*dt)*motion_amplitude
+
+plt.figure()
+plt.plot(motion_z)
+plt.ylim(bottom=0)
 pos0 = np.random.uniform(size = (nparts,2))*2*np.pi
 
-
+# ---------- Calculation of positions-------------------
 moves = np.random.normal(scale = np.sqrt(2*D*dt)/R,
                          size = (nsteps,nparts,2) )
 
@@ -75,9 +122,6 @@ phis = moves[:,:,0]/np.sin(positions[:,:,1])
 positions[:,:,0] = p1[np.newaxis,:] + np.cumsum(phis,axis=0)
 
 positions = positions%(2*np.pi)
-"""mm = positions[:,:,0]>np.pi
-positions[mm,0]-=np.pi
-positions[mm,1]-=np.pi"""
 def cartesian_sampling():
     pos0_cart = spherical2cart(1,pos0[:,0], pos0[:,1])
     positions_cart = np.zeros((nsteps,3,nparts))
@@ -120,7 +164,18 @@ def cartesian_sampling():
 
 z,y,x = spherical2cart(R, positions[:,:,0], positions[:,:,1])
 # x,z,y =  cartesian_sampling()
-z+=R
+"""
+coords = np.array([x,y,z])
+aa = 1.2
+coords_new=np.zeros_like(coords)
+for j in range(coords_new.shape[2]):
+    coords_new[:,:,j] = sphere2ellipsoid(coords[:,:,j], aa)
+x,y,z = coords_new
+z+=R/(aa**2)"""
+
+
+
+
 
 if plot:
     import matplotlib.pyplot as plt
@@ -130,7 +185,7 @@ if plot:
     for j in range(nparts):
         ax.plot(x[::200,j],y[::200,j], zs=z[::200,j])
         
-    
+    set_axes_equal(ax)
     """
     from matplotlib import cm
     plt.figure()
@@ -142,8 +197,21 @@ if plot:
     ax = fig.add_subplot(111, projection='3d')
     j = np.random.choice(x.shape[1])
     ax.plot(x[::200,j],y[::200,j], zs=z[::200,j])"""
+    npts = 200
+    x_surface = np.concatenate([np.linspace(-R,R,npts)])
+    y_surface = np.concatenate([np.linspace(-R,R,npts)])
 
-
+    x_surface,y_surface = np.meshgrid(x_surface,y_surface)
+    """r2 = x_surface**2+y_surface**2
+    x_surface = x_surface[r2<R**2]
+    y_surface = y_surface[r2<R**2]"""
+    z_surface = np.sqrt(R**2-(x_surface**2+y_surface**2))
+    #z_surface[]*=-1
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(x_surface, y_surface, z_surface,
+                       linewidth=0, antialiased=False)
+    set_axes_equal(ax)
 
 # ---------- making image ------------------
 
@@ -164,9 +232,12 @@ for j in range(nsteps):
     if j%500==0:
         print("Processing frame {}".format(j))
         
-    msk1 = z[j]>=0
+
     
-    x1, y1, z1 = x[j,msk1], y[j,msk1], z[j,msk1]
+    x1, y1, z1 = x[j], y[j], z[j]
+    x1, y1, z1 = sphere2ellipsoid(np.array([x1,y1,z1]), motion_z[j])
+    # print("z1",z1.min(),R*motion_z[j])
+    z1+=R*motion_z[j]
     # round is necessary to ensure fair distribution of parts and not concentration in the centre
     positions_new = np.array([x1,y1]).T/psize + npix_img
     positions_new = np.round(positions_new).astype(int) 
@@ -183,7 +254,6 @@ for j in range(nsteps):
         stack[j, positions_new[k, 0],positions_new[k, 1]]+=np.exp(-z1[k]/dz_tirf)
     stack[j] = gaussian(stack[j],sigma = sigma_psf)"""
     
-
 """stack = stack * brightness*dt 
 stack = np.random.poisson(stack)"""
 
@@ -199,7 +269,7 @@ plt.imshow(stack.sum(axis=0))
 
 if save:
     savepath = "/home/aurelien/Data/imFCS simulations/GUV/"
-    tifffile.imsave(savepath+"simulationGUV_zpsf_1msexp_D{:.2f}.tif".format(D),stack)
+    tifffile.imsave(savepath+"simulationGUV_motion3_3500pts_zpsf_1msexp_D{:.2f}.tif".format(D),stack)
 
 def chord2arc(d,R):
     """d is chord size, R is radius"""
@@ -241,3 +311,9 @@ plt.ylabel('MSD (um2/s)')
 plt.legend()
 
 print('MSD: {:.2f} um/s'.format(lr.slope))
+
+plt.figure()
+plt.plot(stack.mean(axis=(1,2)))
+plt.title("Stack intensntiy variation with time")
+plt.xlabel('time')
+plt.ylabel("Intensity variation")
