@@ -75,17 +75,23 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
         axes[2].set_xlabel("Time (frames)")
         axes[2].set_ylabel("Counts")
         
-        axes[3].set_title("FCS curves (normalised)")
+        axes[3].set_title("Averaged FCS curves (normalised)")
         axes[3].set_xlabel(r"$\rm \tau$")
         axes[3].set_ylabel(r"$\rm G(\tau)$")
         
-        axes[4].set_title("FCS curves")
+        axes[4].set_title("Averaged FCS curves")
         axes[4].set_xlabel(r"$\rm \tau$")
         axes[4].set_ylabel(r"$\rm G(\tau)$")
         
+        axes[7].set_title("All FCS curves")
+        axes[7].set_xlabel(r"$\rm \tau$")
+        axes[7].set_ylabel(r"$\rm G(\tau)$")
+        
+        axes[5].set_title("Diffusion coefficients")
         axes[5].set_xlabel("Binning (pixels)")
         axes[5].set_ylabel(r"$\rm D\ [\mu m^2/s]$")
         
+        axes[6].set_title("Number of molecules")
         axes[6].set_xlabel("Binning (pixels)")
         axes[6].set_ylabel(r"$\rm N$")
         

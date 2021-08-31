@@ -90,7 +90,7 @@ dt = 1*10**-3 # s
 D = 3 #um2/s
 
 R = 8 #um
-brightness = 18*10**4 #Hz/molecule
+brightness = 18*10**3 #Hz/molecule
 
 nsteps = 20000
 nparts = 1000
@@ -99,7 +99,7 @@ nparts = 1000
 
 motion_period = 3500*dt
 motion_freq = 2*np.pi/motion_period
-motion_amplitude = 0.3
+motion_amplitude = 0.05
 motion_z = 1-motion_amplitude + np.cos(motion_freq*np.arange(nsteps)*dt)*motion_amplitude
 
 plt.figure()
@@ -269,7 +269,7 @@ plt.imshow(stack.sum(axis=0))
 
 if save:
     savepath = "/home/aurelien/Data/imFCS simulations/GUV/"
-    tifffile.imsave(savepath+"simulationGUV_motion3_3500pts_zpsf_1msexp_D{:.2f}.tif".format(D),stack)
+    tifffile.imsave(savepath+"simulationGUV_motion4_zpsf_1msexp_D{:.2f}.tif".format(D),stack)
 
 def chord2arc(d,R):
     """d is chord size, R is radius"""

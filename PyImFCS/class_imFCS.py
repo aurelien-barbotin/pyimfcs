@@ -588,10 +588,12 @@ class StackFCS(object):
             parmaps.append(parmap)
             ax0 = axes[0,j]
             ax1 = axes[1,j]
-            im0 = ax0.imshow(im,cmap="gray")
+            extent = [0,im.shape[1]*nsum*self.xscale,0,
+                      im.shape[0]*nsum*self.xscale]
+            im0 = ax0.imshow(im,cmap="gray", extent = extent)
             ax0.set_title('Binning {}'.format(nsum))
-            
-            im1 = ax1.imshow(parmap,cmap=cmap, vmin = vmin, vmax = vmax)
+            im1 = ax1.imshow(parmap,cmap=cmap, vmin = vmin, vmax = vmax,
+                         extent = extent)
             fig.colorbar(im1,ax=ax1)
             fig.colorbar(im0,ax=ax0)
      
