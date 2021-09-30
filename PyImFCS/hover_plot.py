@@ -29,7 +29,6 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
         trace_raw = stack.stack[:,jj0*nsum:jj0*nsum+nsum,
                             ii0*nsum:ii0*nsum+nsum].mean(axis=(1,2))
         trace_raw = trace_raw-trace_raw.min()+trace.max()
-        print('trace raw',trace_raw.shape,trace.shape, xt.shape, xt2.shape)
         line0.set_data(ii0,jj0)
         line1.set_data([xt2, trace_raw])
         line10.set_data([xt, trace])
@@ -112,7 +111,7 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
     dt = stack.dt
     xt = np.arange(trace.size)*dt
     xt2 = np.arange(trace_raw.size)*dt
-    print(trace_raw.shape,trace.shape,xt.shape,xt2.shape)
+    
     line1, = axes[2].plot(xt,trace, label="Raw timetrace")
     line10, = axes[2].plot(xt2,trace_raw/trace_raw[0]*trace[0], label = "corrected")
     axes[2].legend()

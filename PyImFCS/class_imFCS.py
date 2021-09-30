@@ -594,6 +594,12 @@ class StackFCS(object):
             ax0.set_title('Binning {}'.format(nsum))
             im1 = ax1.imshow(parmap,cmap=cmap, vmin = vmin, vmax = vmax,
                          extent = extent)
+            xtks = np.linspace(0,parmap.shape[1],3)
+            ytks = np.linspace(0,parmap.shape[0],3)
+            ax1.set_xlabel("x [µm]")
+            ax1.set_ylabel("y [µm]")
+            #ax0.set_yticks(ticksytks,ytks*self.yscale)
+            
             fig.colorbar(im1,ax=ax1)
             fig.colorbar(im0,ax=ax0)
      
@@ -640,6 +646,9 @@ class StackFCS(object):
             dmins = observation_sizes**2/(factor*self.dt*self.stack.shape[0]/100)
         for ns in nsums:
             ds = self.parfit_dict[ns][:,:,1]
+            if self.threshold_map is not None:
+                th = self.get_threshold_map(ns)
+                ds = ds[th]
             ds_means.append(np.median(ds))
             ds_std.append( (np.percentile(ds,75)-np.percentile(ds,25))/2)
         ds_means = np.asarray(ds_means)
@@ -764,11 +773,15 @@ class StackFCS(object):
             sigmaxy = sigmaxy*np.sqrt(8*np.log(2)) #fwhm
             observation_sizes = np.sqrt((nsums*psize)**2+sigmaxy**2)
 
-            dmax = np.ones_like(nsums)*(self.dt*10)
-            dmins = np.ones_like(nsums)*self.dt*self.stack.shape[0]/100
-        
+        nsums = list(nsums)
         for j,ns in enumerate(nsums):
             ds = self.parfit_dict[ns][:,:,1]
+            if self.threshold_map is not None:
+                th = self.get_threshold_map(ns)
+                ds = ds[th]
+            if len(ds)==0:
+                nsums.pop(j)
+                continue
             taus = observation_sizes[j]**2/ds
             ds_means.append(np.median(taus))
             ds_std.append((np.percentile(taus,75)-np.percentile(taus,25)))
@@ -776,6 +789,8 @@ class StackFCS(object):
         
         plt.figure()
         if show_acceptable:
+            dmax = np.ones_like(nsums)*(self.dt*10)
+            dmins = np.ones_like(nsums)*self.dt*self.stack.shape[0]/100
             plt.plot(nsums,dmins,color="gray")
             plt.plot(nsums,dmax,color="gray")
         plt.errorbar(nsums, ds_means, yerr=ds_std,capsize=5)
