@@ -72,21 +72,31 @@ def blexp_offset(trace, plot=False):
         plt.plot(new_tr)
     return new_tr
 
-def blexp_double_offset(trace, plot=False):
+def blexp_double_offset(trace, plot=False, downsample = True):
     def expf(x,f0,tau,b,tau2,c):
         return f0*(np.exp(-x/tau)+b*np.exp(-x/tau2))+c
     
     subtr = trace/trace.max()
-    xt = np.arange(subtr.size)
+    if downsample:
+        nn0 = subtr.size//1000 # take one point every nn0
+        xt = np.arange(subtr.size)
+        subtr = subtr[::nn0]
+        xt = xt[::nn0]
+    
     p0 = (1,trace.size//10,1,trace.size//10,subtr.min())
     bounds = ((0, 1, 0, 1, 0),
               (2, trace.size*10, 1, trace.size*10,0.8))
+    
     try:
         popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
     except:
         print("Fitting failed arzo")
         return trace
     #popt=[4.7*10**6,18]
+    
+    # redefine subtr and xt to have right number of points
+    subtr = trace/trace.max()
+    xt = np.arange(subtr.size)
     trf = expf(xt,*popt)
     new_tr = cortrace(subtr,trf)
     
