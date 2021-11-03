@@ -15,9 +15,8 @@ import h5py
 import os
 
 from skimage.filters import threshold_otsu
-from scipy.stats import chisquare
-from inspect import signature
 from scipy.signal import fftconvolve
+from scipy.ndimage import label
 
 def cortrace(tr,fi):
     f0 = fi[0]
@@ -192,7 +191,6 @@ def new_chi_square(y,yh):
     diffneg = diff<0
     
     diff =  diff**2
-    from scipy.ndimage import label
     
     chi = 0
     
@@ -555,8 +553,10 @@ class StackFCS(object):
         all_yhs = np.asarray(all_yhs)
         return all_ns, all_corrs, all_yhs
     
-    def get_threshold_map(self,nsum,thf=None):
+    def get_threshold_map(self,nsum, thf = None):
         img = self.stack.sum(axis=0).astype(float)
+        
+        print('thresholding function is always otsu')
         if thf is None:
             thf = threshold_otsu
         thresholded = (img>thf(img)).astype(float)
@@ -609,11 +609,8 @@ class StackFCS(object):
             ax0.set_title('Binning {}'.format(nsum))
             im1 = ax1.imshow(parmap,cmap=cmap, vmin = vmin, vmax = vmax,
                          extent = extent)
-            xtks = np.linspace(0,parmap.shape[1],3)
-            ytks = np.linspace(0,parmap.shape[0],3)
             ax1.set_xlabel("x [µm]")
             ax1.set_ylabel("y [µm]")
-            #ax0.set_yticks(ticksytks,ytks*self.yscale)
             
             fig.colorbar(im1,ax=ax1)
             fig.colorbar(im0,ax=ax0)
