@@ -79,16 +79,7 @@ def registration(stack,ns, plot = False, method='interpolation'):
         xh = fx(xx2)
         yh = fy(xx2)
     
-    if plot:
-        plt.figure()
-        plt.plot(xx,shx,label="shift x",marker="o")
-        plt.plot(xx,shy, label="shift y",marker="v")
-        plt.plot(xx2,xh,color="k",linestyle="--")
-        plt.plot(xx2,yh,color="k",linestyle="--")
-        plt.legend()
-        plt.xlabel('Frame nr')
-        plt.ylabel('shift (pixels')
-            
+
     new_stack = np.zeros_like(stack)
     new_stack[0] = stack[0]
     for j in range(1,stack.shape[0]):
@@ -97,7 +88,38 @@ def registration(stack,ns, plot = False, method='interpolation'):
         corrected_image = fourier_shift(np.fft.fftn(offset_image), shift)
         corrected_image = np.abs(np.fft.ifftn(corrected_image))
         new_stack[j] = corrected_image
-    
+    if plot:
+        plt.figure()
+        plt.subplot(221)
+        plt.plot(xx,shx,label="shift x",marker="o")
+        plt.plot(xx,shy, label="shift y",marker="v")
+        plt.plot(xx2,xh,color="k",linestyle="--")
+        plt.plot(xx2,yh,color="k",linestyle="--")
+        plt.legend()
+        plt.xlabel('Frame nr')
+        plt.ylabel('shift (pixels')
+        
+        plt.subplot(222)
+        plt.imshow(np.mean(stack[:ns,],axis=0))
+        print(np.mean(stack[:ns,],axis=0).shape)
+        plt.title('First frame')
+        plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
+        plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
+        
+        plt.subplot(223)
+        plt.imshow(np.mean(stack[-ns:,],axis=0))
+        plt.title('last frame')
+        plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
+        plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
+        plt.tight_layout()
+        
+        plt.subplot(224)
+        plt.imshow(np.mean(new_stack[-ns:,],axis=0))
+        plt.title('last frame corrected')
+        plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
+        plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
+        plt.tight_layout()
+        
     return new_stack
 
 def correct_local_dips(st, plot=True):
