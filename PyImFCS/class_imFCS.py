@@ -107,7 +107,7 @@ def blexp_double_offset(trace, plot=False, downsample = True):
         
     return new_tr*trace.max()
 
-def bleaching_correct_sliding(trace, plot = False, wsize = 5000):
+def bleaching_correct_sliding(trace, wsize = 5000, plot = False):
     u = trace.size//wsize
     trace = trace[:u*wsize]
     new_trace = trace.copy()
