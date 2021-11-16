@@ -11,10 +11,16 @@ class FakeEvent():
         self.ydata = -0.45
         self.inaxes = ax
         
-def multiplot_stack(stack,nsum, parn=1, normsize=2):
+def multiplot_stack(stack,nsum, parn=1, normsize=2, fig = None):
     
     mutable_object = {} 
-    fig,axes = plt.subplots(2,4,figsize = (10,7))
+    if fig is None:
+        fig,axes = plt.subplots(2,4,figsize = (10,7))
+    else:
+        axes = []
+        for j in range(8):
+            axes.append(fig.add_subplot(2,4,j+1))
+        axes = np.asarray(axes)
     axes=axes.ravel()
     axes[5:] = axes[5:][::-1]
     def onclick(event):
@@ -26,9 +32,13 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
         
         ii0,jj0=math.floor(event.xdata+0.5), math.floor(event.ydata+0.5)
         trace = stack.traces_dict[nsum][jj0,ii0]
-        trace_raw = stack.stack[:,jj0*nsum:jj0*nsum+nsum,
-                            ii0*nsum:ii0*nsum+nsum].mean(axis=(1,2))
-        trace_raw = trace_raw-trace_raw.min()+trace.max()
+        if stack.load_stack:
+            trace_raw = stack.stack[:,jj0*nsum:jj0*nsum+nsum,
+                                ii0*nsum:ii0*nsum+nsum].mean(axis=(1,2))
+            trace_raw = trace_raw-trace_raw.min()+trace.max()
+        else:
+            trace_raw = trace
+            
         line0.set_data(ii0,jj0)
         line1.set_data([xt2, trace_raw])
         line10.set_data([xt, trace])
@@ -97,7 +107,11 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
         fig.canvas.draw_idle()
         
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
-    im = axes[0].imshow(stack.downsample_image(nsum))
+    print(stack.traces_dict.keys(),nsum)
+    image = stack.traces_dict[nsum].mean(axis=-1)
+
+
+    im = axes[0].imshow(image)
     line0, = axes[0].plot(0,0,"x",color="red")
     axes[0].set_title("Intensity")
     im2 = axes[1].imshow(stack.parfit_dict[nsum][:,:,parn])
@@ -106,8 +120,11 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
     
     trace = stack.traces_dict[nsum][0,0]
     i,j=0,0
-    trace_raw = stack.stack[:,i*nsum:i*nsum+nsum,
-                            j*nsum:j*nsum+nsum].mean(axis=(1,2))
+    if stack.load_stack:
+        trace_raw = stack.stack[:,i*nsum:i*nsum+nsum,
+                                j*nsum:j*nsum+nsum].mean(axis=(1,2))
+    else:
+        trace_raw = trace
     dt = stack.dt
     xt = np.arange(trace.size)*dt
     xt2 = np.arange(trace_raw.size)*dt
@@ -117,5 +134,6 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2):
     axes[2].legend()
     onclick(FakeEvent(axes[0]))
     fig.tight_layout()
+    return onclick
 
 # multiplot_stack(stack,6)
