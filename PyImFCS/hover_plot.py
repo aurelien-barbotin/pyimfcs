@@ -11,7 +11,7 @@ class FakeEvent():
         self.ydata = -0.45
         self.inaxes = ax
         
-def multiplot_stack(stack,nsum, parn=1, normsize=2, fig = None):
+def multiplot_stack(stack,nsum, parn=1, normsize=2, fig = None, maxparval = None):
     
     mutable_object = {} 
     if fig is None:
@@ -114,7 +114,12 @@ def multiplot_stack(stack,nsum, parn=1, normsize=2, fig = None):
     im = axes[0].imshow(image)
     line0, = axes[0].plot(0,0,"x",color="red")
     axes[0].set_title("Intensity")
-    im2 = axes[1].imshow(stack.parfit_dict[nsum][:,:,parn])
+    fig.colorbar(im,ax=axes[0])
+    
+    dmap = stack.parfit_dict[nsum][:,:,parn]
+    if maxparval is not None:
+        dmap[dmap>maxparval] = np.nan
+    im2 = axes[1].imshow(dmap)
     axes[1].set_title("Diffusion coeff.")
     fig.colorbar(im2,ax=axes[1])
     

@@ -209,7 +209,9 @@ def new_chi_square(y,yh):
 
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits","yhat"]
-    parameters_names = ["dt","xscale","yscale","path", "nreg", "shifts"]
+    # parameters to save
+    parameters_names = ["dt","xscale","yscale","path", "nreg", "shifts", 
+                        "first_n","last_n","clipval"]
     
     def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
@@ -224,6 +226,10 @@ class StackFCS(object):
             self.stack = np.zeros((5,5,5))
             
         self.fitter = fitter
+        
+        self.first_n = first_n
+        self.last_n = last_n
+        self.clipval = clipval
         
         self.threshold_map = None
         
@@ -329,6 +335,7 @@ class StackFCS(object):
         self.stack, shifts = stackreg(self.stack,nreg,plot=plot)
         self.nreg = nreg
         self.shifts = shifts
+        
     def set_threshold_map(self,th_map):
         self.threshold_map = th_map
         
