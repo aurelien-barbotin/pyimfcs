@@ -17,6 +17,7 @@ import os
 from skimage.filters import threshold_otsu
 from scipy.signal import fftconvolve
 from scipy.ndimage import label
+from PyImFCS.shift_correction import registration
 
 def cortrace(tr,fi):
     f0 = fi[0]
@@ -212,10 +213,16 @@ class StackFCS(object):
     
     def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
-                 remove_zeroes=False, clipval = None):
+                 remove_zeroes=False, clipval = None, load_stack = True):
+
         self.path = path
-        self.stack = tifffile.imread(path)
-        self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
+        self.load_stack = load_stack
+        if load_stack:
+            self.stack = tifffile.imread(path)
+            self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
+        else:
+            self.stack = np.zeros((5,5,5))
+            
         self.fitter = fitter
         
         self.threshold_map = None
@@ -236,7 +243,7 @@ class StackFCS(object):
         self.yh_dict = {}
         self.chisquares_dict = {}
         
-        if dt is None:
+        if dt is None and load_stack:
             try:
                 metadata = get_image_metadata(path)
                 dt = metadata['finterval']
@@ -254,6 +261,7 @@ class StackFCS(object):
         else:
             self.xscale = 1
             self.yscale = 1
+            dt = 1
             
         self.dt = dt
     
@@ -311,7 +319,10 @@ class StackFCS(object):
     
         for par in h5f["parameters"].keys():
             setattr(self,par,h5f["parameters"][par][()])
-            
+    
+    def registration(self,nreg):
+        self.stack = registration(self.stack,nreg,plot=True)
+        self.nreg = nreg
     def set_threshold_map(self,th_map):
         self.threshold_map = th_map
         
