@@ -17,7 +17,7 @@ import os
 from skimage.filters import threshold_otsu
 from scipy.signal import fftconvolve
 from scipy.ndimage import label
-from PyImFCS.shift_correction import registration
+from PyImFCS.shift_correction import stackreg
 
 def cortrace(tr,fi):
     f0 = fi[0]
@@ -209,7 +209,7 @@ def new_chi_square(y,yh):
 
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits","yhat"]
-    parameters_names = ["dt","xscale","yscale","path"]
+    parameters_names = ["dt","xscale","yscale","path", "nreg", "shifts"]
     
     def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
@@ -237,6 +237,11 @@ class StackFCS(object):
 
         self.blcorrf = blcorrf
            
+        # shift correction
+        self.nreg = 0
+        self.shifts = np.zeros(1)
+        
+        # resuts dictionaries
         self.correl_dicts = {}
         self.traces_dict = {}
         self.parfit_dict = {}
@@ -320,9 +325,10 @@ class StackFCS(object):
         for par in h5f["parameters"].keys():
             setattr(self,par,h5f["parameters"][par][()])
     
-    def registration(self,nreg):
-        self.stack = registration(self.stack,nreg,plot=True)
+    def registration(self,nreg, plot = False):
+        self.stack, shifts = stackreg(self.stack,nreg,plot=plot)
         self.nreg = nreg
+        self.shifts = shifts
     def set_threshold_map(self,th_map):
         self.threshold_map = th_map
         

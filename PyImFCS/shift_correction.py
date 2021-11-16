@@ -21,7 +21,9 @@ def get_shifts(stack,ns, plot=False):
     """
     Parameters:
         stack (ndarray): 3D, txy stack.
-        ns (int): frame pooling used for registration, e.g 1000"""
+        ns (int): frame pooling used for registration, e.g 1000
+    Returns:
+        ndarray: the shifts"""
     ref = np.mean(stack[:ns,],axis=0)
     
     nt = stack.shape[0]
@@ -120,6 +122,91 @@ def registration(stack,ns, plot = False, method='interpolation'):
         plt.tight_layout()
         
     return new_stack
+
+
+def stackreg(stack,ns, plot = False, method='interpolation'):
+    """Similar to the registration method,except it returns the value of the
+    x and y shifts.
+    Parameters:
+        stack (ndarray): the data. Time should be in the first of 3 dimensions
+        ns (int): stack is summed ns by ns frames at a time to increase signal
+        plot (bool): if True plots the results of the registration in a separate 
+            window
+        method (str): interpolation method to recover the shift at every time 
+            point instead of every ns.
+    Returns:
+        tuple: (ndarray, ndarray); (new_stack, shifts)"""
+    methods = ['interpolation', 'polfit']
+    if method not in methods:
+        raise KeyError('Wrong method')
+        
+    shifts = get_shifts(stack, ns)
+    
+    
+    shx, shy = shifts[:,0], shifts[:,1]
+    xx = np.arange(shx.size)+1
+    xx*=ns
+    
+    xx2 = np.arange(stack.shape[0])
+    if method=='polfit':
+        popt1,_ = curve_fit(polfit, xx, shx)
+        popt2,_ = curve_fit(polfit, xx, shy)
+        
+        xh = polfit(xx2,*popt1)
+        yh = polfit(xx2,*popt2)
+        
+    elif method=="interpolation":
+        shx = np.concatenate(([0],shx))
+        shy = np.concatenate(([0],shy))
+        xx = np.arange(shx.size)*ns
+        fx = interp1d(xx, shx, fill_value = "extrapolate")
+        fy = interp1d(xx, shy, fill_value = "extrapolate")
+        
+        xh = fx(xx2)
+        yh = fy(xx2)
+    
+
+    new_stack = np.zeros_like(stack)
+    new_stack[0] = stack[0]
+    for j in range(1,stack.shape[0]):
+        shift = (xh[j],yh[j])
+        offset_image = stack[j]
+        corrected_image = fourier_shift(np.fft.fftn(offset_image), shift)
+        corrected_image = np.abs(np.fft.ifftn(corrected_image))
+        new_stack[j] = corrected_image
+    if plot:
+        plt.figure()
+        plt.subplot(221)
+        plt.plot(xx,shx,label="shift x",marker="o")
+        plt.plot(xx,shy, label="shift y",marker="v")
+        plt.plot(xx2,xh,color="k",linestyle="--")
+        plt.plot(xx2,yh,color="k",linestyle="--")
+        plt.legend()
+        plt.xlabel('Frame nr')
+        plt.ylabel('shift (pixels')
+        
+        plt.subplot(222)
+        plt.imshow(np.mean(stack[:ns,],axis=0))
+        print(np.mean(stack[:ns,],axis=0).shape)
+        plt.title('First frame')
+        plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
+        plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
+        
+        plt.subplot(223)
+        plt.imshow(np.mean(stack[-ns:,],axis=0))
+        plt.title('last frame')
+        plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
+        plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
+        plt.tight_layout()
+        
+        plt.subplot(224)
+        plt.imshow(np.mean(new_stack[-ns:,],axis=0))
+        plt.title('last frame corrected')
+        plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
+        plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
+        plt.tight_layout()
+        
+    return new_stack, shifts
 
 def correct_local_dips(st, plot=True):
     
