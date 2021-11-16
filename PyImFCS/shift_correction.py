@@ -16,7 +16,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.optimize import curve_fit
-plt.close('all')
 
 def get_shifts(stack,ns, plot=False):
     """
