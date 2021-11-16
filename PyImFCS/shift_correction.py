@@ -165,7 +165,7 @@ def stackreg(stack,ns, plot = False, method='interpolation'):
         xh = fx(xx2)
         yh = fy(xx2)
     
-
+    
     new_stack = np.zeros_like(stack)
     new_stack[0] = stack[0]
     for j in range(1,stack.shape[0]):
@@ -174,6 +174,8 @@ def stackreg(stack,ns, plot = False, method='interpolation'):
         corrected_image = fourier_shift(np.fft.fftn(offset_image), shift)
         corrected_image = np.abs(np.fft.ifftn(corrected_image))
         new_stack[j] = corrected_image
+    new_stack = new_stack[:,int(max(max(xh),0)):new_stack.shape[1]+int(min(0,min(xh))),
+                          int(max(max(yh),0)):new_stack.shape[2]+int(min(0,min(yh)))]
     if plot:
         plt.figure()
         plt.subplot(221)
@@ -202,8 +204,8 @@ def stackreg(stack,ns, plot = False, method='interpolation'):
         plt.subplot(224)
         plt.imshow(np.mean(new_stack[-ns:,],axis=0))
         plt.title('last frame corrected')
-        plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
-        plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
+        plt.axhline(stack.shape[1]//2-int(max(max(xh),0)),color="red",linestyle='--')
+        plt.axvline(stack.shape[2]//2-int(max(max(yh),0)),color="red",linestyle='--')
         plt.tight_layout()
         
     return new_stack, np.concatenate((xh,yh))
