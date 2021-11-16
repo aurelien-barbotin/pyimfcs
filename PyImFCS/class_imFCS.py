@@ -215,13 +215,12 @@ class StackFCS(object):
     
     def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
-                 remove_zeroes=False, clipval = None, load_stack = True):
+                 remove_zeroes=False, clipval = 0, load_stack = True):
 
         self.path = path
         self.load_stack = load_stack
         if load_stack:
             self.stack = tifffile.imread(path)
-            self.stack = self.stack[first_n:self.stack.shape[0]-last_n]
         else:
             self.stack = np.zeros((5,5,5))
             
@@ -229,7 +228,6 @@ class StackFCS(object):
         
         self.first_n = first_n
         self.last_n = last_n
-        self.clipval = clipval
         
         self.threshold_map = None
         
@@ -352,12 +350,12 @@ class StackFCS(object):
                 ctmp = []
                 trtmp = []
                 for j in range(w//nSum):
-                    trace = self.stack[:,i*nSum:i*nSum+nSum,
+                    trace = self.stack[self.first_n:-self.last_n,i*nSum:i*nSum+nSum,
                                        j*nSum:j*nSum+nSum].mean(axis=(1,2))
                     if self.blcorrf is not None:
                         trace = self.blcorrf(trace)
                         
-                    if self.clipval is not None:
+                    if self.clipval>0:
                         trace = trace[self.clipval:-self.clipval]
                         
                     corr = multipletau.autocorrelate(trace, normalize=True, deltat = self.dt)[1:]

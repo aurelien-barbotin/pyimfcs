@@ -208,7 +208,7 @@ def stackreg(stack,ns, plot = False, method='interpolation'):
         plt.axvline(stack.shape[2]//2-int(max(max(yh),0)),color="red",linestyle='--')
         plt.tight_layout()
         
-    return new_stack, np.concatenate((xh,yh))
+    return new_stack, np.array([xh,yh])
 
 def correct_local_dips(st, plot=True):
     
