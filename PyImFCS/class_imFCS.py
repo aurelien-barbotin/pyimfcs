@@ -219,15 +219,16 @@ class StackFCS(object):
 
         self.path = path
         self.load_stack = load_stack
+        self.first_n = first_n
+        self.last_n = last_n
         if load_stack:
             self.stack = tifffile.imread(path)
+            self.stack = self.stack[self.first_n:self.stack.shape[0]-self.last_n]
         else:
             self.stack = np.zeros((5,5,5))
             
         self.fitter = fitter
         
-        self.first_n = first_n
-        self.last_n = last_n
         
         self.threshold_map = None
         
@@ -350,7 +351,7 @@ class StackFCS(object):
                 ctmp = []
                 trtmp = []
                 for j in range(w//nSum):
-                    trace = self.stack[self.first_n:-self.last_n,i*nSum:i*nSum+nSum,
+                    trace = self.stack[:,i*nSum:i*nSum+nSum,
                                        j*nSum:j*nSum+nSum].mean(axis=(1,2))
                     if self.blcorrf is not None:
                         trace = self.blcorrf(trace)
