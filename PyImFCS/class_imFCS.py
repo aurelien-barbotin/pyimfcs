@@ -241,7 +241,6 @@ class StackFCS(object):
             self.stack = self.stack - self.stack.min()
 
         self.blcorrf = blcorrf
-           
         # shift correction
         self.nreg = 0
         self.shifts = np.zeros(1)
@@ -334,7 +333,7 @@ class StackFCS(object):
         self.stack, shifts = stackreg(self.stack,nreg,plot=plot)
         self.nreg = nreg
         self.shifts = shifts
-        
+    
     def set_threshold_map(self,th_map):
         self.threshold_map = th_map
         
