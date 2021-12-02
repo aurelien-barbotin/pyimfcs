@@ -185,7 +185,7 @@ def save_tiff_withmetadata(file, st, metadata):
     
     writer = tifffile.TiffWriter(file,imagej=True)
     writer.write(st,metadata=meta_dict)
-    
+
 def new_chi_square(y,yh):
     diff = (y-yh)/yh[0]
     diffpos = diff>0
@@ -207,11 +207,12 @@ def new_chi_square(y,yh):
     
     return chi/yh.size
 
+
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits","yhat"]
     # parameters to save
     parameters_names = ["dt","xscale","yscale","path", "nreg", "shifts", 
-                        "first_n","last_n","clipval"]
+                        "first_n","last_n","clipval","bl_kernel_size"]
     
     def __init__(self, path, mfactor = 8, background_correction = True, 
                  blcorrf = None,first_n=0, last_n = 0, fitter = None, dt = None,
@@ -231,7 +232,6 @@ class StackFCS(object):
         
         
         self.threshold_map = None
-        
         # removes clipval points before and after the intensity timetrace
         # before correlation. To remove artefacts from bleaching correction
         # or image registration
@@ -241,6 +241,7 @@ class StackFCS(object):
             self.stack = self.stack - self.stack.min()
 
         self.blcorrf = blcorrf
+        self.bl_kernel_size = 'None'
         # shift correction
         self.nreg = 0
         self.shifts = np.zeros(1)
@@ -337,6 +338,12 @@ class StackFCS(object):
     def set_threshold_map(self,th_map):
         self.threshold_map = th_map
         
+    def set_bleaching_function(self,blcorrf, wsize = None):
+        if wsize is not None:
+            self.blcorrf = lambda x: blcorrf(x, wsize=wsize)
+        else:
+            self.blcorrf = blcorrf
+        self.bl_kernel_size = str(wsize)
     def correlate_stack(self,nSum):
         """Only method that correlates """
         if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:
@@ -571,8 +578,8 @@ class StackFCS(object):
                 all_yhs.append(yhs)
                 all_ns.append(ns)
         sums = np.asarray(sums)
-        all_corrs = np.asarray(all_corrs)
-        all_yhs = np.asarray(all_yhs)
+        all_corrs = all_corrs
+        all_yhs = all_yhs
         return all_ns, all_corrs, all_yhs
     
     def get_threshold_map(self,nsum, thf = None):
