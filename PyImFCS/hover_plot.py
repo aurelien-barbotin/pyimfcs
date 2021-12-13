@@ -13,9 +13,9 @@ class FakeEvent():
         self.ydata = -0.45
         self.inaxes = ax
         
-def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None, maxparval = None):
-    
-    mutable_object = {} 
+def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None, 
+                    maxparval = None):
+    mutable_object = {}
     if fig is None:
         fig,axes = plt.subplots(2,4,figsize = (10,7))
     else:
@@ -119,6 +119,7 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None, maxparval = None
     fig.colorbar(im,ax=axes[0])
     
     dmap = stack.parfit_dict[nsum][:,:,parn]
+    dmap[dmap<0] = np.nan
     if maxparval is not None:
         dmap[dmap>maxparval] = np.nan
     im2 = axes[1].imshow(dmap)
@@ -133,8 +134,8 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None, maxparval = None
     else:
         trace_raw = trace
     dt = stack.dt
-    xt = np.arange(trace.size)*dt
-    xt2 = np.arange(trace_raw.size)*dt
+    xt = np.arange(trace.size)
+    xt2 = np.arange(trace_raw.size)
     
     line1, = axes[2].plot(xt,trace, label="Raw timetrace")
     line10, = axes[2].plot(xt2,trace_raw/trace_raw[0]*trace[0], label = "corrected")
@@ -153,6 +154,7 @@ def findindex(x,y,xy):
     ind0 = np.argmin(i0)
     ind1 = np.argmin(i1)
     if ind0!=ind1:
+        print('values: {},{}'.format(xy[0],xy[1]))
         print(ind0,ind1)
         ind0 = np.argmin(i0+i1)
         print("new ind0: {}".format(ind0))
@@ -167,8 +169,8 @@ def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi',
         y (list): list of value arrays for different conditions
         curves_subsets (list)"""
     #curves = np.concatenate(curves_subsets,axis=0)
-    curves = [x for w in curves_subsets for x in w]
-    fits = [x for w in fits_subsets for x in w]
+    curves = np.array([x for w in curves_subsets for x in w])
+    fits = np.array([x for w in fits_subsets for x in w])
     predictions = [ [labels[w] for uu in curves_subsets[w]] for w in range(len(labels))]
     predictions = np.array(predictions)
     predictions = np.concatenate(predictions,axis=0)
@@ -177,6 +179,14 @@ def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi',
     ax = axes[0]
     xx = np.concatenate(x,axis=0)
     yy = np.concatenate(y,axis=0)
+    
+    msk = np.logical_and(~np.isnan(xx), ~np.isnan(yy))
+    xx = xx[msk]
+    yy=yy[msk]
+    predictions = predictions[msk]
+    curves = curves[msk]
+    fits = fits[msk]
+    
     sc = ax.scatter(xx, yy, s=np.ones_like(xx))
     
     for j in range(len(labels)):
@@ -233,24 +243,28 @@ def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi',
     plt.show()
     return fig,axes
 
-def get_fit_error(files,nsums, intensity_threshold = None):
+def get_fit_error(files,nsums, intensity_threshold = None, chi_threshold = None):
     all_curves = []
     all_fits = []
     all_chis = []
     all_chis_new = []
     all_diffs = []
-    all_intensities = []
     all_labels = []
     
-    for file in files:
+    diffs_out = list()
+    chis_out = list()
+    
+    for k,file in enumerate(files):
         h5f = h5py.File(file,mode='r')
         dict_diffcoeff = get_dict(h5f, "parameters_fits")
         dict_curves = get_dict(h5f, "correlations")
         dict_curves_fits = get_dict(h5f, "yhat")
         dict_traces = get_dict(h5f,'traces')
         h5f.close()
+        diffs_out.append( dict(zip(nsums,[[] for w in nsums])))
+        chis_out.append(dict(zip(nsums,[[] for w in nsums])))
         
-        for nsum in nsums:
+        for jj, nsum in enumerate(nsums):
             diffcoeffs = dict_diffcoeff[nsum][:,:,1]
             curves = dict_curves[nsum]
             curves_fits = dict_curves_fits[nsum]
@@ -274,28 +288,32 @@ def get_fit_error(files,nsums, intensity_threshold = None):
             fits_reshaped = curves_fits.reshape((curves.shape[0]*curves.shape[1],curves.shape[2]))
             
             msk = np.ones_like(intensities, dtype = bool)
+            msk[diffcoeffs.reshape(-1)<0] = 0
             if intensity_threshold is not None:
-                msk = intensities>(intensities.max()*intensity_threshold)
-                curves_reshaped = curves_reshaped[msk]
-                fits_reshaped = fits_reshaped[msk]
-
+                msk = np.logical_and(msk,
+                                     intensities>(intensities.max()*intensity_threshold))
+                
+            chis_new = chis_new.reshape(-1)[msk]
+            curves_reshaped = curves_reshaped[msk]
+            fits_reshaped = fits_reshaped[msk]
+            diffs = diffcoeffs.reshape(-1)[msk]
+            
             all_curves.append(curves_reshaped)
             all_fits.append(fits_reshaped)
             all_chis.append(chis.reshape(-1)[msk])
-            all_chis_new.append(chis_new.reshape(-1)[msk])
-            all_diffs.append(diffcoeffs.reshape(-1)[msk])
+            all_chis_new.append(chis_new)
+            all_diffs.append(diffs)
             # all_intensities.append()
             all_labels.append(file.split('/')[-1]+"_{}".format(nsum))
             
+            diffs_out[k][nsum] = diffs[chis_new<chi_threshold]
+            chis_out[k][nsum]= chis_new[chis_new<chi_threshold]
     
-    
-    """hover_plot(all_chis,all_chis_new,
-               all_curves,all_fits,all_labels)"""
-    
-    
-    hover_plot(all_chis_new,all_diffs,
+    fig,axes= hover_plot(all_chis_new,all_diffs,
                all_curves,all_fits,all_labels, xlabel = 'chinew',ylabel = "D",ylog = True, xlog = True)
-
+    axes[0].axvline(chi_threshold,color="k")
+    
+    return diffs_out,chis_out
 
 def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4, 
                        chi_threshold = 0.02, debug_plot=True):
@@ -329,6 +347,7 @@ def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4,
 
     
     msk0 = np.ones_like(intensities, dtype = bool)
+    
     if intensity_threshold is not None:
         msk0 = intensities>(intensities.max()*intensity_threshold)
     msk = np.logical_and(msk0,chis_new<chi_threshold)
@@ -346,8 +365,8 @@ def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4,
         plt.title('Intensities mask')
         
         plt.subplot(223)
-        plt.imshow(chis_new<chi_threshold)
-        plt.title('Chis mask')
+        plt.imshow(chis_new)
+        plt.title('Chis')
         
         plt.subplot(224)
         plt.imshow(diffcoeffs)
@@ -358,13 +377,15 @@ def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4,
     plt.imshow(intensities, extent=extent)
     plt.title('Intensity projection')
     plt.xlabel('x [µm]')
-    plt.xlabel('y [µm]')
+    plt.ylabel('y [µm]')
     plt.colorbar()
     
     plt.subplot(122)
     plt.imshow(dmap, extent=extent)
     plt.xlabel('x [µm]')
-    plt.xlabel('y [µm]')
+    plt.ylabel('y [µm]')
     plt.title('Diffusion map')
     cbar = plt.colorbar()
     cbar.set_label('D [µm²/s]')
+    return dmap
+
