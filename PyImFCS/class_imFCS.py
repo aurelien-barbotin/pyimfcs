@@ -486,7 +486,8 @@ class StackFCS(object):
                     # sig = signature(fitter.fitter)
                     # ddof=len(sig.parameters)-1
                     #print(corr[:,1].dtype,yh.dtype, corr[:,1].dtype,yh.dtype)
-                    chi = np.square(corr[:,1]-yh).mean()/yh[0]**2
+                    # chi = np.square(corr[:,1]-yh).mean()/yh[0]**2
+                    chi = new_chi_square(corr[:,1], yh)
                     popt_tmp.append(popt)
                     yh_tmp.append(yh)
                     chisquares_tmp.append(chi)
@@ -497,6 +498,22 @@ class StackFCS(object):
                 
             self.parfit_dict[nsum] = np.array(popts)
             self.yh_dict[nsum] = np.array(yhs)
+            self.chisquares_dict[nsum] = np.array(chisquares)
+    
+    def calculate_chisquares(self):
+        nsums = self.correl_dicts.keys()
+        for nsum in nsums:
+            correls = self.correl_dicts[nsum]
+            fits = self.yh_dict[nsum]
+            chisquares = []
+            for j in range(correls.shape[0]):
+                chisquares_tmp = []
+                for k in range(correls.shape[1]):
+                    corr = correls[j,k]
+                    yh = fits[j,k]
+                    chi = new_chi_square(corr[:,1], yh)
+                    chisquares_tmp.append(chi)
+                chisquares.append(chisquares_tmp)
             self.chisquares_dict[nsum] = np.array(chisquares)
             
     def parameter_map(self,nsum = None,parn=1):
