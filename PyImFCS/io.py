@@ -38,14 +38,16 @@ def get_diffusion_df(name, repeat, condition, nsum):
     return df
 
 
-def save_as_excel(out_name,files,nsums,all_diffs,all_chis):
+def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
     """Saves the results of several FCS experiments in a single excel file.
     Parameters:
         out_name (string): output file name. Extension is added later
         file (list): list of all filenames in the dataset
         nsums (list): integers, different pixel binnings
         all_diffs (list): list of diffusion coefficients dictionaries, same 
-            size as files. Keys are the binning values (typically 2,3,4 or 2,4,8)"""
+            size as files. Keys are the binning values (typically 2,3,4 or 2,4,8)
+        parameters_dict (dict): dictionary of misc processing parameters like 
+            chi_threshold or intensity_threshold"""
     extension = ".xlsx"
     if not out_name.endswith(extension):
         out_name+=extension
@@ -75,7 +77,7 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis):
         dfs_total = pd.concat(dfs_total)
         dfs_total.to_excel(writer, sheet_name = "all")
         
-        parameters_dict = {"chi_threshold":new_chis_threshold,
-                           "intensity_threshold": intensity_threshold}
+        # parameters_dict = {"chi_threshold":new_chis_threshold,
+        #                    "intensity_threshold": intensity_threshold}
         df_pars = pd.DataFrame(parameters_dict, index=[0]).T
         df_pars.to_excel(writer, sheet_name = "parameters")
