@@ -14,7 +14,8 @@ class FakeEvent():
         self.inaxes = ax
         
 def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None, 
-                    maxparval = None):
+                    maxparval = None, chi_threshold = None):
+    print('maxparval',maxparval)
     mutable_object = {}
     if fig is None:
         fig,axes = plt.subplots(2,4,figsize = (10,7))
@@ -122,6 +123,13 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None,
     dmap[dmap<0] = np.nan
     if maxparval is not None:
         dmap[dmap>maxparval] = np.nan
+    
+    if chi_threshold is not None:
+        if len(stack.chisquares_dict)==0:
+            stack.calculate_chisquares()
+        chi_map = stack.chisquares_dict[nsum]
+        dmap[chi_map>chi_threshold] = np.nan
+        print('remove chis')
     im2 = axes[1].imshow(dmap)
     axes[1].set_title("Diffusion coeff.")
     fig.colorbar(im2,ax=axes[1])
@@ -313,7 +321,7 @@ def get_fit_error(files,nsums, intensity_threshold = None, chi_threshold = None)
                all_curves,all_fits,all_labels, xlabel = 'chinew',ylabel = "D",ylog = True, xlog = True)
     axes[0].axvline(chi_threshold,color="k")
     
-    return diffs_out,chis_out
+    return diffs_out, chis_out
 
 def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4, 
                        chi_threshold = 0.02, debug_plot=True):
