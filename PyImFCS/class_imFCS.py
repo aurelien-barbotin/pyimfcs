@@ -224,6 +224,9 @@ class StackFCS(object):
         self.last_n = last_n
         if load_stack:
             self.stack = tifffile.imread(path)
+            if len(self.stack.shape)==2:
+                self.stack = self.stack.reshape((*self.stack.shape,1))
+                print("Scanning FCS")
             self.stack = self.stack[self.first_n:self.stack.shape[0]-self.last_n]
         else:
             self.stack = np.zeros((5,5,5))
