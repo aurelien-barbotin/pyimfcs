@@ -119,7 +119,7 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None,
     axes[0].set_title("Intensity")
     fig.colorbar(im,ax=axes[0])
     
-    dmap = stack.parfit_dict[nsum][:,:,parn]
+    dmap = stack.parfit_dict[nsum][:,:,parn].copy()
     dmap[dmap<0] = np.nan
     if maxparval is not None:
         dmap[dmap>maxparval] = np.nan
@@ -251,7 +251,7 @@ def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi',
     plt.show()
     return fig,axes
 
-def get_fit_error(files,nsums, intensity_threshold = None, chi_threshold = None):
+def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold = None):
     all_curves = []
     all_fits = []
     all_chis = []
@@ -262,6 +262,13 @@ def get_fit_error(files,nsums, intensity_threshold = None, chi_threshold = None)
     diffs_out = list()
     chis_out = list()
     
+    # if nsums is not specified; take the nsums in every file and check that 
+    # it is consistent across the dataset
+    check_nsums = False
+    nsums_backup = None
+    if nsums is None:
+        check_nsums = True
+    
     for k,file in enumerate(files):
         h5f = h5py.File(file,mode='r')
         dict_diffcoeff = get_dict(h5f, "parameters_fits")
@@ -269,6 +276,14 @@ def get_fit_error(files,nsums, intensity_threshold = None, chi_threshold = None)
         dict_curves_fits = get_dict(h5f, "yhat")
         dict_traces = get_dict(h5f,'traces')
         h5f.close()
+        
+        if check_nsums:
+            nsums = list(dict_curves.keys())
+            if nsums_backup is None:
+                nsums_backup = nsums
+            if sorted(nsums)!=sorted(nsums_backup):
+                raise KeyError('Not all files were processed with the same parameters')
+            
         diffs_out.append( dict(zip(nsums,[[] for w in nsums])))
         chis_out.append(dict(zip(nsums,[[] for w in nsums])))
         
