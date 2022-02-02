@@ -260,8 +260,12 @@ class StackFCS(object):
             try:
                 metadata = get_image_metadata(path)
                 dt = metadata['finterval']
-                xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1']*10**6
-                yscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY #1']*10**6
+                if 'Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1' in metadata:
+                    xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1']*10**6
+                    yscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY #1']*10**6
+                else:
+                    xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX']*10**6
+                    yscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY']*10**6
                 self.xscale = xscale
                 self.yscale = yscale
                 if xscale!=yscale:

@@ -37,7 +37,6 @@ def get_diffusion_df(name, repeat, condition, nsum):
     
     return df
 
-
 def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
     """Saves the results of several FCS experiments in a single excel file.
     Parameters:
@@ -64,7 +63,11 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
             name_arr = np.full(diff.size, fname)
             nsum_arr = np.full(diff.size, nsum)
             out_arr = np.array([name_arr,repeats_arr, diff, nsum_arr, chis]).T
-            df = pd.DataFrame(out_arr, columns = ["name", "repeat","D [µm²/s]","binning","fit error"])
+            df = pd.DataFrame(out_arr, columns = ["filename", "repeat","D [µm²/s]","binning","fit error"])
+            df = df.astype({'filename':"str",
+                           "repeat":"int",
+                           "D [µm²/s]":"float",
+                           "fit error":"float"})
             df0.append(df)
         all_dfs[nsum] = pd.concat(df0)
         

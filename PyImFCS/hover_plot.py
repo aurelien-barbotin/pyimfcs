@@ -251,7 +251,7 @@ def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi',
     plt.show()
     return fig,axes
 
-def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold = None):
+def plot_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold = None):
     all_curves = []
     all_fits = []
     all_chis = []
