@@ -151,6 +151,97 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None,
     onclick(FakeEvent(axes[0]))
     fig.tight_layout()
     return onclick
+      
+def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None, 
+                    maxparval = None, chi_threshold = None):
+    """Light version of multiplot stack that does not load intensity traces"""
+    mutable_object = {}
+    if fig is None:
+        fig,axes = plt.subplots(2,2,figsize = (10,7))
+    else:
+        axes = []
+        for j in range(4):
+            if j==1:
+                print(axes)
+                print(axes[0])
+                axes.append(fig.add_subplot(2,2,j+1,sharex=axes[0],sharey=axes[0]))
+            else:
+                axes.append(fig.add_subplot(2,2,j+1))
+        axes = np.asarray(axes)
+    axes=axes.ravel()
+    def onclick(event):
+        if event.inaxes not in axes[0:2]:
+            return
+        X_coordinate = event.xdata
+        Y_coordinate = event.ydata
+        mutable_object['click'] = X_coordinate
+        
+        ii0,jj0=math.floor(event.xdata+0.5), math.floor(event.ydata+0.5)
+        
+        line0.set_data(ii0,jj0)
+        line1.set_data(ii0,jj0)
+        axes[2].cla()
+        axes[3].cla()
+        
+        ns, corrs1, fits1 = stack.get_acf_coord(nsum,jj0,ii0, average=False)
+        for k in range(len(ns)):
+            curve = corrs1[k]
+            fits = fits1[k]
+            
+            curve = corrs1[k].mean(axis=(0,1))
+            fits = fits1[k].mean(axis=(0,1))
+    
+            axes[2].semilogx(curve[:,0], curve[:,1],
+                             label=ns[k],color="C{}".format(ns[k]))
+            axes[2].semilogx(curve[:,0], fits, color="k",linestyle='--')
+            
+        
+        ns, dm, ds = stack.get_param_coord(nsum,jj0,ii0,parn=1)
+        axes[3].cla()
+        axes[3].errorbar(ns,dm,yerr=ds,capsize=5)
+            
+        
+        axes[2].set_title("Averaged FCS curves")
+        axes[2].set_xlabel(r"$\rm \tau$")
+        axes[2].set_ylabel(r"$\rm G(\tau)$")
+        
+        axes[3].set_title("Diffusion coefficients")
+        axes[3].set_xlabel("Binning (pixels)")
+        axes[3].set_ylabel(r"$\rm D\ [\mu m^2/s]$")
+        
+        
+        fig.canvas.draw_idle()
+        
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+    print(stack.traces_dict.keys(),nsum)
+    image = stack.thumbnails_dict[nsum]
+
+
+    im = axes[0].imshow(image)
+    line0, = axes[0].plot(0,0,"x",color="red")
+    axes[0].set_title("Intensity")
+    fig.colorbar(im,ax=axes[0])
+    
+    dmap = stack.parfit_dict[nsum][:,:,parn].copy()
+    dmap[dmap<0] = np.nan
+    if maxparval is not None:
+        dmap[dmap>maxparval] = np.nan
+    
+    if chi_threshold is not None:
+        if len(stack.chisquares_dict)==0:
+            stack.calculate_chisquares()
+        chi_map = stack.chisquares_dict[nsum]
+        dmap[chi_map>chi_threshold] = np.nan
+        print('remove chis')
+    im2 = axes[1].imshow(dmap)
+    axes[1].set_title("Diffusion coeff.")
+    line1, = axes[1].plot(0,0,"x",color="red")
+    fig.colorbar(im2,ax=axes[1])
+
+    axes[2].legend()
+    onclick(FakeEvent(axes[0]))
+    fig.tight_layout()
+    return onclick
 
 markers = ["o","v","s","x","1"]
 def findindex(x,y,xy):

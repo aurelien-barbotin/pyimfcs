@@ -339,19 +339,19 @@ class StackFCS(object):
             elif dname not in h5f.keys():
                 print("Warning: key {} not in loaded file".format(dname))
                 continue
-            # don't load traces in the 'light' version
-            if light_version and dname=="traces":
-                continue
-            out_dic = dicts_to_load[dname]
-            ds = h5f[dname]
-            for key in ds.keys():
-                dd = ds[key][()]
-                out_dic[int(key)] = dd
-    
+            else:
+                # don't load traces in the 'light' version
+                if light_version and dname=="traces":
+                    continue
+                out_dic = dicts_to_load[dname]
+                ds = h5f[dname]
+                for key in ds.keys():
+                    dd = ds[key][()]
+                    out_dic[int(key)] = dd
         for par in h5f["parameters"].keys():
             setattr(self,par,h5f["parameters"][par][()])
         if save_after:
-            self.save()
+            self.save(name = name)
             print('Saving again')
     def registration(self,nreg, plot = False):
         self.stack, shifts = stackreg(self.stack,nreg,plot=plot)
