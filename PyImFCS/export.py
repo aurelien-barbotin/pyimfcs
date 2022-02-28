@@ -147,42 +147,47 @@ def merge_excels(fileslist_list, out_name, keep_single_indices = False, conditio
         return ValueError('Please specify condition names')
     assert( conditions is None or len(conditions)==len(fileslist_list))
     
-    for inumber, files in enumerate(fileslist_list):
-        excels = [pd.ExcelFile(w) for w in files]
-        
-        # xl0 = excels[0]
-        
-        all_names = [w.sheet_names for w in excels]
-        names0 = all_names[0]
-        kept_names = list()
-        for name in names0:
-              if np.all([name in sublist for sublist in all_names]):
-                  kept_names.append(name)
-        
-        all_dfs = {}
-        for name in kept_names:
-            dfs = []
-            maxindex = 0
-            for j, xl in enumerate(excels):
-                df = xl.parse(sheet_name=name)
-                if name=="parameters":
-                    fname = files[j]
-                    df["file"] = fname
-                    
+    if not out_name.endswith('.xlsx'):
+        out_name+=".xlsx"
+    
+    # unravel
+    files = [w for flist in fileslist_list for w in flist]
+    excels = [pd.ExcelFile(w) for w in files]
+    if conditions is not None:
+        conditions_list = [conditions[j] for j, flist in enumerate(fileslist_list) for w in flist]
+    # xl0 = excels[0]
+    
+    all_names = [w.sheet_names for w in excels]
+    names0 = all_names[0]
+    kept_names = list()
+    for name in names0:
+          if np.all([name in sublist for sublist in all_names]):
+              kept_names.append(name)
+    
+    all_dfs = {}
+    for name in kept_names:
+        dfs = []
+        maxindex = 0
+        for j, xl in enumerate(excels):
+            df = xl.parse(sheet_name=name)
+            if name=="parameters":
+                fname = files[j]
+                df["file"] = fname
+                
+            else:
+                if keep_single_indices:
+                    df['repeat']+=maxindex
+                    maxindex = df['repeat'].values.max()+1
+                    # print("maxindex", maxindex)
                 else:
-                    if keep_single_indices:
-                        df['repeat']+=maxindex
-                        maxindex = df['repeat'].values.max()+1
-                        # print("maxindex", maxindex)
-                    else:
-                        df['repeat'] = maxindex
-                        maxindex += 1
-                if conditions is not None:
-                    df["condition"] = conditions[inumber]
-                dfs.append(df)
-                    
-            dfs = pd.concat(dfs)
-            all_dfs[name] = dfs
+                    df['repeat'] = maxindex
+                    maxindex += 1
+            if conditions is not None:
+                df["condition"] = conditions_list[j]
+            dfs.append(df)
+                
+        dfs = pd.concat(dfs)
+        all_dfs[name] = dfs
             
     with pd.ExcelWriter(out_name) as writer:  
             for name in kept_names:

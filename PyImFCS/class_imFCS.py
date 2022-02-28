@@ -209,7 +209,7 @@ def new_chi_square(y,yh):
 
 
 class StackFCS(object):
-    dic_names = ["correlations", "traces", "parameters_fits","yhat"]
+    dic_names = ["correlations", "traces", "parameters_fits","yhat", "thumbnails"]
     # parameters to save
     parameters_names = ["dt","xscale","yscale","path", "nreg", "shifts", 
                         "first_n","last_n","clipval","bl_kernel_size"]
@@ -255,6 +255,7 @@ class StackFCS(object):
         self.parfit_dict = {}
         self.yh_dict = {}
         self.chisquares_dict = {}
+        self.thumbnails_dict = {}
         
         if dt is None and load_stack:
             try:
@@ -300,7 +301,8 @@ class StackFCS(object):
             print("Removing existing file with same name")
         h5f = h5py.File(name, "w")
         
-        dicts_to_save = [self.correl_dicts,self.traces_dict,self.parfit_dict, self.yh_dict]
+        dicts_to_save = [self.correl_dicts,self.traces_dict,self.parfit_dict, 
+                         self.yh_dict, self.thumbnails_dict]
         for j, dic in enumerate(dicts_to_save):
             dname = self.dic_names[j]
             for key, item in dic.items():
@@ -313,7 +315,7 @@ class StackFCS(object):
         else:
             h5f["blcorrf"] = 'None'
             
-    def load(self,name = None):
+    def load(self,name = None, light_version = False):
         if name is None:
             name = os.path.splitext(self.path)[0]+".h5"
             
@@ -321,12 +323,24 @@ class StackFCS(object):
         dicts_to_load  = {"correlations":self.correl_dicts,
                           "traces":self.traces_dict,
                           "parameters_fits":self.parfit_dict, 
-                          "yhat": self.yh_dict}
-        
+                          "yhat": self.yh_dict,
+                          "thumbnails": self.thumbnails_dict}
+        save_after = False
         for j in range(len(dicts_to_load)):
             dname = self.dic_names[j]
-            if dname not in h5f.keys():
-                print("grougrou")
+            if dname=="thumbnails" and dname not in h5f.keys():
+                print('Thumbanils not found: thye will be recalculated and saved')
+                save_after=True
+                out_dic = dicts_to_load[dname]
+                ds = h5f["traces"]
+                for key in ds.keys():
+                    dd = ds[key][()]
+                    out_dic[int(key)] = dd.sum(axis=-1)
+            elif dname not in h5f.keys():
+                print("Warning: key {} not in loaded file".format(dname))
+                continue
+            # don't load traces in the 'light' version
+            if light_version and dname=="traces":
                 continue
             out_dic = dicts_to_load[dname]
             ds = h5f[dname]
@@ -336,7 +350,9 @@ class StackFCS(object):
     
         for par in h5f["parameters"].keys():
             setattr(self,par,h5f["parameters"][par][()])
-    
+        if save_after:
+            self.save()
+            print('Saving again')
     def registration(self,nreg, plot = False):
         self.stack, shifts = stackreg(self.stack,nreg,plot=plot)
         self.nreg = nreg
@@ -381,7 +397,8 @@ class StackFCS(object):
             
             self.correl_dicts[nSum] = correls
             self.traces_dict[nSum] = np.asarray(traces)
-    
+            self.thumbnails_dict[nSum] = np.asarray(traces).mean(axis=-1)
+            
     def get_curve(self, i0 = 0, j0 =0, nSum=1):
         self.correlate_stack(nSum)
             
