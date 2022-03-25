@@ -341,7 +341,7 @@ class StackFCS(object):
                 continue
             else:
                 # don't load traces in the 'light' version
-                if light_version and dname=="traces":
+                if light_version and dname=="traces" and not save_after:
                     continue
                 out_dic = dicts_to_load[dname]
                 ds = h5f[dname]
