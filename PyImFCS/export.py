@@ -52,7 +52,11 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
         dict_diffcoeff = get_dict(h5f, "parameters_fits")
         dict_curves = get_dict(h5f, "correlations")
         dict_curves_fits = get_dict(h5f, "yhat")
-        dict_traces = get_dict(h5f,'traces')
+        try:
+            dict_traces = get_dict(h5f,'traces')
+        except:
+            print('Warning! Traces not present in h5 file')
+        thumbnails_dict = get_dict(h5f,'thumbnails')
         h5f.close()
         
         if check_nsums:
@@ -69,9 +73,7 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             diffcoeffs = dict_diffcoeff[nsum][:,:,1]
             curves = dict_curves[nsum]
             curves_fits = dict_curves_fits[nsum]
-            traces = dict_traces[nsum]
-            
-            intensities = traces.mean(axis=2).reshape(-1)
+            intensities = thumbnails_dict[nsum].reshape(-1)
             # xcurves = curves[:,:,:,0]
             
             ycurves = curves[:,:,:,1]
@@ -89,7 +91,7 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             fits_reshaped = curves_fits.reshape((curves.shape[0]*curves.shape[1],curves.shape[2]))
             
             msk = np.ones_like(intensities, dtype = bool)
-            msk[diffcoeffs.reshape(-1)<0] = 0
+            msk[diffcoeffs.reshape(-1)<0] = False
             
             if intensity_threshold is not None:
                 msk = np.logical_and(msk,
@@ -169,7 +171,7 @@ def merge_excels(fileslist_list, out_name, keep_single_indices = False, conditio
         dfs = []
         maxindex = 0
         for j, xl in enumerate(excels):
-            df = xl.parse(sheet_name=name)
+            df = xl.parse(sheet_name=name, index_col = 0)
             if name=="parameters":
                 fname = files[j]
                 df["file"] = fname
