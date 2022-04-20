@@ -233,7 +233,6 @@ class StackFCS(object):
             
         self.fitter = fitter
         
-        
         self.threshold_map = None
         # removes clipval points before and after the intensity timetrace
         # before correlation. To remove artefacts from bleaching correction

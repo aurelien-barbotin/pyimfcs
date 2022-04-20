@@ -18,13 +18,26 @@ exptime_name = "Experiment|AcquisitionBlock|MultiTrackSetup|TrackSetup|CameraInt
 tubelens_name = "Experiment|AcquisitionBlock|MultiTrackSetup|TrackSetup|TubeLensPosition"
 acqmode_name = "Information|Image|Channel|AcquisitionMode"
 intensity_name = "Experiment|AcquisitionBlock|MultiTrackSetup|TrackSetup|Attenuator|Transmission"
+timespan_name = "Experiment|AcquisitionBlock|TimeSeriesSetup|Switch|SwitchAction|SetIntervalAction|Interval|TimeSpan|Value"
+xresolution_name = 'Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX'
+yresolution_name = 'Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY'
 names_to_test = {"gain": gain_name,
                  "exposure time": exptime_name,
                  "tube lens": tubelens_name,
                  "acquisition mode":acqmode_name,
-                 "laser intensity":intensity_name
+                 "laser intensity":intensity_name,
+                 'xresolution': xresolution_name,
+                 'yresolution':yresolution_name
                  }
-
+all_par_names = {"gain": gain_name,
+                 "exposure time": exptime_name,
+                 "tube lens": tubelens_name,
+                 "acquisition mode":acqmode_name,
+                 "laser intensity":intensity_name,
+                 'time span': timespan_name,
+                 'xresolution': xresolution_name,
+                 'yresolution':yresolution_name
+                 }
 short = lambda x: x.split("/")[-1].split(".")[0]
 
 def compare_channel_file(path, verbose = True):
@@ -61,7 +74,6 @@ def get_singlechannel_file(path, verbose = True):
         ref = metadata[names_to_test[nn]]
         par_dict[nn] = ref
     return par_dict
-b1, dic = compare_channel_file(path, verbose = False)
 
 def compare_folder(files_list, verbose = False):
     # tested control positive and neg, works OK
@@ -159,7 +171,7 @@ def get_single_parameter(path, parname):
     Tested on one parameter, one single_channel image and one 2-channel image"""
     metadata = get_image_metadata(path)
     
-    key = names_to_test[parname]
+    key = all_par_names[parname]
     if key in metadata:
         return np.array([metadata[key]])
     
