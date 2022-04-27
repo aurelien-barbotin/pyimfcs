@@ -17,7 +17,9 @@ import os
 from skimage.filters import threshold_otsu
 from scipy.signal import fftconvolve
 from scipy.ndimage import label
+
 from PyImFCS.shift_correction import stackreg
+from PyImFCS.io import get_image_metadata
 
 def cortrace(tr,fi):
     f0 = fi[0]
@@ -156,35 +158,6 @@ def bleaching_correct_segment(trace, plot = False, wsize = 5000):
         
     return new_trace
 
-def get_image_metadata(path):
-    img = tifffile.TiffFile(path)
-    meta_dict = img.imagej_metadata
-    description = meta_dict.pop('Info')
-    description = description.split('\n')
-    for d in description:
-        if len(d)>1 and '=' in d:
-            oo = d.split('=')
-            if len(oo)==2:
-                k, val = oo
-            elif len(oo)>2:
-                k = oo[0]
-                val = "=".join(oo[1:])
-            k = k.strip(' ')
-            val = val.strip(' ')
-            try:
-                meta_dict[k] = float(val)
-            except:
-                meta_dict[k] = val
-    return meta_dict
-
-def save_tiff_withmetadata(file, st, metadata):
-    file = "/home/aurelien/Data/2021_06_03/test.tif"
-    path = "/home/aurelien/Data/2021_06_03/imFCS1.tif"
-    img = tifffile.TiffFile(path)
-    meta_dict = img.imagej_metadata
-    
-    writer = tifffile.TiffWriter(file,imagej=True)
-    writer.write(st,metadata=meta_dict)
 
 def new_chi_square(y,yh):
     diff = (y-yh)/yh[0]
@@ -366,6 +339,7 @@ class StackFCS(object):
         else:
             self.blcorrf = blcorrf
         self.bl_kernel_size = str(wsize)
+        
     def correlate_stack(self,nSum):
         """Only method that correlates """
         if nSum>self.stack.shape[1] or nSum>self.stack.shape[2]:

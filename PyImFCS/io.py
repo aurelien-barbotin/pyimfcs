@@ -2,6 +2,7 @@ import h5py
 
 import numpy as np
 import pandas as pd
+import tifffile
 
 # parameters: [N,D,offset]
 def get_dict(h5f, dname):
@@ -84,3 +85,29 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
         #                    "intensity_threshold": intensity_threshold}
         df_pars = pd.DataFrame(parameters_dict, index=[0]).T
         df_pars.to_excel(writer, sheet_name = "parameters")
+
+def get_image_metadata(path):
+    img = tifffile.TiffFile(path)
+    meta_dict = img.imagej_metadata
+    description = meta_dict.pop('Info')
+    description = description.split('\n')
+    for d in description:
+        if len(d)>1 and '=' in d:
+            oo = d.split('=')
+            if len(oo)==2:
+                k, val = oo
+            elif len(oo)>2:
+                k = oo[0]
+                val = "=".join(oo[1:])
+            k = k.strip(' ')
+            val = val.strip(' ')
+            try:
+                meta_dict[k] = float(val)
+            except:
+                meta_dict[k] = val
+    return meta_dict
+
+def save_tiff_withmetadata(outname,st, meta_dict):
+    
+    writer = tifffile.TiffWriter(outname,imagej=True)
+    writer.write(st,metadata=meta_dict)
