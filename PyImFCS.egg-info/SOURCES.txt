@@ -1,6 +1,0 @@
-README.md
-setup.py
-PyImFCS.egg-info/PKG-INFO
-PyImFCS.egg-info/SOURCES.txt
-PyImFCS.egg-info/dependency_links.txt
-PyImFCS.egg-info/top_level.txt
