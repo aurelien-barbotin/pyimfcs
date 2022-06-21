@@ -70,8 +70,10 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
                            "D [µm²/s]":"float",
                            "fit error":"float"})
             df0.append(df)
-        all_dfs[nsum] = pd.concat(df0)
         
+        all_dfs[nsum] = pd.concat(df0)
+        knm = "nsum {}".format(nsum)
+        parameters_dict[knm+"_median"] = np.median(all_dfs[nsum]["D [µm²/s]"].values)
     with pd.ExcelWriter(out_name) as writer:  
         dfs_total = []
         for nsum in nsums:

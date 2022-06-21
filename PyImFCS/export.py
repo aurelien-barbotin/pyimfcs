@@ -134,7 +134,8 @@ def merge_fcs_results(files, out_name, intensity_threshold = None, chi_threshold
     save_as_excel(out_name,files,nsums,all_diffs,all_chis, 
                   parameters_dict=parameters_dict)
     
-def merge_excels(fileslist_list, out_name, keep_single_indices = False, conditions = None):
+def merge_excels(fileslist_list, out_name, keep_single_indices = False, 
+                 conditions = None, chi_threshold = None):
     """Merge ther esults of FCS experiments in a single file.
     Parameters:
         fileslist_list (list): list of lists. Each item of the main list contains 
@@ -143,7 +144,9 @@ def merge_excels(fileslist_list, out_name, keep_single_indices = False, conditio
         keep_single_indices (bool): if true, gives an indes to single acquisition. 
             If False, single index to an excel file.
         conditions (list): if specified, gives specific condition names 
-            (e.g control or experiment) to acquisitions"""
+            (e.g control or experiment) to acquisitions
+        cho_threshold (float): if specified, eliminates all results with chi 
+            above this value"""
     
     if len(fileslist_list)>1 and conditions is None:
         return ValueError('Please specify condition names')
@@ -157,7 +160,7 @@ def merge_excels(fileslist_list, out_name, keep_single_indices = False, conditio
     excels = [pd.ExcelFile(w) for w in files]
     if conditions is not None:
         conditions_list = [conditions[j] for j, flist in enumerate(fileslist_list) for w in flist]
-    # xl0 = excels[0]
+
     
     all_names = [w.sheet_names for w in excels]
     names0 = all_names[0]
@@ -176,6 +179,18 @@ def merge_excels(fileslist_list, out_name, keep_single_indices = False, conditio
                 fname = files[j]
                 df["file"] = fname
                 
+                if chi_threshold is not None:
+                    cur_thr = df.loc["chi_threshold"]
+                    print(cur_thr,cur_thr.shape)
+                    if cur_thr.ndim>1:
+                        cur_thr = cur_thr[0].values.max()
+                    else:
+                        cur_thr = cur_thr[0]
+                    
+                    if cur_thr<chi_threshold:
+                        raise ValueError(
+                    'Manually specified threshold is above already existing ones')
+                    df['chi_threshold'] = chi_threshold
             else:
                 if keep_single_indices:
                     df['repeat']+=maxindex
@@ -189,9 +204,13 @@ def merge_excels(fileslist_list, out_name, keep_single_indices = False, conditio
             dfs.append(df)
                 
         dfs = pd.concat(dfs)
+        if chi_threshold is not None and name!="parameters":
+            print(dfs.keys())
+            dfs = dfs[dfs['fit error']<chi_threshold]
         all_dfs[name] = dfs
-            
+    all_dfs["parameters"]
     with pd.ExcelWriter(out_name) as writer:  
             for name in kept_names:
                 df_pars = all_dfs[name]
                 df_pars.to_excel(writer, sheet_name = name)
+                

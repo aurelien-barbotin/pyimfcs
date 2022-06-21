@@ -14,7 +14,7 @@ import numpy as np
 
 import scipy
 
-def plot_combined(combined,xname,measured,repeat):
+def plot_combined(combined,xname,measured,repeat, order = None,size = 8):
     """Plots results stored in a Dataframe using the SUperplots paradigm.
     
     Parameters:
@@ -22,17 +22,22 @@ def plot_combined(combined,xname,measured,repeat):
         xname (str): name of conditions used in the x axis
         measured (str): name of the parameter to be measured (ex: D_[µm2/s])
         repeat (str): name of the repeat field
+        order (list): list of condition names in the order the plots need to appear
         """
-    order = np.unique(combined[xname].values)
+    if order is None:
+        order = np.unique(combined[xname].values)
     # First measure
-    ReplicateAverages = combined.groupby([xname,repeat], as_index=False).agg({measured: "mean"})
+    ReplicateAverages = combined.groupby([xname,repeat], as_index=False).agg(
+        {measured: "mean"})
     
     fig, ax = plt.subplots(1,1)
     
-    sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax,color='gray',alpha=0.5)
+    sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax,
+                   color='gray',alpha=0.3)
     
     sns.swarmplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
-                       linewidth=2, data=ReplicateAverages, size=8, order = order,ax=ax)
+                       linewidth=2, data=ReplicateAverages, size=size, 
+                       order = order,ax=ax)
     sns.swarmplot(x=xname, y=measured, hue=repeat, data=combined, order = order,ax=ax)
     ax.set_ylim(bottom=0)
     ax.legend_.remove()
