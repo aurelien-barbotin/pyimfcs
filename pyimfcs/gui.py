@@ -21,9 +21,9 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 
-from PyImFCS.hover_plot import interactive_plot_h5
-from PyImFCS.class_imFCS import StackFCS
-from PyImFCS.export import merge_fcs_results
+from pyimfcs.plotting import interactive_plot_h5
+from pyimfcs.class_imFCS import StackFCS
+from pyimfcs.export import merge_fcs_results
 
 class ExperimentListWidget(QListWidget):
    """Class designed to contain the different correction rounds. Each correction

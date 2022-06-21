@@ -12,8 +12,8 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from PyImFCS.io import get_dict, save_as_excel
-from PyImFCS.class_imFCS import new_chi_square
+from pyimfcs.io import get_dict, save_as_excel
+from pyimfcs.class_imFCS import new_chi_square
 
 def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold = None):
     """Retrieves and calculates diffusion coefficients and non-linear fit errors

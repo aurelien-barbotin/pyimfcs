@@ -14,9 +14,9 @@ import os
 
 from skimage.filters import threshold_otsu
 
-from PyImFCS.shift_correction import stackreg
-from PyImFCS.io import get_image_metadata
-from PyImFCS.metrics import new_chi_square
+from pyimfcs.shift_correction import stackreg
+from pyimfcs.io import get_image_metadata
+from pyimfcs.metrics import new_chi_square
 
 
 class StackFCS(object):

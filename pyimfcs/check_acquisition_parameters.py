@@ -8,7 +8,7 @@ Created on Thu Mar 31 17:00:52 2022
 
 import numpy as np
 
-from PyImFCS.class_imFCS import get_image_metadata
+from pyimfcs.class_imFCS import get_image_metadata
 from termcolor import colored
 
 path = "/home/aurelien/Data/2022_01_06/4_NR12A/GP/Image 53_GP.tif"
