@@ -439,7 +439,6 @@ def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4,
     xscale = h5f['parameters/xscale'][()]
     h5f.close()
 
-    
     diffcoeffs = dict_diffcoeff[nsum][:,:,1]
     curves = dict_curves[nsum]
     curves_fits = dict_curves_fits[nsum]
@@ -503,3 +502,16 @@ def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4,
     cbar.set_label('D [µm²/s]')
     return dmap
 
+def interactive_plot_h5(stack, fig = None, nsum = 2, vmax=  None, 
+                        chi_threshold = None, light_version = False):
+    """Wrapper function to plot imFCS results from GUI"""
+    if fig is None:
+        print('creating figure')
+        fig  = plt.subplots(2,4,figsize = (10,7))
+    if light_version:
+        onclickfunction = multiplot_stack_light(stack,nsum, fig=fig, maxparval = vmax, 
+                                          chi_threshold=chi_threshold)
+    else:
+        onclickfunction = multiplot_stack(stack,nsum, fig=fig, maxparval = vmax, 
+                                          chi_threshold=chi_threshold)
+    return onclickfunction
