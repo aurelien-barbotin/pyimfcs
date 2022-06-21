@@ -12,12 +12,12 @@ from matplotlib.colors import LogNorm
 
 import tifffile
 
-from PyImFCS.class_imFCS import (StackFCS, get_image_metadata, 
+from pyimfcs.class_imFCS import (StackFCS, get_image_metadata, 
                                  bleaching_correct_sliding,
                                  blexp_double_offset, bleaching_correct_segment)
-from PyImFCS.fitting import Fitter
-from PyImFCS.hover_plot import multiplot_stack
-from PyImFCS.shift_correction import registration
+from pyimfcs.fitting import Fitter
+from pyimfcs.plotting import multiplot_stack
+from pyimfcs.shift_correction import registration
 
 from skimage.filters import threshold_otsu
 import time

@@ -6,13 +6,13 @@ Created on Tue May 11 11:28:44 2021
 @author: aurelien
 """
 
-from PyImFCS.class_imFCS import (StackFCS, get_image_metadata, 
-                                 bleaching_correct_sliding, bleaching_correct_exp)
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from PyImFCS.fitting import Fitter
+from pyimfcs.fitting import Fitter
+from pyimfcs.class_imFCS import (StackFCS, get_image_metadata, 
+                                 bleaching_correct_sliding, bleaching_correct_exp)
 
 plt.close("all")
 
