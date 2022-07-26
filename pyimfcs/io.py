@@ -109,6 +109,13 @@ def get_image_metadata(path):
                 meta_dict[k] = val
     return meta_dict
 
+def get_metadata_bioformats(path):
+    import czifile
+    if path[-4:]!=".czi":
+        raise ValueError('Incorrect file format')
+    img = czifile.CziFile(path)
+    metadata = img.metadata()
+    
 def save_tiff_withmetadata(outname,st, meta_dict):
     
     writer = tifffile.TiffWriter(outname,imagej=True)
