@@ -243,7 +243,7 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None,
     return onclick
       
 def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None, 
-                    maxparval = None, chi_threshold = None):
+                    maxparval = None, chi_threshold = None, intensity_threshold = None):
     """Light version of multiplot stack that does not load intensity traces"""
     mutable_object = {}
     if fig is None:
@@ -322,7 +322,13 @@ def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None,
             stack.calculate_chisquares()
         chi_map = stack.chisquares_dict[nsum]
         dmap[chi_map>chi_threshold] = np.nan
-        print('remove chis')
+    
+    if intensity_threshold is not None:
+        ithr = intensity_threshold*(np.percentile(image,98)- np.percentile(image,2)) + np.percentile(image,2)
+        print("Intensity threshold: max, min, treshold",image.max(),image.min(),ithr)
+        mask_int = (image>ithr).astype(float)
+        axes[0].contour(mask_int,levels=[0.5], colors="red")
+        
     im2 = axes[1].imshow(dmap)
     axes[1].set_title("Diffusion coeff.")
     line1, = axes[1].plot(0,0,"x",color="red")
@@ -593,14 +599,15 @@ def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4,
     return dmap
 
 def interactive_plot_h5(stack, fig = None, nsum = 2, vmax=  None, 
-                        chi_threshold = None, light_version = False):
+                        chi_threshold = None, light_version = False, intensity_threshold = None):
     """Wrapper function to plot imFCS results from GUI"""
     if fig is None:
         print('creating figure')
         fig  = plt.subplots(2,4,figsize = (10,7))
     if light_version:
         onclickfunction = multiplot_stack_light(stack,nsum, fig=fig, maxparval = vmax, 
-                                          chi_threshold=chi_threshold)
+                                          chi_threshold=chi_threshold, 
+                                          intensity_threshold = intensity_threshold)
     else:
         onclickfunction = multiplot_stack(stack,nsum, fig=fig, maxparval = vmax, 
                                           chi_threshold=chi_threshold)

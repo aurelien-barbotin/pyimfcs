@@ -159,8 +159,6 @@ class AOAnalyst_GUI(QWidget):
         self.grid.addWidget(self.expListWidget,1,0,9,1)
         
         self.grid.addWidget(self.plotBox,1,1,10,10)
-        # self.grid.addWidget(self.imageComparisonWidget,1,1,1,5)
-        # self.grid.addWidget(self.custom_plot_tab,6,1,1,5)
         self.grid.addWidget(self.metrics_tab,10,0,1,1)
         
         
@@ -247,14 +245,19 @@ class AOAnalyst_GUI(QWidget):
         if vt.replace('.','',1).isdigit():
             vmax = float(vt)
         
-        thr = None
+        chi_thr = None
         tht  = self.thresholdLineEdit.text()
         if tht.replace('.','',1).isdigit():
-            print('threshold is digit')
-            thr = float(tht)
+            chi_thr = float(tht)
+        
+        intensity_threshold = None
+        intensity_threshold_tmp = self.intensityLineEdit.text()
+        if intensity_threshold_tmp.replace('.','',1).isdigit():
+            intensity_threshold = float(intensity_threshold_tmp)
             
         self.onclick_function = interactive_plot_h5(self.current_stack, fig=fig, 
-                        nsum = nsum, vmax=vmax, chi_threshold = thr, light_version = light_version)
+                        nsum = nsum, vmax=vmax, chi_threshold=chi_thr, 
+                        light_version=light_version, intensity_threshold=intensity_threshold)
         self.plotBox.onclick_function = self.onclick_function
         
           
