@@ -94,8 +94,12 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             msk[diffcoeffs.reshape(-1)<0] = False
             
             if intensity_threshold is not None:
+                ithr = intensity_threshold*(
+                    np.percentile(intensities,98)-np.percentile(intensities,2)
+                    )+np.percentile(intensities,2)
+                
                 msk = np.logical_and(msk,
-                                     intensities>(intensities.max()*intensity_threshold))
+                                     intensities>ithr)
             if chi_threshold is not None:
                 msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
             
