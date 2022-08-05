@@ -122,7 +122,7 @@ class AOAnalyst_GUI(QWidget):
         self.setAcceptDrops(True)
         self.folder = None
         
-        self.newAnalystButton = QPushButton("New Analyst")
+        self.newAnalystButton = QPushButton("Load")
         self.refreshButton = QPushButton("Refresh")
         self.trashButton = QPushButton("Trash")
         self.exportButton = QPushButton("Export")
@@ -233,11 +233,15 @@ class AOAnalyst_GUI(QWidget):
             
         if load_stack:
             print('Load stack')
+            current_index = int(self.binningComboBox.currentIndex())
             self.current_stack = StackFCS(file, load_stack = False)
             self.current_stack.load(light_version =light_version)
             nsums = self.current_stack.parfit_dict.keys()
             _ = self.update_binnings(list(nsums))
-            self.binningComboBox.setCurrentIndex(0)
+            new_index = 0
+            if current_index<len(nsums):
+                new_index = current_index
+            self.binningComboBox.setCurrentIndex(new_index)
         nsum = int(self.binningComboBox.currentText())
         
         vmax = None
