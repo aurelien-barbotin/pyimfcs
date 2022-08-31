@@ -114,7 +114,7 @@ class MatplotlibWindow(QDialog):
         self.canvas.draw()
         
 
-class AOAnalyst_GUI(QWidget):
+class FCS_Visualisator(QWidget):
     onclick_function = None
     current_stack = None
     def __init__(self,*args,**kwargs):
@@ -326,6 +326,6 @@ class AOAnalyst_GUI(QWidget):
         self.metrics_tab = top
    
 app = QApplication([])
-win = AOAnalyst_GUI()
+win = FCS_Visualisator()
 win.show()
 app.exec_()

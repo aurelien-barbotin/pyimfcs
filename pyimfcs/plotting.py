@@ -616,11 +616,12 @@ def interactive_plot_h5(stack, fig = None, nsum = 2, vmax=  None,
 if __name__=='__main__':
     import glob
 
-    files_veg = glob.glob("/home/aurelienb/Documents/Projects/imFCS/Subtilis_veg/TFSM/*.xlsx")
 
-    files_20 = [w for w in files_veg if '05_12' in w]
-    files_37 = [w for w in files_veg if '05_12' not in w]
-    files = [files_37, files_20]
+    noBA = ["/home/aurelienb/Documents/Projects/imFCS/results/reprocessings_04082022/expophase_noBA_fristn3000_lastn22000.xlsx",
+            "/home/aurelienb/Documents/Projects/imFCS/vegetative/subtilis/TFSM/2022_08_05_RCL44_noBA_37d.xlsx"]
+    wBA = ["/home/aurelienb/Documents/Projects/imFCS/results/reprocessings_04082022/expoPhase_withBA_firstn3000_lastn_22000.xlsx.xlsx",
+           "/home/aurelienb/Documents/Projects/imFCS/vegetative/subtilis/TFSM/2022_08_05_RCL44_BA_37d.xlsx"]
+    files = [noBA, wBA]
     print(files)
-    conditions = ["grown 37°C", "grown 20°C"]
-    superplot_files(files,conditions)
+    conditions = ["no BA", "+ BA"]
+    superplot_files(files,conditions, keep_single_indices = False, nsum = "nsum 3")

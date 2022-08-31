@@ -18,7 +18,6 @@ from pyimfcs.shift_correction import stackreg
 from pyimfcs.io import get_image_metadata
 from pyimfcs.metrics import new_chi_square
 
-
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails"]
     # parameters to save
@@ -188,12 +187,14 @@ class StackFCS(object):
             correls = []
             traces = []
             u, v, w = self.stack.shape
-            for i in range(v // nSum):
+            thumbnail = np.zeros((v//nSum, w//nSum))
+            for i in range(v//nSum):
                 ctmp = []
                 trtmp = []
-                for j in range(w // nSum):
+                for j in range(w//nSum):
                     trace = self.stack[:, i * nSum:i * nSum + nSum,
                             j * nSum:j * nSum + nSum].mean(axis=(1, 2))
+                    thumbnail[i,j]=trace.mean()
                     if self.blcorrf is not None:
                         trace = self.blcorrf(trace)
 
@@ -209,7 +210,7 @@ class StackFCS(object):
             
             self.correl_dicts[nSum] = correls
             self.traces_dict[nSum] = np.asarray(traces)
-            self.thumbnails_dict[nSum] = np.asarray(traces).mean(axis=-1)
+            self.thumbnails_dict[nSum] = thumbnail
 
     def get_curve(self, i0=0, j0=0, nSum=1):
         self.correlate_stack(nSum)

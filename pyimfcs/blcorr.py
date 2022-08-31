@@ -64,32 +64,32 @@ def blexp_offset(trace, plot=False):
         plt.plot(new_tr)
     return new_tr
 
-def blexp_double_offset(trace, plot=False, downsample = True):
+def blexp_double_offset(trace, plot=False, downsample = True, ndowns = 500):
     def expf(x,f0,tau,b,tau2,c):
         return f0*(np.exp(-x/tau)+b*np.exp(-x/tau2))+c
     
     subtr = trace/trace.max()
     if downsample:
-        nn0 = subtr.size//1000 # take one point every nn0
-        xt = np.arange(subtr.size)
-        subtr = subtr[::nn0]
-        xt = xt[::nn0]
+        nn0 = subtr.size//ndowns # take one point every nn0
+        subtr = subtr[:nn0*ndowns]
+        subtr = subtr.reshape(-1, ndowns).mean(axis=1)
+        
+        xt = (np.arange(subtr.size)+0.5)*ndowns
     
-    p0 = (1,trace.size//10,1,trace.size//10,subtr.min())
+    p0 = (1,xt.max()//10,1,xt.max()//10,subtr.min())
     bounds = ((0, 1, 0, 1, 0),
-              (2, trace.size*10, 1, trace.size*10,0.8))
+              (2*subtr.max(), xt.max()*10, 1, xt.max()*10,0.8))
     
     try:
         popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
     except:
         print("Fitting failed arzo")
         return trace
-    #popt=[4.7*10**6,18]
-    
     # redefine subtr and xt to have right number of points
     subtr = trace/trace.max()
     xt = np.arange(subtr.size)
     trf = expf(xt,*popt)
+    # new_tr = cortrace(subtr,trf-popt[-1])+popt[-1]
     new_tr = cortrace(subtr,trf)
     
     if plot:
@@ -97,7 +97,7 @@ def blexp_double_offset(trace, plot=False, downsample = True):
         plt.plot(subtr)
         plt.plot(trf,color="k",linestyle="--")
         plt.plot(new_tr)
-        
+        plt.axhline(np.mean(new_tr),linestyle='--',color='red')
     return new_tr*trace.max()
 
 def bleaching_correct_sliding(trace, wsize = 5000, plot = False):
@@ -147,3 +147,16 @@ def bleaching_correct_segment(trace, plot = False, wsize = 5000):
         plt.plot(r2+r1.max()-r2.min())
         
     return new_trace
+
+if __name__=="__main__":
+    from pyimfcs.constants import datapath
+    from tifffile import imread
+    path = datapath+"/2022_08_05/2_withBA/Image 12.tif"
+    stack = imread(path)
+    x, y = 15, 38
+    trace = stack[:,x,y]
+    plt.figure()
+    plt.subplot(121)
+    plt.imshow(stack.mean(axis=0))
+    plt.subplot(122)
+    plt.plot(trace)
