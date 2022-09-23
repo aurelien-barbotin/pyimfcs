@@ -249,6 +249,11 @@ class FCS_Visualisator(QWidget):
         if vt.replace('.','',1).isdigit():
             vmax = float(vt)
         
+        vmin = None
+        vt  = self.vminLineEdit.text()
+        if vt.replace('.','',1).isdigit():
+            vmin = float(vt)
+            
         chi_thr = None
         tht  = self.thresholdLineEdit.text()
         if tht.replace('.','',1).isdigit():
@@ -260,7 +265,7 @@ class FCS_Visualisator(QWidget):
             intensity_threshold = float(intensity_threshold_tmp)
             
         self.onclick_function = interactive_plot_h5(self.current_stack, fig=fig, 
-                        nsum = nsum, vmax=vmax, chi_threshold=chi_thr, 
+                        nsum = nsum, vmax=vmax, vmin=vmin ,chi_threshold=chi_thr, 
                         light_version=light_version, intensity_threshold=intensity_threshold)
         self.plotBox.onclick_function = self.onclick_function
         
@@ -305,6 +310,9 @@ class FCS_Visualisator(QWidget):
         self.vmaxLineEdit = QLineEdit("None")
         self.vmaxLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
         
+        self.vminLineEdit = QLineEdit("None")
+        self.vminLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
+        
         self.thresholdLineEdit = QLineEdit("0.03")
         self.thresholdLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
         
@@ -318,11 +326,14 @@ class FCS_Visualisator(QWidget):
         toplay.addWidget(self.binningComboBox,0,1)
         toplay.addWidget(self.vmaxLineEdit,1,1)
         toplay.addWidget(QLabel("Max diff. shown"),1,0)
-        toplay.addWidget(self.thresholdLineEdit,2,1)
-        toplay.addWidget(QLabel("Chi threshold"),2,0)
-        toplay.addWidget(self.intensityLineEdit,3,1)
-        toplay.addWidget(QLabel("Intensity threshold (0-1)"),3,0)
-        toplay.addWidget(self.lightDisplayCheckBox,4,0,1,2)
+        toplay.addWidget(self.vminLineEdit,2,1)
+        toplay.addWidget(QLabel("Min diff. shown"),2,0)
+        
+        toplay.addWidget(self.thresholdLineEdit,3,1)
+        toplay.addWidget(QLabel("Chi threshold"),3,0)
+        toplay.addWidget(self.intensityLineEdit,4,1)
+        toplay.addWidget(QLabel("Intensity threshold (0-1)"),4,0)
+        toplay.addWidget(self.lightDisplayCheckBox,5,0,1,2)
         self.metrics_tab = top
    
 app = QApplication([])

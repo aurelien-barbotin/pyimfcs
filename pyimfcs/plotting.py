@@ -94,7 +94,7 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3", keep_single_indi
         all_dfs[name] = dfs
     xname = "condition"
     measured = "D [µm²/s]"
-    plot_combined(all_dfs[nsum],xname,measured,'repeat')
+    plot_combined(all_dfs[nsum],xname,measured,'repeat',order=conditions)
 
 plt.ion()
 class FakeEvent():
@@ -243,7 +243,8 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None,
     return onclick
       
 def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None, 
-                    maxparval = None, chi_threshold = None, intensity_threshold = None):
+                    maxparval = None, minparval = None, chi_threshold = None, 
+                    intensity_threshold = None):
     """Light version of multiplot stack that does not load intensity traces"""
     mutable_object = {}
     if fig is None:
@@ -316,7 +317,9 @@ def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None,
     dmap[dmap<0] = np.nan
     if maxparval is not None:
         dmap[dmap>maxparval] = np.nan
-    
+    if minparval is not None:
+        dmap[dmap<minparval] = np.nan
+        
     if chi_threshold is not None:
         if len(stack.chisquares_dict)==0:
             stack.calculate_chisquares()
@@ -598,14 +601,16 @@ def plot_diffusion_map(file, nsum = 2, intensity_threshold = 0.4,
     cbar.set_label('D [µm²/s]')
     return dmap
 
-def interactive_plot_h5(stack, fig = None, nsum = 2, vmax=  None, 
-                        chi_threshold = None, light_version = False, intensity_threshold = None):
+def interactive_plot_h5(stack, fig = None, nsum = 2, vmax=  None, vmin = None,
+                        chi_threshold = None, light_version = False, 
+                        intensity_threshold = None):
     """Wrapper function to plot imFCS results from GUI"""
     if fig is None:
         print('creating figure')
         fig  = plt.subplots(2,4,figsize = (10,7))
     if light_version:
         onclickfunction = multiplot_stack_light(stack,nsum, fig=fig, maxparval = vmax, 
+                                            minparval = vmin,
                                           chi_threshold=chi_threshold, 
                                           intensity_threshold = intensity_threshold)
     else:

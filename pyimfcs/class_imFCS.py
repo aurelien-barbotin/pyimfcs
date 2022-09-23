@@ -19,7 +19,7 @@ from pyimfcs.io import get_image_metadata
 from pyimfcs.metrics import new_chi_square
 
 class StackFCS(object):
-    dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails"]
+    dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails", "metadata"]
     # parameters to save
     parameters_names = ["dt", "xscale", "yscale", "path", "nreg", "shifts",
                         "first_n", "last_n", "clipval", "bl_kernel_size"]
@@ -66,9 +66,11 @@ class StackFCS(object):
         self.chisquares_dict = {}
         self.thumbnails_dict = {}
 
+        self.metadata = {}
         if dt is None and load_stack:
             try:
                 metadata = get_image_metadata(path)
+                self.metadata = metadata
                 dt = metadata['finterval']
                 if 'Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1' in metadata:
                     xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1'] * 10 ** 6
@@ -111,11 +113,13 @@ class StackFCS(object):
         h5f = h5py.File(name, "w")
 
         dicts_to_save = [self.correl_dicts, self.traces_dict, self.parfit_dict,
-                         self.yh_dict, self.thumbnails_dict]
+                         self.yh_dict, self.thumbnails_dict, self.metadata]
         for j, dic in enumerate(dicts_to_save):
             dname = self.dic_names[j]
             for key, item in dic.items():
-                h5f[dname + "/" + str(key)] = item
+                if type(item)!=list and type(item)!=bytes:
+                    print(dname,key)
+                    h5f[dname + "/" + str(key)] = item
 
         for pn in self.parameters_names:
             h5f["parameters/" + pn] = getattr(self, pn)
@@ -133,7 +137,8 @@ class StackFCS(object):
                          "traces": self.traces_dict,
                          "parameters_fits": self.parfit_dict,
                          "yhat": self.yh_dict,
-                         "thumbnails": self.thumbnails_dict}
+                         "thumbnails": self.thumbnails_dict,
+                         "metadata": self.metadata}
         save_after = False
         for j in range(len(dicts_to_load)):
             dname = self.dic_names[j]
@@ -156,7 +161,10 @@ class StackFCS(object):
                 ds = h5f[dname]
                 for key in ds.keys():
                     dd = ds[key][()]
-                    out_dic[int(key)] = dd
+                    try:
+                        out_dic[int(key)] = dd
+                    except:
+                        out_dic[key] = dd
         for par in h5f["parameters"].keys():
             setattr(self, par, h5f["parameters"][par][()])
         if save_after:
