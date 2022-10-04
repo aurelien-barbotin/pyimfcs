@@ -143,7 +143,7 @@ class StackFCS(object):
         for j in range(len(dicts_to_load)):
             dname = self.dic_names[j]
             if dname == "thumbnails" and dname not in h5f.keys():
-                print('Thumbanils not found: thye will be recalculated and saved')
+                print('Thumbnails not found: thye will be recalculated and saved')
                 save_after = True
                 out_dic = dicts_to_load[dname]
                 ds = h5f["traces"]

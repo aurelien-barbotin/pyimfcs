@@ -281,10 +281,12 @@ def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None,
             
             curve = corrs1[k].mean(axis=(0,1))
             fits = fits1[k].mean(axis=(0,1))
-    
-            axes[2].semilogx(curve[:,0], curve[:,1],
+            a0 = fits[0]
+            if np.isclose(a0,0):
+                a0=1
+            axes[2].semilogx(curve[:,0], curve[:,1]/a0,
                              label=ns[k],color="C{}".format(ns[k]))
-            axes[2].semilogx(curve[:,0], fits, color="k",linestyle='--')
+            axes[2].semilogx(curve[:,0], fits/a0, color="k",linestyle='--')
             
         
         ns, dm, ds = stack.get_param_coord(nsum,jj0,ii0,parn=1)

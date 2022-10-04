@@ -66,7 +66,7 @@ def blexp_offset(trace, plot=False):
 
 def blexp_double_offset(trace, plot=False, downsample = True, ndowns = 500):
     def expf(x,f0,tau,b,tau2,c):
-        return f0*(np.exp(-x/tau)+b*np.exp(-x/tau2))+c
+        return f0*((1-b)*np.exp(-x/tau)+b*np.exp(-x/tau2))+c
     
     subtr = trace/trace.max()
     if downsample:
@@ -76,14 +76,20 @@ def blexp_double_offset(trace, plot=False, downsample = True, ndowns = 500):
         
         xt = (np.arange(subtr.size)+0.5)*ndowns
     
-    p0 = (1,xt.max()//10,1,xt.max()//10,subtr.min())
+    p0 = (subtr.max(), #f0
+          xt.max()//10, #tau
+          0.5, #b
+          xt.max()//2, #tau2
+          subtr.min() #c
+          )
     bounds = ((0, 1, 0, 1, 0),
               (2*subtr.max(), xt.max()*10, 1, xt.max()*10,0.8))
     
     try:
         popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
-    except:
-        print("Fitting failed arzo")
+    except Exception as e:
+        print("Bleaching correction failed with error:")
+        print(e)
         return trace
     # redefine subtr and xt to have right number of points
     subtr = trace/trace.max()

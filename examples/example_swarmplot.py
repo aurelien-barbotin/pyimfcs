@@ -17,5 +17,6 @@ fileslist_list = [
     [path+"2022_06_09_1_W01_beforeSporulation_TFSM_50k.xlsx"],
     [path+"2022_06_09_3_W01_TFSM_50k.xlsx",path+"/2022_06_09_5_W01_TFSM_17h_50k.xlsx"]
     ]
+
 conditions = ["Before sporulation", "pre sporulation", "sporulation"]
 superplot_files(fileslist_list,conditions,  keep_single_indices=False)
