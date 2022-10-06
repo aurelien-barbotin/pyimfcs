@@ -84,17 +84,12 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
         chi_threshold (float): optional. If specified, removes all curves below 
             a certain quality thresold
     Returns:
-        list: [diffusion coefficients, error_metric]. Each item is a list of dictionaries."""
-    all_curves = []
-    all_fits = []
-    all_chis = []
-    all_chis_new = []
-    all_diffs = []
-    all_labels = []
-    
+        list: [diffusion coefficients, error_metric, numbers of molecuules]. 
+            Each item is a list of dictionaries."""
+
     diffs_out = list()
     chis_out = list()
-    
+    nmols_out = list()
     # if nsums is not specified; take the nsums in every file and check that 
     # it is consistent across the dataset
     check_nsums = False
@@ -123,14 +118,14 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             
         diffs_out.append( dict(zip(nsums,[[] for w in nsums])))
         chis_out.append(dict(zip(nsums,[[] for w in nsums])))
+        nmols_out.append(dict(zip(nsums,[[] for w in nsums])))
         
         for jj, nsum in enumerate(nsums):
             diffcoeffs = dict_diffcoeff[nsum][:,:,1]
+            nmols = dict_diffcoeff[nsum][:,:,0]
             curves = dict_curves[nsum]
             curves_fits = dict_curves_fits[nsum]
             intensities = thumbnails_dict[nsum].reshape(-1)
-            # xcurves = curves[:,:,:,0]
-            
             ycurves = curves[:,:,:,1]
             
             chis = np.sqrt(((ycurves-curves_fits)**2).sum(axis=2) )
@@ -162,17 +157,12 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             curves_reshaped = curves_reshaped[msk]
             fits_reshaped = fits_reshaped[msk]
             diffs = diffcoeffs.reshape(-1)[msk]
-            all_curves.append(curves_reshaped)
-            all_fits.append(fits_reshaped)
-            all_chis.append(chis.reshape(-1)[msk])
-            all_chis_new.append(chis_new)
-            all_diffs.append(diffs)
-            # all_intensities.append()
-            all_labels.append(file.split('/')[-1]+"_{}".format(nsum))
+            nmols = nmols.reshape(-1)[msk]
             
             diffs_out[k][nsum] = diffs
             chis_out[k][nsum]= chis_new
-    return diffs_out, chis_out
+            nmols_out[k][nsum]= nmols
+    return diffs_out, chis_out, nmols_out
 
 def merge_fcs_results(files, out_name, intensity_threshold = None, chi_threshold = None):
     """Wrapper function to merge all experiment results in a single excel file"""
@@ -180,7 +170,7 @@ def merge_fcs_results(files, out_name, intensity_threshold = None, chi_threshold
     if len(files)==0:
         raise ValueError('No files selected')
         
-    all_diffs,all_chis = get_fit_error(files, nsums = None, intensity_threshold=intensity_threshold, 
+    all_diffs,all_chis, all_ns = get_fit_error(files, nsums = None, intensity_threshold=intensity_threshold, 
                                        chi_threshold=chi_threshold)
     assert(len(all_diffs)>0)
     nsums = sorted(list(all_diffs[0].keys()))
@@ -190,7 +180,7 @@ def merge_fcs_results(files, out_name, intensity_threshold = None, chi_threshold
     parameters_dict = {"chi_threshold": chi_threshold,
                        "intensity_threshold":intensity_threshold}
     
-    save_as_excel(out_name,files,nsums,all_diffs,all_chis, 
+    save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns,
                   parameters_dict=parameters_dict)
     
 def merge_excels(fileslist_list, out_name, keep_single_indices = False, 

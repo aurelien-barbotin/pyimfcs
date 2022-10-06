@@ -10,13 +10,13 @@ from pyimfcs.plotting import superplot_files
 import matplotlib.pyplot as plt
 plt.close('all')
 
-path = "/home/aurelienb/Documents/Projects/imFCS/results/sporulation/SSB1002_sporulation/50k/"
+path = "/home/aurelienb/Documents/Projects/collab Charlene/"
 fileslist_list = [
-    [path+"2022_06_08_TFSM_W01_prespo_50k.xlsx", path+"2022_06_08_TFSM_W03_prespo_50k.xlsx",
-     path+"2022_06_08_TFSM_W03_prespo_slide2_50k.xlsx"],
-    [path+"2022_06_09_1_W01_beforeSporulation_TFSM_50k.xlsx"],
-    [path+"2022_06_09_3_W01_TFSM_50k.xlsx",path+"/2022_06_09_5_W01_TFSM_17h_50k.xlsx"]
+    [path+"2022_10_05_control1.xlsx", path+"2022_10_05_control2.xlsx"],
+    [path+"2022_10_05_flavo50+.xlsx"],
+    [path+'2022_10_05_150ugmlflavo+.xlsx']
     ]
 
-conditions = ["Before sporulation", "pre sporulation", "sporulation"]
-superplot_files(fileslist_list,conditions,  keep_single_indices=False)
+conditions = ["Control", "50 µg/mL", "150 µg/mL"]
+superplot_files(fileslist_list,conditions,  keep_single_indices=True)
+plt.savefig('swarmplot_results.png')

@@ -38,7 +38,7 @@ def get_diffusion_df(name, repeat, condition, nsum):
     
     return df
 
-def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
+def save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns, parameters_dict= {}):
     """Saves the results of several FCS experiments in a single excel file.
     Parameters:
         out_name (string): output file name. Extension is added later
@@ -46,8 +46,12 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
         nsums (list): integers, different pixel binnings
         all_diffs (list): list of diffusion coefficients dictionaries, same 
             size as files. Keys are the binning values (typically 2,3,4 or 2,4,8)
+        all_chis (list): same format as all_diffs, containing fit error metric
+        all_ns (list): same format as all_diffs, containing numbers of molecules
         parameters_dict (dict): dictionary of misc processing parameters like 
-            chi_threshold or intensity_threshold"""
+            chi_threshold or intensity_threshold
+        
+        TODO: refactor all list of dicts into a single parameter"""
     extension = ".xlsx"
     if not out_name.endswith(extension):
         out_name+=extension
@@ -60,20 +64,26 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, parameters_dict= {}):
             fname = files[j]
             diff = all_diffs[j][nsum]
             chis = all_chis[j][nsum]
+            nmols = all_ns[j][nsum]
+            
             repeats_arr = np.full(diff.size, j)
             name_arr = np.full(diff.size, fname)
             nsum_arr = np.full(diff.size, nsum)
-            out_arr = np.array([name_arr,repeats_arr, diff, nsum_arr, chis]).T
-            df = pd.DataFrame(out_arr, columns = ["filename", "repeat","D [µm²/s]","binning","fit error"])
+            out_arr = np.array([name_arr,repeats_arr, diff, nsum_arr, chis, nmols]).T
+            df = pd.DataFrame(out_arr, columns = 
+                              ["filename", "repeat","D [µm²/s]","binning",
+                               "fit error", "N"])
             df = df.astype({'filename':"str",
                            "repeat":"int",
                            "D [µm²/s]":"float",
-                           "fit error":"float"})
+                           "fit error":"float",
+                           "N": "float"})
             df0.append(df)
         
         all_dfs[nsum] = pd.concat(df0)
         knm = "nsum {}".format(nsum)
         parameters_dict[knm+"_median"] = np.median(all_dfs[nsum]["D [µm²/s]"].values)
+        
     with pd.ExcelWriter(out_name) as writer:  
         dfs_total = []
         for nsum in nsums:
