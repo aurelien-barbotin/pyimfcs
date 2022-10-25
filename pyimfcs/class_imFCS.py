@@ -19,7 +19,8 @@ from pyimfcs.io import get_image_metadata
 from pyimfcs.metrics import new_chi_square
 
 class StackFCS(object):
-    dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails", "metadata"]
+    dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails", 
+                 "metadata"]
     # parameters to save
     parameters_names = ["dt", "xscale", "yscale", "path", "nreg", "shifts",
                         "first_n", "last_n", "clipval", "bl_kernel_size"]

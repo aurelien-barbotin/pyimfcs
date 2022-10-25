@@ -126,13 +126,14 @@ class FCS_Visualisator(QWidget):
         self.refreshButton = QPushButton("Refresh")
         self.trashButton = QPushButton("Trash")
         self.exportButton = QPushButton("Export")
+        self.processingPushButton = QPushButton("Process Files")
         
         self.newAnalystButton.clicked.connect(lambda :
             self.loadFiles(str(QFileDialog.getExistingDirectory(self, "Select Directory"))))
         self.refreshButton.clicked.connect(self.refreshFileList)
         self.trashButton.clicked.connect(self.trash_measurement)
         self.exportButton.clicked.connect(self.export_measurements)
-        
+        self.processingPushButton.clicked.connect(self.process_measurements)
         self.current_mode = None
         self.expListWidget = ExperimentListWidget()
         self.plotBox = MatplotlibWindow()
@@ -156,6 +157,7 @@ class FCS_Visualisator(QWidget):
         self.grid.addWidget(self.refreshButton,0,1,1,1)
         self.grid.addWidget(self.trashButton,0,2,1,1)
         self.grid.addWidget(self.exportButton,0,3,1,1)
+        self.grid.addWidget(self.processingPushButton,0,4,1,1)
         self.grid.addWidget(self.expListWidget,1,0,9,1)
         
         self.grid.addWidget(self.plotBox,1,1,10,10)
@@ -203,7 +205,11 @@ class FCS_Visualisator(QWidget):
         merge_fcs_results(files, filename, 
               intensity_threshold = intensity_threshold, chi_threshold = thr)
         print('Done exporting measurements')
-        
+    
+    def process_measurements(self):
+        folder = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+        files = glob.glob(folder+"/*.tif")
+        print(files)
     def trash_measurement(self):
         try:
             file = self.expListWidget.currentItem().data(QtCore.Qt.UserRole)
@@ -316,7 +322,7 @@ class FCS_Visualisator(QWidget):
         self.thresholdLineEdit = QLineEdit("0.03")
         self.thresholdLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
         
-        self.intensityLineEdit = QLineEdit("0.5")
+        self.intensityLineEdit = QLineEdit("0.8")
         # self.intensityLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
         self.lightDisplayCheckBox = QCheckBox("Light version")
         self.lightDisplayCheckBox.setChecked(True)
