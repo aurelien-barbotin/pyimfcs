@@ -222,7 +222,7 @@ class FCS_Visualisator(QWidget):
             
             msg = QMessageBox()
             msg.setText('Processing Finished')
-            msg.show()
+            msg.exec_()
     def trash_measurement(self):
         try:
             file = self.expListWidget.currentItem().data(QtCore.Qt.UserRole)
