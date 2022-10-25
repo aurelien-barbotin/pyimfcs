@@ -24,7 +24,9 @@ class StackFCS(object):
     # parameters to save
     parameters_names = ["dt", "xscale", "yscale", "path", "nreg", "shifts",
                         "first_n", "last_n", "clipval", "bl_kernel_size"]
-
+    
+    default_psize=1
+    default_dt=1
     def __init__(self, path, mfactor=8, background_correction=True,
                  blcorrf=None, first_n=0, last_n=0, fitter=None, dt=None,
                  remove_zeroes=False, clipval=0, load_stack=True):
@@ -68,6 +70,7 @@ class StackFCS(object):
         self.thumbnails_dict = {}
 
         self.metadata = {}
+        self.metadata_fully_loaded = False
         if dt is None and load_stack:
             try:
                 metadata = get_image_metadata(path)
@@ -83,15 +86,16 @@ class StackFCS(object):
                 self.yscale = yscale
                 if xscale != yscale:
                     raise ValueError('Not square pixels')
+                self.metadata_fully_loaded = True
             except:
                 print('error loading metadata')
-                dt = 1
-                self.xscale = 1
-                self.yscale = 1
+                dt = self.default_dt
+                self.xscale = self.default_psize
+                self.yscale = self.default_psize
         else:
-            self.xscale = 1
-            self.yscale = 1
-            dt = 1
+            self.xscale = self.default_psize
+            self.yscale = self.default_psize
+            dt = self.default_dt
 
         self.dt = dt
 

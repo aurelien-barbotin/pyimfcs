@@ -7,11 +7,11 @@ Created on Tue Jun 21 10:41:12 2022
 """
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import (QDialog, QWidget, QApplication,QListWidgetItem,
-                             QPushButton, QLineEdit, QLabel)
+                             QPushButton, QLineEdit, QLabel, QSpinBox, QMessageBox)
 
 from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWidgets import QGridLayout,QGroupBox,QCheckBox
-from PyQt5.QtWidgets import QListWidget,QFileDialog, QComboBox
+from PyQt5.QtWidgets import QListWidget,QFileDialog, QComboBox, QDialogButtonBox
 import numpy as np
 import glob
 import os
@@ -24,6 +24,7 @@ from matplotlib.image import AxesImage
 from pyimfcs.plotting import interactive_plot_h5
 from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.export import merge_fcs_results
+from pyimfcs.process import batch_bacteria_process
 
 class ExperimentListWidget(QListWidget):
    """Class designed to contain the different correction rounds. Each correction
@@ -204,12 +205,24 @@ class FCS_Visualisator(QWidget):
         print('Start exporting measurements ...')
         merge_fcs_results(files, filename, 
               intensity_threshold = intensity_threshold, chi_threshold = thr)
-        print('Done exporting measurements')
+        print('Done exporting measurQlabelements')
     
     def process_measurements(self):
-        folder = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+        fd = QFileDialog()
+        fd.setAcceptDrops(True)
+        folder = str(fd.getExistingDirectory(self, "Select Directory"))
         files = glob.glob(folder+"/*.tif")
         print(files)
+        pdial = ParametersDialog(files)
+        if pdial.exec():
+            batch_bacteria_process(files, first_n = pdial.first_n,
+                                   last_n = pdial.last_n,nsums = pdial.nsums,
+                                   nreg = pdial.nreg, default_dt = pdial.dt, 
+                                   default_psize = pdial.psize)
+            
+            msg = QMessageBox()
+            msg.setText('Processing Finished')
+            msg.show()
     def trash_measurement(self):
         try:
             file = self.expListWidget.currentItem().data(QtCore.Qt.UserRole)
@@ -342,7 +355,85 @@ class FCS_Visualisator(QWidget):
         toplay.addWidget(self.lightDisplayCheckBox,5,0,1,2)
         self.metrics_tab = top
    
+from pyimfcs.process import get_metadata_zeiss
+
+class ParametersDialog(QDialog):
+    first_n = 0
+    last_n = 0
+    nsums=[2,3]
+    nreg=4000
+    dt = 1
+    xscale=1
+    yscale=1
+    def __init__(self, files):
+        super().__init__()
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        # !!! add default values saved somewhere
+        if len(files)>0:
+            file = files[0]
+            try:
+                self.dt, self.xscale, self.yscale = get_metadata_zeiss(file)
+            except:
+                print('Data not loaded')
+                pass
+            
+        self.layout = QGridLayout()
+        
+        self.first_nSpinBox = QSpinBox()
+        self.first_nSpinBox.setValue(self.first_n)
+        self.last_nSpinBox = QSpinBox()
+        self.last_nSpinBox.setValue(self.last_n)
+        self.first_nSpinBox.setMaximum(10**5)
+        self.last_nSpinBox.setMaximum(10**5)
+        self.nsumsLineEdit = QLineEdit(str(self.nsums)[1:-1])
+        self.dtLineEdit = QLineEdit("{:.2f}".format(self.dt*10**3))
+        self.psizeLineEdit = QLineEdit("{:.4f}".format(self.xscale))
+        
+        self.registrationSpinBox = QSpinBox()
+        self.registrationSpinBox.setMaximum(10**5)
+        self.registrationSpinBox.setMinimum(10)
+        self.registrationSpinBox.setValue(self.nreg)
+        
+        self.layout.addWidget(QLabel('Remove first n frames'),0,0)
+        self.layout.addWidget(self.first_nSpinBox,0,1)
+        self.layout.addWidget(QLabel('Remove Last n frames'),1,0)
+        self.layout.addWidget(self.last_nSpinBox,1,1)
+        self.layout.addWidget(QLabel('Binning values'),2,0)
+        self.layout.addWidget(self.nsumsLineEdit,2,1)
+        self.layout.addWidget(QLabel('Frame interval (ms)'),3,0)
+        self.layout.addWidget(self.dtLineEdit,3,1)
+        self.layout.addWidget(QLabel('Pixel size (µm)'),4,0)
+        self.layout.addWidget(self.psizeLineEdit,4,1)
+        self.layout.addWidget(QLabel('Registration pooling value'),5,0)
+        self.layout.addWidget(self.registrationSpinBox,5,1)
+        
+        self.layout.addWidget(self.buttonBox,10,0,1,2)
+        self.setLayout(self.layout)
+    
+    def update_params(self):
+        self.first_n = self.first_nSpinBox.value()
+        self.last_n = self.last_nSpinBox.value()
+        nsums= self.nsumsLineEdit.text()
+        self.nsums = [int(w) for w in nsums.split(",")]
+        self.nreg=4000
+        self.dt = float(self.dtLineEdit.text())*10**-3 # conversion in s
+        self.psize = float(self.psizeLineEdit.text())
+        self.xscale=self.psize
+        self.yscale=self.psize
+        print("Psize, dt",self.psize,self.dt)
+        print(nsums)
+    def accept(self):
+        self.update_params()
+        super().accept()
+        
 app = QApplication([])
+files = glob.glob("/home/aurelienb/Data/2022_09_22/*.tif")
+win = ParametersDialog(files)
+
 win = FCS_Visualisator()
 win.show()
 app.exec_()
