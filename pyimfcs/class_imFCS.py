@@ -252,18 +252,30 @@ class StackFCS(object):
     def get_correlation_dict(self):
         return self.correl_dicts
 
-    def average_curve(self, nSum=1, plot=False):
+    def average_curve(self, nSum=1, plot=False, chi_th = None, 
+                      ith = None):
         self.correlate_stack(nSum)
-
+        # calculates mask
+        th_map = None
+        th_map = np.ones_like(self.thumbnails_dict[nSum]).astype(bool)
+        if chi_th is not None:
+            if nSum not in self.chisquares_dict.keys():
+                self.calculate_chisquares()
+            chimap = self.chisquares_dict[nSum]
+            th_map = np.logical_and(th_map, chimap<chi_th)
+        if ith is not None:
+            from pyimfcs.metrics import intensity_threshold
+            thr = intensity_threshold(ith,self.thumbnails_dict[nSum])
+            th_map = np.logical_and(th_map,self.thumbnails_dict[nSum]>thr)
+        self.set_threshold_map(th_map)
+        
         correls = self.correl_dicts[nSum]
         if self.threshold_map is not None:
-            th = self.get_threshold_map(nSum)
-            cs = correls[th]
+            cs = correls[self.threshold_map]
             avg = cs[:, :, 1].mean(axis=(0))
         else:
             avg = correls[:, :, :, 1].mean(axis=(0, 1))
 
-        print("Nsum avg curve", nSum)
         if plot:
             plt.figure()
             plt.semilogx(correls[0, 0, :, 0], avg)
@@ -271,7 +283,7 @@ class StackFCS(object):
             plt.title("Average of binning {}".format(nSum))
         return np.array([correls[0, 0, :, 0], avg]).T
 
-    def trace(self, plot=True):
+    def trace(self, plot=False):
         tr = self.stack.sum(axis=(1, 2))
         if plot:
             xtr = np.arange(tr.size) * self.dt
@@ -449,25 +461,6 @@ class StackFCS(object):
         all_yhs = all_yhs
         return all_ns, all_corrs, all_yhs
 
-    def get_threshold_map(self, nsum, thf=None):
-        img = self.stack.sum(axis=0).astype(float)
-
-        print('thresholding function is always otsu')
-        if thf is None:
-            thf = threshold_otsu
-        thresholded = (img > thf(img)).astype(float)
-
-        uu = thresholded.shape[0] - thresholded.shape[0] % nsum
-        vv = thresholded.shape[1] - thresholded.shape[1] % nsum
-
-        out = np.zeros((thresholded.shape[0] // nsum, thresholded.shape[1] // nsum))
-        for j in range(nsum):
-            for k in range(nsum):
-                out += thresholded[:uu, :vv][j::nsum, k::nsum]
-
-        to_keep = out == nsum ** 2
-        return to_keep
-
     def downsample_image(self, nsum):
         u, v, w = self.stack.shape
 
@@ -554,9 +547,7 @@ class StackFCS(object):
             dmins = observation_sizes ** 2 / (factor * self.dt * self.stack.shape[0] / 100)
         for ns in nsums:
             ds = self.parfit_dict[ns][:, :, 1]
-            if self.threshold_map is not None:
-                th = self.get_threshold_map(ns)
-                ds = ds[th]
+            # !!! check threshold maps here
             ds_means.append(np.median(ds))
             ds_std.append((np.percentile(ds, 75) - np.percentile(ds, 25)) / 2)
         ds_means = np.asarray(ds_means)
@@ -684,9 +675,10 @@ class StackFCS(object):
         nsums = list(nsums)
         for j, ns in enumerate(nsums):
             ds = self.parfit_dict[ns][:, :, 1]
-            if self.threshold_map is not None:
+            #TODO here
+            """if self.threshold_map is not None:
                 th = self.get_threshold_map(ns)
-                ds = ds[th]
+                ds = ds[th]"""
             if len(ds) == 0:
                 nsums.pop(j)
                 continue

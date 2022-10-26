@@ -219,7 +219,7 @@ class FCS_Visualisator(QWidget):
                                    last_n = pdial.last_n,nsums = pdial.nsums,
                                    nreg = pdial.nreg, default_dt = pdial.dt, 
                                    default_psize = pdial.psize)
-            
+            self.loadFiles(folder=folder)
             msg = QMessageBox()
             msg.setText('Processing Finished')
             msg.exec_()

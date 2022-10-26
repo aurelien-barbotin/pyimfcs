@@ -29,3 +29,10 @@ def new_chi_square(y,yh):
         chi+=diff[msk].sum()*(np.count_nonzero(msk)-1)
     
     return chi/yh.size
+
+def intensity_threshold(th, intensities):
+    """Claculates an intensity threshold in presence of baseline background"""
+    ithr = th*(
+        np.percentile(intensities,98)-np.percentile(intensities,2)
+        )+np.percentile(intensities,2)
+    return ithr

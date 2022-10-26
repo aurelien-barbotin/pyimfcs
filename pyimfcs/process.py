@@ -30,7 +30,9 @@ def get_metadata_zeiss(file):
     return dt, xscale, yscale
 
 def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4000,
-                           plot=False, default_dt= None, default_psize = None):
+                           plot=False, default_dt= None, default_psize = None, 
+                           fitter = None, export_summaries = True, 
+                           chi_threshold = 0.03, ith=0.8):
     """Processes a series of FCS exeriments saved as tiffs.
     Parameters:
         files (list): list of paths to tiff images
@@ -43,9 +45,21 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
         default_dt (float): if specified, default value to use for frame interval. 
             Units: s. Used if value could not be retrieved from metadata
         default_psize (float): if specified, default value to use for pixel size,
-            in micrometers. Used only if could not be retrieved from metadata"""
+            in micrometers. Used only if could not be retrieved from metadata
+        fitter (Fitter): object of the class Fitter
+        export_summaries (bool): if True, saves summaries of the processing"""
+    if export_summaries:
+        export_path = os.path.split(files[0])[0]+"/summaries/"
+        if not os.path.isdir(export_path):
+            os.mkdir(export_path)
+            
     for path in files:
         print('Processing',path)
+        fname = "".join(path.split(os.sep)[-1].split('.')[:-1])
+        export_folder = export_path+fname+"/"
+        if export_summaries:
+            if not os.path.isdir(export_folder):
+                os.mkdir(export_folder)
         stack = StackFCS(path, background_correction = True,                     
                              first_n = first_n, last_n = last_n, clipval = 0)
         if not stack.metadata_fully_loaded:
@@ -58,20 +72,24 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
         xscale = stack.xscale
         yscale = stack.yscale
         assert(xscale==yscale)
-        stack.registration(nreg,plot=plot)
-            
+        stack.registration(nreg,plot=plot or export_summaries)
+        if export_summaries:
+            plt.savefig(export_folder+"drift_correction.png")
+            plt.close()
         stack.set_bleaching_function(blexp_double_offset)
         # stack.set_bleaching_function(bleaching_correct_sliding,wsize = 5000)
         
-        curves_avg = stack.binned_average_curves(nsums,n_norm=2, plot=False)
-        # !!! TO CHANGE
-        sigmaxy = 0.2
-        parameters_dict = {"a":yscale, "sigma":sigmaxy}
-        ft = Fitter("2D",parameters_dict, ginf=True)
+        for nSum in nsums:
+            stack.correlate_stack(nSum)
+        if fitter is None:
+            sigmaxy = 0.2
+            parameters_dict = {"a":yscale, "sigma":sigmaxy}
+            ft = Fitter("2D",parameters_dict, ginf=True)
+        else:
+            ft = fitter
         
         stack.fit_curves(ft,xmax=None)
         
-        chi_threshold = 0.03
         if plot:
             multiplot_stack(stack,nsums[-1], chi_threshold = chi_threshold)
             ttl = path.split(os.sep)[-1]
@@ -81,9 +99,29 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
             plt.plot(stack.trace())
             plt.xlabel('Frame nr')
             plt.ylabel('Average Intensity')
-            plt.suptitle(ttl)
+            plt.suptitle(fname)
         
         stack.save()
+        
+        if export_summaries:
+            plt.figure()
+            plt.subplot(121)
+            for nsum in nsums:
+                avgcorr = stack.average_curve(nSum=nsum,plot=False,
+                                              chi_th=chi_threshold,ith=ith)
+                plt.semilogx(avgcorr[:,0], avgcorr[:,1]/avgcorr[0,1], 
+                     color="C{}".format(int(nsum)), label="nsum {}".format(int(nsum)))
+            plt.axhline(0,color="k", linestyle='--')
+            plt.xlabel(r'$\rm \tau$')
+            plt.xlabel(r'$\rm G(\tau)$')
+            plt.subplot(122)
+            plt.plot(stack.trace())
+            plt.xlabel('Frame nr')
+            plt.ylabel('Average intensity')
+            # add diffusion coefficients
+            plt.tight_layout()
+            plt.savefig(export_folder+"averages.png")
+            plt.close()
         print("saving stack")
 
 
