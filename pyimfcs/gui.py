@@ -23,7 +23,7 @@ from matplotlib.image import AxesImage
 
 from pyimfcs.plotting import interactive_plot_h5
 from pyimfcs.class_imFCS import StackFCS
-from pyimfcs.export import merge_fcs_results
+from pyimfcs.io import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process
 
 class ExperimentListWidget(QListWidget):

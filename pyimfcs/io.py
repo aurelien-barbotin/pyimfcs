@@ -40,6 +40,26 @@ def get_diffusion_df(name, repeat, condition, nsum):
     
     return df
 
+def summarise_df(df):
+    """Merges results of a Dataframe containing multiple experiments"""
+    means = df.groupby('repeat')['D [µm²/s]'].mean()
+    std = df.groupby('repeat')['D [µm²/s]'].std()
+    medians = df.groupby('repeat')['D [µm²/s]'].median()
+    count = df.groupby('repeat')['D [µm²/s]'].count()
+    repeat = df.groupby('repeat')['repeat'].last()
+    filename = df.groupby('repeat')['filename'].last()
+    binning = df.groupby('repeat')['binning'].last()
+
+    out_df = pd.DataFrame.from_dict({
+                        "filename": filename,
+                        "binning": binning,
+                        "repeat":repeat,
+                        "Mean":means,
+                        "Stdev": std,
+                        "Median":medians,
+                        "Count":count})
+    return out_df
+
 def save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns, parameters_dict= {}):
     """Saves the results of several FCS experiments in a single excel file.
     Parameters:
@@ -54,9 +74,9 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns, parameters_di
             chi_threshold or intensity_threshold
         
         TODO: refactor all list of dicts into a single parameter"""
-    extension = ".xlsx"
-    if not out_name.endswith(extension):
-        out_name+=extension
+
+    if out_name[-5:]==".xlsx":
+        out_name=out_name[:-5]
     
     all_dfs = {}
     for nsum in nsums:
@@ -90,10 +110,10 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns, parameters_di
         dfs_total = []
         for nsum in nsums:
             dfpooled = all_dfs[nsum]
-            dfs_total.append(dfpooled)
+            dfs_total.append(summarise_df(all_dfs[nsum]))
             dfpooled.to_excel(writer, sheet_name = "nsum {}".format(nsum))
         dfs_total = pd.concat(dfs_total)
-        dfs_total.to_excel(writer, sheet_name = "all")
+        dfs_total.to_excel(writer, sheet_name = "summaries all")
         
         # parameters_dict = {"chi_threshold":new_chis_threshold,
         #                    "intensity_threshold": intensity_threshold}
