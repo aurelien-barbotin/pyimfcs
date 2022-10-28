@@ -123,7 +123,6 @@ class StackFCS(object):
             dname = self.dic_names[j]
             for key, item in dic.items():
                 if type(item)!=list and type(item)!=bytes:
-                    print(dname,key)
                     h5f[dname + "/" + str(key)] = item
 
         for pn in self.parameters_names:
@@ -345,10 +344,6 @@ class StackFCS(object):
                     else:
                         corr = corr[corr[:, 0] < xmax, :]
                         popt, yh = fitter.fit(corr)
-                    # sig = signature(fitter.fitter)
-                    # ddof=len(sig.parameters)-1
-                    # print(corr[:,1].dtype,yh.dtype, corr[:,1].dtype,yh.dtype)
-                    # chi = np.square(corr[:,1]-yh).mean()/yh[0]**2
                     chi = new_chi_square(corr[:, 1], yh)
                     popt_tmp.append(popt)
                     yh_tmp.append(yh)
@@ -420,8 +415,6 @@ class StackFCS(object):
 
             j00 = int(np.ceil(j0 * nsum / ns))
             j01 = int(np.floor((j0 + 1) * nsum / ns))
-            # print("ns",ns,i00,i01,"j",j00,j01)
-            # print("ns {}, i {}-{}, j {}-{}".format(ns,i00,i01,j00,j01))
 
             ds = self.parfit_dict[ns][i00:i01, j00:j01, parn]
             if exclude_neg:

@@ -108,7 +108,6 @@ class MatplotlibWindow(QDialog):
         if isinstance(artist, AxesImage):
             im = artist
             A = im.get_array()
-            print('image clicked', A.shape)
             self.image_clicked.emit(A)
             
     def plot(self):
@@ -205,7 +204,7 @@ class FCS_Visualisator(QWidget):
         print('Start exporting measurements ...')
         merge_fcs_results(files, filename, 
               intensity_threshold = intensity_threshold, chi_threshold = thr)
-        print('Done exporting measurQlabelements')
+        print('Done exporting measurments')
     
     def process_measurements(self):
         fd = QFileDialog()
@@ -236,7 +235,6 @@ class FCS_Visualisator(QWidget):
         self.refreshFileList()
         
     def update_plot(self,file=None,extract=False, load_stack = True):
-        print("Update plot")
         self.current_mode = None
         if file is None:
             try:
@@ -291,8 +289,6 @@ class FCS_Visualisator(QWidget):
           
     def update_interactive_plot(self,mode):
         self.plotBox.figure.clf()
-        print("update interactive plot")
-        
         self.plotBox.plot()
     
     def update_binnings(self,nsums):
@@ -384,11 +380,11 @@ class ParametersDialog(QDialog):
         self.layout = QGridLayout()
         
         self.first_nSpinBox = QSpinBox()
+        self.first_nSpinBox.setMaximum(10**5)
         self.first_nSpinBox.setValue(self.first_n)
         self.last_nSpinBox = QSpinBox()
-        self.last_nSpinBox.setValue(self.last_n)
-        self.first_nSpinBox.setMaximum(10**5)
         self.last_nSpinBox.setMaximum(10**5)
+        self.last_nSpinBox.setValue(self.last_n)
         self.nsumsLineEdit = QLineEdit(str(self.nsums)[1:-1])
         self.dtLineEdit = QLineEdit("{:.2f}".format(self.dt*10**3))
         self.psizeLineEdit = QLineEdit("{:.4f}".format(self.xscale))
@@ -419,13 +415,11 @@ class ParametersDialog(QDialog):
         self.last_n = self.last_nSpinBox.value()
         nsums= self.nsumsLineEdit.text()
         self.nsums = [int(w) for w in nsums.split(",")]
-        self.nreg=4000
+        self.nreg= self.registrationSpinBox.value()
         self.dt = float(self.dtLineEdit.text())*10**-3 # conversion in s
         self.psize = float(self.psizeLineEdit.text())
         self.xscale=self.psize
         self.yscale=self.psize
-        print("Psize, dt",self.psize,self.dt)
-        print(nsums)
     def accept(self):
         self.update_params()
         super().accept()

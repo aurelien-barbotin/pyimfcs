@@ -103,7 +103,6 @@ def registration(stack,ns, plot = False, method='interpolation'):
         
         plt.subplot(222)
         plt.imshow(np.mean(stack[:ns,],axis=0))
-        print(np.mean(stack[:ns,],axis=0).shape)
         plt.title('First frame')
         plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
         plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
@@ -190,7 +189,6 @@ def stackreg(stack,ns, plot = False, method='interpolation'):
         
         plt.subplot(222)
         plt.imshow(np.mean(stack[:ns,],axis=0))
-        print(np.mean(stack[:ns,],axis=0).shape)
         plt.title('First frame')
         plt.axhline(stack.shape[1]//2,color="red",linestyle='--')
         plt.axvline(stack.shape[2]//2,color="red",linestyle='--')
@@ -228,9 +226,6 @@ def correct_local_dips(st, plot=True):
     axes[1].plot(stm)
     axes[1].plot(xxs,stm[xxs],color="red",marker="x",linestyle='')
     axes[1].set_title("Dips in intensity trace")
-    # np.mean(st[xxs-1],axis = (1,2))[:,None,None]/np.mean(st[xxs],axis=(1,2))[:,None,None]
+    
     st[xxs] = st[xxs]* (stm[xxs-1]/stm[xxs])[:,None,None]
-    # print(np.mean(st[xxs-1],axis = (1,2))[:,None,None]/np.mean(st[xxs],axis=(1,2))[:,None,None])
-    # print(stm[xxs-1]/stm[xxs])
-    print(xxs)
     return st

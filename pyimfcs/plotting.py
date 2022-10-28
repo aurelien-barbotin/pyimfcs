@@ -89,7 +89,6 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3",
                 if keep_single_indices:
                     df['repeat']+=maxindex
                     maxindex = df['repeat'].values.max()+1
-                    # print("maxindex", maxindex)
                 else:
                     df['repeat'] = maxindex
                     maxindex += 1
@@ -112,7 +111,6 @@ class FakeEvent():
         
 def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None, 
                     maxparval = None, chi_threshold = None):
-    print('maxparval',maxparval)
     mutable_object = {}
     if fig is None:
         fig,axes = plt.subplots(2,4,figsize = (10,7))
@@ -207,7 +205,6 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None,
         fig.canvas.draw_idle()
         
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
-    print(stack.traces_dict.keys(),nsum)
     image = stack.traces_dict[nsum].mean(axis=-1)
 
 
@@ -226,7 +223,6 @@ def multiplot_stack(stack,nsum, parn=1, normsize=1, fig = None,
             stack.calculate_chisquares()
         chi_map = stack.chisquares_dict[nsum]
         dmap[chi_map>chi_threshold] = np.nan
-        print('remove chis')
     im2 = axes[1].imshow(dmap)
     axes[1].set_title("Diffusion coeff.")
     fig.colorbar(im2,ax=axes[1])
@@ -260,8 +256,6 @@ def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None,
         axes = []
         for j in range(4):
             if j==1:
-                print(axes)
-                print(axes[0])
                 axes.append(fig.add_subplot(2,2,j+1,sharex=axes[0],sharey=axes[0]))
             else:
                 axes.append(fig.add_subplot(2,2,j+1))
@@ -313,7 +307,6 @@ def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None,
         fig.canvas.draw_idle()
         
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
-    print(stack.traces_dict.keys(),nsum)
     image = stack.thumbnails_dict[nsum]
 
 
@@ -337,7 +330,6 @@ def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None,
     
     if intensity_threshold is not None:
         ithr = intensity_threshold*(np.percentile(image,98)- np.percentile(image,2)) + np.percentile(image,2)
-        print("Intensity threshold: max, min, treshold",image.max(),image.min(),ithr)
         mask_int = (image>ithr).astype(float)
         axes[0].contour(mask_int,levels=[0.5], colors="red")
         
@@ -361,11 +353,7 @@ def findindex(x,y,xy):
     ind0 = np.argmin(i0)
     ind1 = np.argmin(i1)
     if ind0!=ind1:
-        print('values: {},{}'.format(xy[0],xy[1]))
-        print(ind0,ind1)
         ind0 = np.argmin(i0+i1)
-        print("new ind0: {}".format(ind0))
-    # assert(ind0==ind1)
     return ind0
 
 def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi', 
