@@ -72,10 +72,11 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
         xscale = stack.xscale
         yscale = stack.yscale
         assert(xscale==yscale)
-        stack.registration(nreg,plot=plot or export_summaries)
-        if export_summaries:
-            plt.savefig(export_folder+"drift_correction.png")
-            plt.close()
+        if nreg>0:
+            stack.registration(nreg,plot=plot or export_summaries)
+            if export_summaries:
+                plt.savefig(export_folder+"drift_correction.png")
+                plt.close()
         stack.set_bleaching_function(blexp_double_offset)
         # stack.set_bleaching_function(bleaching_correct_sliding,wsize = 5000)
         

@@ -28,16 +28,17 @@ def get_shifts(stack,ns, plot=False):
     
     nt = stack.shape[0]
     nstep = nt//ns
-    shifts  =list()
+    shifts =list()
     for j in range(1,nstep):
         # ref = np.mean(stack[(j-1)*ns:j*ns],axis=0)
         img = np.mean(stack[j*ns:(j+1)*ns], axis=0)
-        shift, error, diffphase = phase_cross_correlation(ref, img,
+        shift, error, diffphase = phase_cross_correlation(ref**2, img**2,
                                                           upsample_factor=100)
+        
         shifts.append(shift)
     
     shifts = np.asarray(shifts)
-    # shift = np.cumsum(shifts)
+    # shifts = np.cumsum(shifts,axis=1)
     if plot:
         plt.figure()
         plt.subplot(121)

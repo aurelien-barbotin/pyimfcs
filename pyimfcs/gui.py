@@ -358,7 +358,7 @@ class FCS_Visualisator(QWidget):
 from pyimfcs.process import get_metadata_zeiss
 
 class ParametersDialog(QDialog):
-    first_n = 0
+    first_n = 15000
     last_n = 0
     nsums=[2,3]
     nreg=4000
@@ -395,7 +395,7 @@ class ParametersDialog(QDialog):
         
         self.registrationSpinBox = QSpinBox()
         self.registrationSpinBox.setMaximum(10**5)
-        self.registrationSpinBox.setMinimum(10)
+        self.registrationSpinBox.setMinimum(0)
         self.registrationSpinBox.setValue(self.nreg)
         
         self.layout.addWidget(QLabel('Remove first n frames'),0,0)

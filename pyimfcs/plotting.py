@@ -17,7 +17,7 @@ import numpy as np
 from pyimfcs.io import get_dict
 from pyimfcs.class_imFCS import new_chi_square
 
-def plot_combined(combined,xname,measured,repeat, order = None,size = 8):
+def plot_combined(combined,xname,measured,repeat, order = None,size = 8, showmedian=False):
     """Plots results stored in a Dataframe using the SUperplots paradigm.
     
     Parameters:
@@ -30,24 +30,32 @@ def plot_combined(combined,xname,measured,repeat, order = None,size = 8):
     if order is None:
         order = np.unique(combined[xname].values)
     # First measure
+    mes = "mean"
+    if showmedian:
+        mes="median"
     ReplicateAverages = combined.groupby([xname,repeat], as_index=False).agg(
-        {measured: "mean"})
+        {measured: mes})
     
     fig, ax = plt.subplots(1,1)
     
-    sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax,
-                   color='gray',alpha=0.3)
+    """sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax,
+                   color='gray',alpha=1, inner=None)"""
     
     sns.swarmplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
                        linewidth=2, data=ReplicateAverages, size=size, 
                        order = order,ax=ax)
+    
     sns.swarmplot(x=xname, y=measured, hue=repeat, data=combined, order = order,ax=ax)
+    
+    sns.boxplot(x=xname, y=measured, data=combined, order = order,ax=ax,
+                   boxprops={"facecolor": (.0, .6, .8, .0)})
     ax.set_ylim(bottom=0)
     ax.legend_.remove()
     sns.reset_orig()
     
 
-def superplot_files(files_list_list, conditions, nsum="nsum 3", keep_single_indices=True):
+def superplot_files(files_list_list, conditions, nsum="nsum 3", 
+                    keep_single_indices=True, showmedian=False):
     
     if len(files_list_list)>1 and conditions is None:
         return ValueError('Please specify condition names')
@@ -93,7 +101,7 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3", keep_single_indi
         all_dfs[name] = dfs
     xname = "condition"
     measured = "D [µm²/s]"
-    plot_combined(all_dfs[nsum],xname,measured,'repeat',order=conditions)
+    plot_combined(all_dfs[nsum],xname,measured,'repeat',order=conditions, showmedian=showmedian)
 
 plt.ion()
 class FakeEvent():
