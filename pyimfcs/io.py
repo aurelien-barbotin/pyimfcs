@@ -106,7 +106,7 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns, parameters_di
         knm = "nsum {}".format(nsum)
         parameters_dict[knm+"_median"] = np.median(all_dfs[nsum]["D [µm²/s]"].values)
         
-    with pd.ExcelWriter(out_name) as writer:  
+    with pd.ExcelWriter(out_name+".xlsx") as writer:  
         dfs_total = []
         for nsum in nsums:
             dfpooled = all_dfs[nsum]
@@ -303,6 +303,7 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             nmols_out[k][nsum]= nmols
     return diffs_out, chis_out, nmols_out
 
+from pyimfcs.constants import tauD_fromfit
 def merge_fcs_results(files, out_name, intensity_threshold = None, chi_threshold = None):
     """Wrapper function to merge all experiment results in a single excel file"""
     

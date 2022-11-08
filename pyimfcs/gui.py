@@ -189,7 +189,6 @@ class FCS_Visualisator(QWidget):
         filename = str(QFileDialog.getSaveFileName(self, "Select File name", filter="*.xlsx")[0])
         if filename == "":
             return
-        filename = filename+".xlsx"
         files = self.expListWidget.get_filenames()
         thr = None
         tht  = self.thresholdLineEdit.text()

@@ -85,7 +85,7 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3",
                 fname = files[j]
                 df["file"] = fname
                 
-            else:
+            elif "nsum" in name:
                 if keep_single_indices:
                     df['repeat']+=maxindex
                     maxindex = df['repeat'].values.max()+1

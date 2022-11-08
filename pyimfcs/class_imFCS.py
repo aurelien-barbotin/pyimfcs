@@ -179,7 +179,19 @@ class StackFCS(object):
         self.stack, shifts = stackreg(self.stack, nreg, plot=plot)
         self.nreg = nreg
         self.shifts = shifts
-
+    
+    def downsample_time(self, ndown):
+        """Downsamples an image stack in time"""
+        # self.stack = 
+        nframes = (self.stack.shape[0]//ndown)*ndown
+        self.stack = self.stack[:nframes]
+        """print(self.stack[:ndown,0,0])
+        print(self.stack.reshape((ndown,nframes//ndown,self.stack.shape[1],
+                            self.stack.shape[2]),order="F")[:,0,0,0])"""
+        self.stack = self.stack.reshape((ndown,nframes//ndown,self.stack.shape[1],
+                            self.stack.shape[2]),order="F").mean(axis=0)
+        self.dt = self.dt*ndown
+        
     def set_threshold_map(self, th_map):
         self.threshold_map = th_map
 
@@ -213,7 +225,8 @@ class StackFCS(object):
                     if self.clipval > 0:
                         trace = trace[self.clipval:-self.clipval]
 
-                    corr = multipletau.autocorrelate(trace, normalize=True, deltat=self.dt)[1:]
+                    corr = multipletau.autocorrelate(trace, normalize=True, 
+                                                     deltat=self.dt,m=16)[1:]
                     ctmp.append(corr)
                     trtmp.append(trace)
                 correls.append(ctmp)
@@ -252,7 +265,7 @@ class StackFCS(object):
         return self.correl_dicts
 
     def average_curve(self, nSum=1, plot=False, chi_th = None, 
-                      ith = None):
+                      ith = None, normalise_with_N = False):
         self.correlate_stack(nSum)
         # calculates mask
         th_map = None
@@ -268,7 +281,9 @@ class StackFCS(object):
             th_map = np.logical_and(th_map,self.thumbnails_dict[nSum]>thr)
         self.set_threshold_map(th_map)
         
-        correls = self.correl_dicts[nSum]
+        correls = self.correl_dicts[nSum].copy()
+        if normalise_with_N:
+            correls[:, :, :, 1] = correls[:, :, :, 1]*self.parfit_dict[nSum][:,:,0][:,:,np.newaxis]
         if self.threshold_map is not None:
             cs = correls[self.threshold_map]
             avg = cs[:, :, 1].mean(axis=(0))
