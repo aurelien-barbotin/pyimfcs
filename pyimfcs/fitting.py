@@ -149,6 +149,8 @@ def gim3D(a=0.1,sigmaxy=0.1,sigmaz=0.5, ginf=False):
 fit_functions = {"2D":gim2D,
                  "3D":gim3D}
 
+fit_p0 = {"2D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])],
+          "3D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])]}
 class Fitter(object):
     
     def __init__(self,name, parameters_dict, ginf=False, p0 = None):
@@ -161,6 +163,7 @@ class Fitter(object):
         self.full_parameters_dict = parameters_dict.copy() # takes nsum in account
         self.fitter = fit_functions[self.name](**parameters_dict,ginf=ginf)
         self.p0 = p0
+        self.p0f = fit_p0[self.name]
         
     def set_sum(self,nsum):
         self.full_parameters_dict["a"] = self.parameters_dict["a"]*nsum
@@ -169,11 +172,18 @@ class Fitter(object):
         
     def fit(self,curve):
         try:
+            p0 = [f(curve) for f in self.p0f]
+            if self.ginf:
+                p0.append(0)
+            self.p0 = tuple(p0)
+            print(self.p0)
+            
             popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1], p0=self.p0)
             yh = self.fitter(curve[:,0],*popt)
             return popt, yh
-        except:
+        except Exception as e:
             print("Fitting error")
+            print(e)
             sig = signature(self.fitter)
             popt = [-1]*(len(sig.parameters)-1)
             yh = np.zeros_like(curve[:,0])
