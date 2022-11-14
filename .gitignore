@@ -1,3 +1,6 @@
 **.tif
 **.pyc
 *.egg-info
+**.xls
+**.xlsx
+**.h5
