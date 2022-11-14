@@ -18,22 +18,21 @@ def gauss(x,sig):
 def make_image():
     pass
 
-scale = 0.5 #pixels
 # pixel size: 100 nm
-psize = 100
-sigma_psf = 110/psize
-dt = 4.7*10**-3 # s
-D = 10 #um2/s
+psize = 0.16 #um
+sigma_psf = 0.2/psize # pixels
+dt = 10**-3 # s
+D = 30 #um2/s
 
 brightness = 18*10**3 #Hz/molecule
 
-npixels = 500
+npixels = 300
 
-nsteps = 20000
-nparts = 5000
+nsteps = 10000
+nparts = 40000
 
 pos0 = np.random.uniform(size = (nparts,2))*npixels-npixels/2
-moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize*10**-3),size = (nsteps,nparts,2) )
+moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nsteps,nparts,2) )
 
 positions = np.cumsum(moves,axis=0)
 positions = positions+pos0[np.newaxis,:,:]

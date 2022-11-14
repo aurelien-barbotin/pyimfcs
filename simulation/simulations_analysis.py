@@ -12,7 +12,7 @@ import pandas as pd
 
 import glob
 
-path = "/home/aurelienb/Data/simulations/Radius/"
+path = "/home/aurelienb/Data/simulations/Diffcoeff2_R10/"
 folders = glob.glob(path+"*/")
 
 nsum = 2

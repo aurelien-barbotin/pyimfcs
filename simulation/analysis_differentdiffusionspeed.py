@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import glob
-
 path = "/home/aurelienb/Data/simulations/DiffCoeff/"
 folders = glob.glob(path+"*/")
 
@@ -38,4 +37,4 @@ ds_std = [ds[rs==w].std() for w in rvals]
 
 plt.figure()
 plt.errorbar(rvals,ds_mean,yerr=ds_std,capsize=5)
-plt.plot(rvals,rvals,'k--')
+plt.plot(np.linspace(0,max(rvals),10),np.linspace(0,max(rvals),10),'k--')

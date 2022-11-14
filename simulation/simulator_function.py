@@ -115,8 +115,8 @@ brightness = 18*10**3 #Hz/molecule
 npix_img = 16
 z_cutoff = 10*dz_tirf
 
-nsteps = 20000
-nparts = 1000
+nsteps = 10000
+nparts = 10000
 
 def simulate_spherical_diffusion(R,D,nsteps,nparts):
     pos0 = np.random.uniform(size = (nparts,2))*2*np.pi
@@ -215,9 +215,18 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts):
     
 nparts_ref = nparts
 ds_to_test = np.linspace(0.01,15,20)
+R = 1
 
+nparts = min(10000,int(nparts_ref * (R/10)**2))
+
+nparts=max(50,nparts)
+for D in [2,4,8,12,16,20]:
+    simulate_spherical_diffusion(R,D,nsteps,nparts)
+
+"""
 for j in range(len(ds_to_test)):
     R = 1
     nparts = min(10000,int(nparts_ref * (R/8)**2))
     nparts=max(50,nparts)
-    simulate_spherical_diffusion(R,ds_to_test[j],nsteps,nparts)
+    simulate_spherical_diffusion(R,ds_to_test[j],nsteps,nparts)"""
+    
