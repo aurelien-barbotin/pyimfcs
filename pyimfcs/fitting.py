@@ -176,7 +176,6 @@ class Fitter(object):
             if self.ginf:
                 p0.append(0)
             self.p0 = tuple(p0)
-            print(self.p0)
             
             popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1], p0=self.p0)
             yh = self.fitter(curve[:,0],*popt)
