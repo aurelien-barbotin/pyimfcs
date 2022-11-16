@@ -221,6 +221,7 @@ class FCS_Visualisator(QWidget):
             msg = QMessageBox()
             msg.setText('Processing Finished')
             msg.exec_()
+            
     def trash_measurement(self):
         try:
             file = self.expListWidget.currentItem().data(QtCore.Qt.UserRole)
@@ -280,6 +281,7 @@ class FCS_Visualisator(QWidget):
         if intensity_threshold_tmp.replace('.','',1).isdigit():
             intensity_threshold = float(intensity_threshold_tmp)
             
+        self.plotBox.figure.clf()
         self.onclick_function = interactive_plot_h5(self.current_stack, fig=fig, 
                         nsum = nsum, vmax=vmax, vmin=vmin ,chi_threshold=chi_thr, 
                         light_version=light_version, intensity_threshold=intensity_threshold)

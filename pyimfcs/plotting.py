@@ -40,7 +40,8 @@ def plot_combined(combined,xname,measured,repeat, order = None,size = 8, showmed
     
     """sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax,
                    color='gray',alpha=1, inner=None)"""
-    
+    print(repeat, type(repeat))
+    print(ReplicateAverages[repeat],combined[repeat])
     sns.swarmplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
                        linewidth=2, data=ReplicateAverages, size=size, 
                        order = order,ax=ax)
@@ -262,6 +263,7 @@ def multiplot_stack_light(stack,nsum, parn=1, normsize=1, fig = None,
         axes = np.asarray(axes)
     axes=axes.ravel()
     def onclick(event):
+        print('onclick')
         if event.inaxes not in axes[0:2]:
             return
         X_coordinate = event.xdata

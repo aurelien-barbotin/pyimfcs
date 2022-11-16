@@ -17,7 +17,10 @@ def get_dict(h5f, dname):
     ds = h5f[dname]
     for key in ds.keys():
         dd = ds[key][()]
-        out_dic[int(key)] = dd
+        try:
+            out_dic[int(key)] = dd
+        except:
+            out_dic[key] = dd
     return out_dic
 
 def get_diffusion_df(name, repeat, condition, nsum):
@@ -140,6 +143,14 @@ def get_image_metadata(path):
             except:
                 meta_dict[k] = val
     return meta_dict
+
+def get_h5_metadata(file_h5):
+    h5f = h5py.File(file_h5,'r')
+    metadata = get_dict(h5f, "metadata")
+    for k in metadata.keys():
+        if type(metadata[k])==bytes:
+            metadata[k] = metadata[k].decode('utf-8')
+    return metadata
 
 def get_metadata_bioformats(path):
     import czifile
