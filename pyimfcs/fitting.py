@@ -26,7 +26,7 @@ def make_Gim2D(a,sigma, ginf=False):
                 D (float): diffusion coeff
                 N (float): number of molecules
                 Ginf (float): offset, should be around 0"""
-            k = a/(2*np.sqrt(D*tau+sigma**2 ) )
+            k = a/(2*np.sqrt(D*tau+sigma**2 ) ) 
             return 1/N*( erf(k)+(np.exp(-k**2)-1)/(k*np.sqrt(np.pi) ))**2 + Ginf
     else:
         def G_im(tau,N,D):

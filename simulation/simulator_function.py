@@ -9,12 +9,14 @@ import matplotlib.pyplot as plt
 from skimage.filters import gaussian
 import tifffile
 import datetime
+import os
+import pandas as pd
 
 from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.fitting import Fitter
 from pyimfcs.io import merge_fcs_results
-plt.close('all')
 
+plt.close('all')
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
     cubes as cubes, etc..  This is one possible solution to Matplotlib's
@@ -43,10 +45,11 @@ def set_axes_equal(ax):
     ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
     ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
-    
-def gauss(x,sig):
-    return np.exp(-2*x**2/(sig**2))
 
+def g2d(x0,y0,sigma):
+    y,x=coords
+    return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))
+    
 def spherical2cart(R,phi,theta):
     x = R*np.cos(phi)*np.sin(theta)
     y = R*np.sin(phi)*np.sin(theta)
@@ -58,21 +61,28 @@ def cart2spherical(x,y,z):
     phi = np.arctan2(y,x)
     return np.array([phi, theta])
 
-
-def coord2counts(x,y,z):
+def coord2counts_old(x,y,z):
+    #!!! here lies the problem
     zr = np.sqrt(2*np.log(2))*sigmaz
     omegaz = sigma_psf*np.sqrt(1+z/zr**2)
     frame = np.zeros((npix_img*2+1, npix_img*2+1))
-    frame[x,y] = np.exp(-z/dz_tirf)
+    frame[x,y] = np.exp(-z/dz_tirf)/np.exp(0)
     
-    frame = gaussian(frame,sigma = omegaz)*(sigma_psf/omegaz)**2
-    return np.random.poisson(frame* brightness*dt )
+    frame = gaussian(frame,sigma = omegaz)
+    return np.random.poisson(frame* brightness*dt)
 
-def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
+def coord2counts(x,y,z):
+    #!!! here lies the problem
+    zr = np.sqrt(2*np.log(2))*sigmaz
+    omegaz = sigma_psf*np.sqrt(1+z/zr**2)
+    frame = g2d(x,y,omegaz)/(omegaz**2*np.pi/2)*np.exp(-z/dz_tirf)
+
+    return np.random.poisson(frame* brightness*dt)
+
+def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
                            plot=False, default_dt= None, default_psize = None, 
                            fitter = None, export_summaries = True, 
                            chi_threshold = 0.03, ith=0.8):
-
 
     stack = StackFCS(path, background_correction = True,                     
                          first_n = first_n, last_n = last_n, clipval = 0)
@@ -88,7 +98,8 @@ def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
     for nSum in nsums:
         stack.correlate_stack(nSum)
     if fitter is None:
-        sigmaxy = 0.2
+        sigmaxy = sigma_psf*psize
+        print('sigmaxy',sigmaxy)
         parameters_dict = {"a":yscale, "sigma":sigmaxy}
         ft = Fitter("2D",parameters_dict, ginf=True)
     else:
@@ -98,42 +109,26 @@ def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
     
     stack.save()
 
-plot = True
-save = True
-
-psize = 0.16
-sigma_psf = 0.2/psize
-sigmaz = 4*sigma_psf
-dz_tirf = 0.2 # um
-
-dt = 1*10**-3 # s
-D = 3 #um2/s
-
-R = 8 #um
-brightness = 18*10**3 #Hz/molecule
-
-npix_img = 16
-z_cutoff = 10*dz_tirf
-
-nsteps = 10000
-nparts = 10000
-
-def simulate_spherical_diffusion(R,D,nsteps,nparts):
-    pos0 = np.random.uniform(size = (nparts,2))*2*np.pi
-    
+def simulate_spherical_diffusion(R,D,nsteps,nparts, savepath = "/home/aurelienb/Data/simulations/"):
+    pos0 = np.random.uniform(size = (nparts,2))
+    # phi
+    pos0[:,0] = pos0[:,0]*2*np.pi
+    # theta
+    pos0[:,1] = np.arccos(2*pos0[:,1]-1)
+    # pos0[:,0] = pos0[:,0]/np.sin(pos0[:,1])
     # ---------- Calculation of positions-------------------
     moves = np.random.normal(scale = np.sqrt(2*D*dt)/R,
-                             size = (nsteps,nparts,2) )
-    
+                             size = (nsteps,nparts,2))
+     
     moves[0] = 0
-    
+     
     positions = np.cumsum(moves,axis=0)
     positions = positions+pos0[np.newaxis,:,:]
-    
+     
     p1 = pos0[:,0]
     phis = moves[:,:,0]/np.sin(positions[:,:,1])
     positions[:,:,0] = p1[np.newaxis,:] + np.cumsum(phis,axis=0)
-    
+     
     positions = positions%(2*np.pi)
     z,y,x = spherical2cart(R, positions[:,:,0], positions[:,:,1])
     
@@ -146,9 +141,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts):
             
         x1, y1, z1 = x[j], y[j], z[j]
         z1+=R
-        # round is necessary to ensure fair distribution of parts and not concentration in the centre
         positions_new = np.array([x1,y1]).T/psize + npix_img
-        positions_new = np.round(positions_new).astype(int) 
         
         msk0 = np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1)
         msk3 = np.logical_and(msk0,z1<z_cutoff)
@@ -173,12 +166,8 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts):
     plt.title('Sum of all frames')
     plt.suptitle('Summary of simulated acquisition')"""
     
-    
-    import os
-    import pandas as pd
     #------------ MSD stuff ---------------
     
-    savepath = "/home/aurelienb/Data/simulations/"
     fname = datetime.datetime.now().__str__()[:19]
     savefolder = savepath+fname+"/"
     os.mkdir(savefolder)
@@ -204,7 +193,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts):
     print('---- Processing FCS acquisition-----')
     # processing
     process_stack(stack_name, first_n = 0,
-                           last_n = 0,nsums = [2,3], default_dt = dt, 
+                           last_n = 0,nsums = [1,2,3], default_dt = dt, 
                            default_psize = psize)
     
     # export 
@@ -213,20 +202,41 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts):
     merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
           intensity_threshold = intensity_threshold, chi_threshold = thr)
     
+plot = True
+save = True
+
+psize = 0.16
+sigma_psf = 0.1/psize
+sigmaz = 4*sigma_psf
+dz_tirf = 0.2 # um
+
+dt = 1*10**-3 # s
+
+brightness = 180*10**3 #Hz/molecule
+
+npix_img = 16
+coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
+
+z_cutoff = 10*dz_tirf
+
+nsteps = 10000
+nparts = 10000
+
 nparts_ref = nparts
 ds_to_test = np.linspace(0.01,15,20)
-R = 1
-
-nparts = min(10000,int(nparts_ref * (R/10)**2))
-
-nparts=max(50,nparts)
-for D in [2,4,8,12,16,20]:
-    simulate_spherical_diffusion(R,D,nsteps,nparts)
-
 """
-for j in range(len(ds_to_test)):
-    R = 1
-    nparts = min(10000,int(nparts_ref * (R/8)**2))
-    nparts=max(50,nparts)
-    simulate_spherical_diffusion(R,ds_to_test[j],nsteps,nparts)"""
-    
+x0 = 12.2
+y0=10.3
+f1 = coord2counts_old(int(x0),int(y0),0)
+f2 = coord2counts(x0,y0,0.2)
+plt.figure()
+plt.subplot(121)
+plt.imshow(f1)
+plt.subplot(122)
+plt.imshow(f2)
+tifffile.imwrite('simulated_psf.tif',(f1*255/f1.max()).astype(np.uint8))
+"""
+D = 2
+for R in [0.5,1,2,4,5,10]:
+    nparts_new = int(nparts*(R/10)**2)
+    simulate_spherical_diffusion(R,D,nsteps,nparts_new)

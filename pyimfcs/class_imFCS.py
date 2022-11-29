@@ -42,7 +42,7 @@ class StackFCS(object):
                 print("Scanning FCS")
             self.stack = self.stack[self.first_n:self.stack.shape[0] - self.last_n]
         else:
-            self.stack = np.zeros((5, 5, 5))
+            self.stack = np.zeros((10, 50, 50))
 
         self.fitter = fitter
 

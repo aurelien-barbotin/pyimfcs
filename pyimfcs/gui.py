@@ -208,19 +208,22 @@ class FCS_Visualisator(QWidget):
     def process_measurements(self):
         fd = QFileDialog()
         fd.setAcceptDrops(True)
+        
         folder = str(fd.getExistingDirectory(self, "Select Directory"))
+        if folder=="":
+            return
         files = glob.glob(folder+"/*.tif")
-        print(files)
-        pdial = ParametersDialog(files)
-        if pdial.exec():
-            batch_bacteria_process(files, first_n = pdial.first_n,
-                                   last_n = pdial.last_n,nsums = pdial.nsums,
-                                   nreg = pdial.nreg, default_dt = pdial.dt, 
-                                   default_psize = pdial.psize)
-            self.loadFiles(folder=folder)
-            msg = QMessageBox()
-            msg.setText('Processing Finished')
-            msg.exec_()
+        if len(files)>0:
+            pdial = ParametersDialog(files)
+            if pdial.exec():
+                batch_bacteria_process(files, first_n = pdial.first_n,
+                                       last_n = pdial.last_n,nsums = pdial.nsums,
+                                       nreg = pdial.nreg, default_dt = pdial.dt, 
+                                       default_psize = pdial.psize)
+                self.loadFiles(folder=folder)
+                msg = QMessageBox()
+                msg.setText('Processing Finished')
+                msg.exec_()
             
     def trash_measurement(self):
         try:

@@ -9,14 +9,15 @@ Motion on spherical coordinates:
     https://www.e-education.psu.edu/meteo300/node/731
 Uniform distribution on a sphere:
     https://www.bogotobogo.com/Algorithms/uniform_distribution_sphere.php
+    
+coordinates are stored in order (phi, theta)
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.filters import gaussian
-import tifffile
-import datetime
 
+from scipy.stats import linregress
 plt.close('all')
 
 def set_axes_equal(ax):
@@ -70,14 +71,73 @@ def coord2counts(x,y,z):
     frame[x,y] = np.exp(-z/dz_tirf)
     
     frame = gaussian(frame,sigma = omegaz)*(sigma_psf/omegaz)**2
-    return np.random.poisson(frame* brightness*dt )
+    return np.random.poisson(frame* brightness*dt)
 
 def move_spherical(p0,mv):
     """mv: move, raw, amplitude sqrt(4dt)/r"""
-    phi,theta = p0
+    theta = p0[:,1].reshape(-1,1)
     c0 = 1/np.sqrt(1+np.pi**2*np.sin(theta)**4)
-    mv_full= np.array([mv[0]*c0, mv[1]*c0*np.pi*np.sin(theta)])
-    return p0+mv_full
+    # print(c0**2+c0**2*(np.pi*np.sin(theta))**2*np.sin(theta)**2)
+    # print(mv.shape,p0.shape,c0.shape)
+    mv_full= np.concatenate(( mv[:,0].reshape(-1,1)*c0, 
+                             mv[:,1].reshape(-1,1)*c0*np.pi*np.sin(theta)),axis=1 )
+    return (p0+mv_full)
+
+def get_deltas(phi,theta,ampl,angle):
+    denominator = np.sqrt(np.tan(angle)**2+1)
+    dtheta = np.sqrt(ampl)*np.tan(angle)/denominator
+    dphi = np.sqrt(ampl)/(np.sin(theta)*denominator)*np.sign(np.cos(angle))
+    return dphi, dtheta
+
+def move_spherical_upg(p0,ampl,angle):
+    """mv: move, raw, amplitude sqrt(4dt)/r"""
+    theta = p0[:,1]
+    phi = p0[:,0]
+    dphi,dtheta = get_deltas(phi,theta,ampl,angle)
+    # print(c0**2+c0**2*(np.pi*np.sin(theta))**2*np.sin(theta)**2)
+    # print(mv.shape,p0.shape,c0.shape)
+    mv_full= np.concatenate(( 
+        (phi+dphi).reshape(-1,1),
+        (theta+dtheta).reshape(-1,1),
+        ),axis=1 )
+    return mv_full
+
+
+def move_spherical_cartesian(xyz,ampl,angle,R):
+    """mv: move, raw, amplitude sqrt(4dt)/r"""
+    def get_deltas_cartesian(phi,theta,ampl,angle):
+        denominator = np.sqrt(np.tan(angle)**2+1)
+        dtheta = np.sqrt(ampl)*np.tan(angle)/denominator
+        dphi = np.sqrt(ampl)/(denominator)*np.sign(np.cos(angle))
+        # !!! we did not divide by sin theta here
+        return dphi, dtheta
+    x,y,z=xyz
+    phi,theta=cart2spherical(x,y,z)
+    dphi,dtheta = get_deltas_cartesian(phi,theta,ampl,angle)
+    spherical2cart(R,)
+    """print("theta amplitude {}, phi amplitude {}".format(dtheta.max()-dtheta.min(),
+                                                        dphi.max()-dphi.min()))
+    print("theta min - max {}-{}, phi min-max {}- {}".format(
+        dtheta.min(),dtheta.max(),
+        dphi.min(),dphi.max()))"""
+    # print(c0**2+c0**2*(np.pi*np.sin(theta))**2*np.sin(theta)**2)
+    # print(mv.shape,p0.shape,c0.shape)
+    
+    mv_full= np.concatenate(( 
+        (phi+dphi).reshape(-1,1),
+        (theta+dtheta).reshape(-1,1),
+        ),axis=1 )
+    return mv_full
+
+"""thetas=np.linspace(0,np.pi,15)
+c0 = 1/np.sqrt(1+np.pi**2*np.sin(thetas)**4)
+c1 = c0*np.pi*np.sin(thetas)
+plt.figure()
+plt.plot(thetas/np.pi,c0,label="coeff theta")
+plt.plot(thetas/np.pi,c1,label="coeff phi")
+plt.xlabel("Angle/pi")
+plt.ylabel('coefficient')
+plt.legend()"""
 plot = True
 save = True
 
@@ -87,13 +147,13 @@ sigmaz = 4*sigma_psf
 dz_tirf = 0.2 # um
 
 dt = 1*10**-3 # s
-D = 3 #um2/s
+D = 0.5 #um2/s
 
 R = 5 #um
 brightness = 18*10**3 #Hz/molecule
 
 nsteps = 10000
-nparts = 500
+nparts = 1000
 
 pos0 = np.random.uniform(size = (nparts,2))
 # phi
@@ -102,27 +162,32 @@ pos0[:,0] = pos0[:,0]*2*np.pi
 pos0[:,1] = np.arccos(2*pos0[:,1]-1)
 # pos0[:,0] = pos0[:,0]/np.sin(pos0[:,1])
 # ---------- Calculation of positions-------------------
-moves = np.random.normal(scale = np.sqrt(2*D*dt)/R,
-                         size = (nsteps,nparts,2))
+moves = np.random.normal(scale = np.sqrt(4*D*dt)/R,
+                         size = (nsteps,nparts,2) )
 
 moves[0] = 0
 
+# ---- new version
+amplitudes = np.random.normal(scale = np.sqrt(4*D*dt)/R,
+                         size = (nsteps,nparts) )**2
+angles = np.random.uniform(low=0,high=2*np.pi,size=(nsteps,nparts))
 # positions = np.cumsum(moves,axis=0)
 # positions = positions+pos0[np.newaxis,:,:]
-positions = np.zeros_like(moves)
-#thetas = moves[:,:,1]/np.sin(positions[:,:,0])
-p1 = pos0[:,1]
-thetas = moves[:,:,1]
-positions[:,:,1] = p1[np.newaxis,:] + np.cumsum(thetas,axis=0)
+positions = np.zeros((nsteps,nparts,2))
 
-p0 = pos0[:,0]
-phis = moves[:,:,0]/np.sin(positions[:,:,1])
-positions[:,:,0] = p0[np.newaxis,:] + np.cumsum(phis,axis=0)
-
-positions = positions%(2*np.pi)
+positions[0] = pos0
+x = np.zeros((nsteps,nparts))
+y = np.zeros((nsteps,nparts))
+z = np.zeros((nsteps,nparts))
+x[0], y[0], z[0]=spherical2cart(R,pos0[:,0],pos0[:,1])
+for j in range(1,nsteps):
+    # positions[j] = move_spherical(positions[j-1],moves[j])
+    p0 = positions[j-1]
+    ampl = amplitudes[j]
+    angle=angles[j]
+    positions[j] = move_spherical_upg(p0,ampl,angle)
 x,y,z = spherical2cart(R, positions[:,:,0], positions[:,:,1])
 
-# cooper what are you doing?
 # ---- plotting ----------
 plt.figure()
 ax = plt.axes(projection='3d')
@@ -131,11 +196,63 @@ ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('z')
 ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
-ax.scatter3D(0, 0, -R,color="C2")
-1/0
-for j in range(20):
+"""for j in range(20):
     # ax.scatter3D(x[:,j], y[:,j], z[:,j],color="C0")
-    ax.plot3D(z[:,j],y[:,j], x[:,j])
+    ax.plot3D(z[:,j],y[:,j], x[:,j])"""
+
+phi0 = np.pi/2
+theta0=np.pi/2
+dphi,dtheta=get_deltas(phi0,theta0,ampl,angle)
+
+plt.figure()
+plt.subplot(121)
+plt.hist(dphi,bins=20)
+plt.title('phis')
+
+plt.subplot(122)
+plt.hist(dtheta,bins=20)
+plt.title('theta')
+plt.suptitle('theta :{:.2f}, phi: {:.2f}'.format(theta0,phi0))
+
+# ---------- making image ------------------
+"""
+npix_img = 16
+z_cutoff = 10*dz_tirf
+stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
+
+for j in range(nsteps):
+    if j%500==0:
+        print("Processing frame {}".format(j))
+        
+    x1, y1, z1 = x[j], y[j], z[j]
+    z1+=R
+    # round is necessary to ensure fair distribution of parts and not concentration in the centre
+    positions_new = np.array([x1,y1]).T/psize + npix_img
+    positions_new = np.round(positions_new).astype(int) 
+    
+    msk0 = np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1)
+    msk3 = np.logical_and(msk0,z1<z_cutoff)
+    positions_new = positions_new[msk3,:]
+    znew = z1[msk3]
+    for k in range(positions_new.shape[0]):
+        frame = coord2counts(positions_new[k,0], positions_new[k,1],znew[k])
+        stack[j]+=frame
+plt.figure()
+plt.subplot(221)
+plt.imshow(stack[0])
+plt.title('Frame 0')
+plt.subplot(222)
+plt.imshow(stack[50])
+plt.title('Frame 2000')
+plt.subplot(223)
+plt.imshow(stack[99])
+plt.title('Frame 9999')
+plt.subplot(224)
+plt.imshow(stack.sum(axis=0))
+plt.title('Sum of all frames')
+plt.suptitle('Summary of simulated acquisition')
+"""
+
 
 #------------ MSD stuff ---------------
 def chord2arc(d,R):
@@ -151,8 +268,9 @@ def get_msds(ts,x,y,z):
         chord = get_chord(x,y,z,0,t)
         msds.append( chord2arc(chord,R)**2 )
     return np.asarray(msds)
+
 def calculate_msds(tmin=2,tmax=100,npts=10):
-   
+    # calculates msds all over the map
     all_mms = list()
     ts = np.linspace(tmin,tmax,npts).astype(int)
     ts= np.array(sorted(np.unique(ts)))
@@ -182,9 +300,7 @@ def calculate_msds(tmin=2,tmax=100,npts=10):
     print('MSD: {:.2f} um²/s'.format(lr.slope))
     print('D: {:.2f} um²/s'.format(lr.slope/4))
 
-calculate_msds(tmin=2,tmax=110)
 
-from scipy.stats import linregress
 def calculate_msds_single(xx,yy,zz,tmin=2,tmax=100,npts=10,plot=False):
     # calculates msds for x,y,z set of coordinates. Returns diffusion coeff
     all_mms = list()
@@ -214,6 +330,7 @@ for j in range(nparts):
     xx,yy,zz=x[:,j],y[:,j],z[:,j]
     d0 = calculate_msds_single(xx,yy,zz,plot=False)
     all_ds.append(d0)
+all_ds=np.asarray(all_ds)
 
 plt.figure()
 plt.subplot(221)
@@ -224,7 +341,6 @@ plt.subplot(222)
 plt.scatter(pos0[:,1],all_ds)
 plt.xlabel('Initial theta')
 plt.ylabel('D [µm²/s]')
-
 plt.subplot(223)
 plt.hist2d(pos0[:,0],all_ds,bins=20)
 plt.xlabel('Initial phi')
@@ -234,8 +350,8 @@ plt.subplot(224)
 hh=plt.hist2d(pos0[:,1],all_ds)
 plt.xlabel('Initial theta')
 plt.ylabel('D [µm²/s]')
+
 print(hh[0].sum(axis=1))
-all_ds=np.asarray(all_ds)
 thetas_up = np.linspace(0,np.pi,10)
 dmeans=[]
 dstd=[]
@@ -244,14 +360,27 @@ for j in range(1,len(thetas_up)):
     ds = all_ds[msk]
     dmeans.append(np.mean(ds))
     dstd.append(np.std(ds))
-
+    
 plt.figure()
+plt.subplot(121)
 plt.errorbar(thetas_up[1:],dmeans,yerr=dstd,capsize=5)
 plt.axhline(D,color='k',linestyle='--')
 plt.xlabel('Initial theta value')
 plt.ylabel('D [µm²/s]')
 
-calculate_msds()
+plt.subplot(122)
+phis_up = np.linspace(0,np.pi,10)
+dmeans=[]
+dstd=[]
+for j in range(1,len(phis_up)):
+    msk = np.logical_and(pos0[:,0]<phis_up[j],pos0[:,0]>phis_up[j-1])
+    ds = all_ds[msk]
+    dmeans.append(np.mean(ds))
+    dstd.append(np.std(ds))
+plt.errorbar(phis_up[1:],dmeans,yerr=dstd,capsize=5)
+plt.axhline(D,color='k',linestyle='--')
+plt.xlabel('Initial phi value')
+plt.ylabel('D [µm²/s]')
 
 # density
 coord_to_check=z[-1:]
@@ -267,6 +396,10 @@ nrs/=float(coord_to_check.shape[0])
 theoretical_density = nparts/subareas.size
 
 plt.figure()
+plt.subplot(122)
+plt.plot(subareas[1:], nrs)
+plt.axhline(theoretical_density,color='k',linestyle='--')
+plt.subplot(122)
 plt.plot(subareas[1:], nrs)
 plt.axhline(theoretical_density,color='k',linestyle='--')
 plt.xlabel('distance [µm]')

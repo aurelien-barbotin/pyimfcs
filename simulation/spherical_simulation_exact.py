@@ -9,47 +9,18 @@ Motion on spherical coordinates:
     https://www.e-education.psu.edu/meteo300/node/731
 Uniform distribution on a sphere:
     https://www.bogotobogo.com/Algorithms/uniform_distribution_sphere.php
+    
+coordinates are stored in order (phi, theta)
+https://math.stackexchange.com/questions/3725288/infinitesimal-generator-of-the-brownian-motion-on-a-sphere
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.filters import gaussian
-import tifffile
-import datetime
 
+from scipy.stats import linregress
 plt.close('all')
 
-def set_axes_equal(ax):
-    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
-    cubes as cubes, etc..  This is one possible solution to Matplotlib's
-    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
-    from SO: https://stackoverflow.com/questions/13685386/
-    matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
-    Input
-      ax: a matplotlib axis, e.g., as output from plt.gca().
-    '''
-
-    x_limits = ax.get_xlim3d()
-    y_limits = ax.get_ylim3d()
-    z_limits = ax.get_zlim3d()
-
-    x_range = abs(x_limits[1] - x_limits[0])
-    x_middle = np.mean(x_limits)
-    y_range = abs(y_limits[1] - y_limits[0])
-    y_middle = np.mean(y_limits)
-    z_range = abs(z_limits[1] - z_limits[0])
-    z_middle = np.mean(z_limits)
-
-    # The plot bounding box is a sphere in the sense of the infinity
-    # norm, hence I call half the max range the plot radius.
-    plot_radius = 0.5*max([x_range, y_range, z_range])
-
-    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
-    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
-    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
-    
-def gauss(x,sig):
-    return np.exp(-2*x**2/(sig**2))
 
 def spherical2cart(R,phi,theta):
     x = R*np.cos(phi)*np.sin(theta)
@@ -62,22 +33,6 @@ def cart2spherical(x,y,z):
     phi = np.arctan2(y,x)
     return np.array([phi, theta])
 
-
-def coord2counts(x,y,z):
-    zr = np.sqrt(2*np.log(2))*sigmaz
-    omegaz = sigma_psf*np.sqrt(1+z/zr**2)
-    frame = np.zeros((npix_img*2+1, npix_img*2+1))
-    frame[x,y] = np.exp(-z/dz_tirf)
-    
-    frame = gaussian(frame,sigma = omegaz)*(sigma_psf/omegaz)**2
-    return np.random.poisson(frame* brightness*dt )
-
-def move_spherical(p0,mv):
-    """mv: move, raw, amplitude sqrt(4dt)/r"""
-    phi,theta = p0
-    c0 = 1/np.sqrt(1+np.pi**2*np.sin(theta)**4)
-    mv_full= np.array([mv[0]*c0, mv[1]*c0*np.pi*np.sin(theta)])
-    return p0+mv_full
 plot = True
 save = True
 
@@ -87,13 +42,13 @@ sigmaz = 4*sigma_psf
 dz_tirf = 0.2 # um
 
 dt = 1*10**-3 # s
-D = 3 #um2/s
+D = 5 #um2/s
 
 R = 5 #um
 brightness = 18*10**3 #Hz/molecule
 
-nsteps = 10000
-nparts = 500
+nsteps = 1000
+nparts = 1500
 
 pos0 = np.random.uniform(size = (nparts,2))
 # phi
@@ -102,40 +57,50 @@ pos0[:,0] = pos0[:,0]*2*np.pi
 pos0[:,1] = np.arccos(2*pos0[:,1]-1)
 # pos0[:,0] = pos0[:,0]/np.sin(pos0[:,1])
 # ---------- Calculation of positions-------------------
-moves = np.random.normal(scale = np.sqrt(2*D*dt)/R,
-                         size = (nsteps,nparts,2))
+moves = np.random.normal(scale = np.sqrt(4*D*dt)/R,
+                         size = (nsteps,nparts,2) )
 
 moves[0] = 0
 
+# ---- new version
+amplitudes = np.random.normal(scale = np.sqrt(4*D*dt)/R,
+                         size = (nsteps,nparts) )**2
+angles = np.random.uniform(low=0,high=2*np.pi,size=(nsteps,nparts))
 # positions = np.cumsum(moves,axis=0)
 # positions = positions+pos0[np.newaxis,:,:]
-positions = np.zeros_like(moves)
-#thetas = moves[:,:,1]/np.sin(positions[:,:,0])
-p1 = pos0[:,1]
-thetas = moves[:,:,1]
-positions[:,:,1] = p1[np.newaxis,:] + np.cumsum(thetas,axis=0)
+positions = np.zeros((nsteps,nparts,2))
 
-p0 = pos0[:,0]
-phis = moves[:,:,0]/np.sin(positions[:,:,1])
-positions[:,:,0] = p0[np.newaxis,:] + np.cumsum(phis,axis=0)
+moves = np.random.normal(scale = np.sqrt(2*D*dt)/R,
+                         size = (nsteps,nparts,3))
+positions[0] = pos0
+x = np.zeros((nsteps,nparts))
+y = np.zeros((nsteps,nparts))
+z = np.zeros((nsteps,nparts))
+x[0], y[0], z[0]=spherical2cart(R,pos0[:,0],pos0[:,1])
+for j in range(1,nsteps):
+    # positions[j] = move_spherical(positions[j-1],moves[j])
+    p0 = positions[j-1]
+    phi_t = p0[:,0]
+    theta_t = p0[:,1]
+    dBtheta = np.sin(phi_t)*moves[j,:,0]-np.cos(phi_t)*moves[j,:,1]
+    dBphi = np.cos(theta_t)*(np.cos(phi_t)*moves[j,:,0]+np.sin(phi_t)*moves[j,:,1] )-np.sin(theta_t)*moves[j,:,2]
+    dthetat = dBtheta +0.5/np.tan(theta_t)*dt/2
+    dphit = dBphi/np.sin(theta_t)
 
-positions = positions%(2*np.pi)
+    positions[j,:,0] = phi_t + dphit
+    positions[j,:,1] = theta_t + dthetat
+    
 x,y,z = spherical2cart(R, positions[:,:,0], positions[:,:,1])
 
-# cooper what are you doing?
-# ---- plotting ----------
+# ---- plotting ----------è
 plt.figure()
 ax = plt.axes(projection='3d')
 # set_axes_equal(ax)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('z')
-ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
-ax.scatter3D(0, 0, -R,color="C2")
-1/0
-for j in range(20):
-    # ax.scatter3D(x[:,j], y[:,j], z[:,j],color="C0")
-    ax.plot3D(z[:,j],y[:,j], x[:,j])
+# ax.scatter3D(x[0], y[0], z[0],color="C0")
+ax.scatter3D(x[-1], y[-1], z[-1],color="C1")
 
 #------------ MSD stuff ---------------
 def chord2arc(d,R):
@@ -151,8 +116,9 @@ def get_msds(ts,x,y,z):
         chord = get_chord(x,y,z,0,t)
         msds.append( chord2arc(chord,R)**2 )
     return np.asarray(msds)
+
 def calculate_msds(tmin=2,tmax=100,npts=10):
-   
+    # calculates msds all over the map
     all_mms = list()
     ts = np.linspace(tmin,tmax,npts).astype(int)
     ts= np.array(sorted(np.unique(ts)))
@@ -182,9 +148,7 @@ def calculate_msds(tmin=2,tmax=100,npts=10):
     print('MSD: {:.2f} um²/s'.format(lr.slope))
     print('D: {:.2f} um²/s'.format(lr.slope/4))
 
-calculate_msds(tmin=2,tmax=110)
 
-from scipy.stats import linregress
 def calculate_msds_single(xx,yy,zz,tmin=2,tmax=100,npts=10,plot=False):
     # calculates msds for x,y,z set of coordinates. Returns diffusion coeff
     all_mms = list()
@@ -214,6 +178,7 @@ for j in range(nparts):
     xx,yy,zz=x[:,j],y[:,j],z[:,j]
     d0 = calculate_msds_single(xx,yy,zz,plot=False)
     all_ds.append(d0)
+all_ds=np.asarray(all_ds)
 
 plt.figure()
 plt.subplot(221)
@@ -224,7 +189,6 @@ plt.subplot(222)
 plt.scatter(pos0[:,1],all_ds)
 plt.xlabel('Initial theta')
 plt.ylabel('D [µm²/s]')
-
 plt.subplot(223)
 plt.hist2d(pos0[:,0],all_ds,bins=20)
 plt.xlabel('Initial phi')
@@ -234,8 +198,8 @@ plt.subplot(224)
 hh=plt.hist2d(pos0[:,1],all_ds)
 plt.xlabel('Initial theta')
 plt.ylabel('D [µm²/s]')
+
 print(hh[0].sum(axis=1))
-all_ds=np.asarray(all_ds)
 thetas_up = np.linspace(0,np.pi,10)
 dmeans=[]
 dstd=[]
@@ -244,14 +208,27 @@ for j in range(1,len(thetas_up)):
     ds = all_ds[msk]
     dmeans.append(np.mean(ds))
     dstd.append(np.std(ds))
-
+    
 plt.figure()
+plt.subplot(121)
 plt.errorbar(thetas_up[1:],dmeans,yerr=dstd,capsize=5)
 plt.axhline(D,color='k',linestyle='--')
 plt.xlabel('Initial theta value')
 plt.ylabel('D [µm²/s]')
 
-calculate_msds()
+plt.subplot(122)
+phis_up = np.linspace(0,np.pi,10)
+dmeans=[]
+dstd=[]
+for j in range(1,len(phis_up)):
+    msk = np.logical_and(pos0[:,0]<phis_up[j],pos0[:,0]>phis_up[j-1])
+    ds = all_ds[msk]
+    dmeans.append(np.mean(ds))
+    dstd.append(np.std(ds))
+plt.errorbar(phis_up[1:],dmeans,yerr=dstd,capsize=5)
+plt.axhline(D,color='k',linestyle='--')
+plt.xlabel('Initial phi value')
+plt.ylabel('D [µm²/s]')
 
 # density
 coord_to_check=z[-1:]
@@ -267,6 +244,10 @@ nrs/=float(coord_to_check.shape[0])
 theoretical_density = nparts/subareas.size
 
 plt.figure()
+plt.subplot(121)
+plt.plot(subareas[1:], nrs)
+plt.axhline(theoretical_density,color='k',linestyle='--')
+plt.subplot(122)
 plt.plot(subareas[1:], nrs)
 plt.axhline(theoretical_density,color='k',linestyle='--')
 plt.xlabel('distance [µm]')

@@ -20,9 +20,9 @@ def make_image():
 
 # pixel size: 100 nm
 psize = 0.16 #um
-sigma_psf = 0.2/psize # pixels
+sigma_psf = 0.1/psize # pixels
 dt = 10**-3 # s
-D = 30 #um2/s
+D = 5 #um2/s
 
 brightness = 18*10**3 #Hz/molecule
 
