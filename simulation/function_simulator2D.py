@@ -32,12 +32,13 @@ def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
     xscale = stack.xscale
     yscale = stack.yscale
     assert(xscale==yscale)
-    stack.set_bleaching_function(blexp_double_offset)
+    #stack.set_bleaching_function(blexp_double_offset)
     
     for nSum in nsums:
         stack.correlate_stack(nSum)
     if fitter is None:
         sigmaxy = sigma_psf*psize
+        print("sigmaxy", sigmaxy)
         parameters_dict = {"a":yscale, "sigma":sigmaxy}
         ft = Fitter("2D",parameters_dict, ginf=True)
     else:
@@ -46,32 +47,38 @@ def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
     stack.fit_curves(ft,xmax=None)
     
     stack.save()
- 
+
+def g2d(x0,y0,sigma):
+    y,x=coords
+    return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))
+
+def coord2counts(x,y):
+    #!!! here lies the problem
+    frame = g2d(x,y,sigma_psf)
+    return np.random.poisson(frame* brightness*dt)
 def simulate_2D_diff(D,nsteps,nparts, 
-                     savepath = "/home/aurelienb/Data/simulations/SLB/"):
-    pos0 = np.random.uniform(size = (nparts,2))*npixels-npixels/2
-    moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nsteps,nparts,2) )
+                     savepath = "/home/aurelienb/Data/simulations/SLB/",crop=5):
+    positions = np.random.uniform(size = (nparts,2))*npixels
     
-    positions = np.cumsum(moves,axis=0)
-    positions = positions+pos0[np.newaxis,:,:]
-    
-    npix_img = 16
     stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
     
     for j in range(nsteps):
-        
-        positions_new = positions[j]
+        moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nparts,2) )
+        positions_new = positions+moves
         # round is necessary to ensure fair distribution of parts and not concentration in the centre
-        positions_new = np.round(positions_new).astype(int) + npix_img
+        positions_new = np.round(positions_new).astype(int)
+        positions_new = np.mod(positions_new,npixels)
+        positions = positions_new.copy()
+        
+        positions_new = positions_new-npixels//2+npix_img
         positions_new = positions_new[np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1),:]
         for k in range(len(positions_new)):
-            stack[j, positions_new[k, 0],positions_new[k, 1]]+=1
-        stack[j] = gaussian(stack[j],sigma = sigma_psf)
+            xx,yy=positions_new[k]
+            stack[j]+=coord2counts(xx, yy)
         
         if j%500==0:
             print("Processing frame {}".format(j))
-    stack = stack * brightness*dt 
-    stack = np.random.poisson(stack)
+    stack=stack[:,crop:-crop,crop:-crop]
     x = np.linspace(-(npix_img*2+1)/2,(npix_img*2+1)/2,npix_img*2+1)
     
     xx, yy = np.meshgrid(x,x)
@@ -106,7 +113,7 @@ def simulate_2D_diff(D,nsteps,nparts,
     
     # export 
     intensity_threshold = 0
-    thr = 0.03
+    thr = 0.5
     merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
           intensity_threshold = intensity_threshold, chi_threshold = thr)
 
@@ -114,13 +121,15 @@ def simulate_2D_diff(D,nsteps,nparts,
 psize = 0.16 #um
 sigma_psf = 0.1/psize # pixels
 dt = 10**-3 # s
-D = 5 #um2/s
+D = 1 #um2/s
 
-brightness = 80*10**3 #Hz/molecule
+brightness = 18*10**3 #Hz/molecule
 
-npixels = 200
+npixels = 500
 
-nsteps = 10000
-nparts = 40000
-for dd in [2]:
-    simulate_2D_diff(dd,nsteps,nparts)
+npix_img = 24
+coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
+nsteps = 20000
+nparts = 10000
+
+simulate_2D_diff(D,nsteps,nparts,crop=7)
