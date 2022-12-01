@@ -18,6 +18,9 @@ import matplotlib.pyplot as plt
 from skimage.filters import gaussian
 
 from scipy.stats import linregress
+import datetime
+import os
+from numpy.linalg import norm
 plt.close('all')
 
 def set_axes_equal(ax):
@@ -63,14 +66,15 @@ def cart2spherical(x,y,z):
     phi = np.arctan2(y,x)
     return np.array([phi, theta])
 
+def g2d(x0,y0,sigma):
+    y,x=coords
+    return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))
 
 def coord2counts(x,y,z):
-    zr = np.sqrt(2*np.log(2))*sigmaz
-    omegaz = sigma_psf*np.sqrt(1+z/zr**2)
-    frame = np.zeros((npix_img*2+1, npix_img*2+1))
-    frame[x,y] = np.exp(-z/dz_tirf)
-    
-    frame = gaussian(frame,sigma = omegaz)*(sigma_psf/omegaz)**2
+    zr = np.sqrt(2*np.log(2))*sigmaz/psize
+    omegaz = sigma_psf/psize*np.sqrt(1+z/zr**2)
+    frame = g2d(x,y,omegaz)/(omegaz**2*np.pi/2)*np.exp(-z*psize/dz_tirf)
+
     return np.random.poisson(frame* brightness*dt)
 
 def move_spherical(p0,mv):
@@ -102,287 +106,155 @@ def move_spherical_upg(p0,ampl,angle):
         ),axis=1 )
     return mv_full
 
+# ---- processing helpers ------
+from pyimfcs.class_imFCS import StackFCS
+from pyimfcs.fitting import Fitter
+from pyimfcs.io import merge_fcs_results
 
-def move_spherical_cartesian(xyz,ampl,angle,R):
-    """mv: move, raw, amplitude sqrt(4dt)/r"""
-    def get_deltas_cartesian(phi,theta,ampl,angle):
-        denominator = np.sqrt(np.tan(angle)**2+1)
-        dtheta = np.sqrt(ampl)*np.tan(angle)/denominator
-        dphi = np.sqrt(ampl)/(denominator)*np.sign(np.cos(angle))
-        # !!! we did not divide by sin theta here
-        return dphi, dtheta
-    x,y,z=xyz
-    phi,theta=cart2spherical(x,y,z)
-    dphi,dtheta = get_deltas_cartesian(phi,theta,ampl,angle)
-    spherical2cart(R,)
-    """print("theta amplitude {}, phi amplitude {}".format(dtheta.max()-dtheta.min(),
-                                                        dphi.max()-dphi.min()))
-    print("theta min - max {}-{}, phi min-max {}- {}".format(
-        dtheta.min(),dtheta.max(),
-        dphi.min(),dphi.max()))"""
-    # print(c0**2+c0**2*(np.pi*np.sin(theta))**2*np.sin(theta)**2)
-    # print(mv.shape,p0.shape,c0.shape)
+import tifffile
+import pandas as pd
+def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
+                           plot=False, default_dt= None, default_psize = None, 
+                           fitter = None, export_summaries = True, 
+                           chi_threshold = 0.03, ith=0.8):
+
+    stack = StackFCS(path, background_correction = True,                     
+                         first_n = first_n, last_n = last_n, clipval = 0)
+
+    stack.dt = default_dt
+    stack.xscale = default_psize
+    stack.yscale = default_psize
+    xscale = stack.xscale
+    yscale = stack.yscale
+    assert(xscale==yscale)
+    # stack.set_bleaching_function(bleaching_correct_sliding,wsize = 5000)
     
-    mv_full= np.concatenate(( 
-        (phi+dphi).reshape(-1,1),
-        (theta+dtheta).reshape(-1,1),
-        ),axis=1 )
-    return mv_full
+    for nSum in nsums:
+        stack.correlate_stack(nSum)
+    if fitter is None:
+        sigmaxy = sigma_psf
+        print('sigmaxy',sigmaxy)
+        parameters_dict = {"a":yscale, "sigma":sigmaxy}
+        ft = Fitter("2D",parameters_dict, ginf=True)
+    else:
+        ft = fitter
+    
+    stack.fit_curves(ft,xmax=None)
+    
+    stack.save()
+    
 
-"""thetas=np.linspace(0,np.pi,15)
-c0 = 1/np.sqrt(1+np.pi**2*np.sin(thetas)**4)
-c1 = c0*np.pi*np.sin(thetas)
-plt.figure()
-plt.plot(thetas/np.pi,c0,label="coeff theta")
-plt.plot(thetas/np.pi,c1,label="coeff phi")
-plt.xlabel("Angle/pi")
-plt.ylabel('coefficient')
-plt.legend()"""
+def simulate_spherical_diffusion(R,D,nsteps,nparts, 
+                 savepath = "/home/aurelienb/Data/simulations/", plot=False,
+                 return_coordinates=False,save=True):
+    if not os.path.isdir(savepath):
+        os.mkdir(savepath)
+    stack = np.zeros((nsteps-1,npix_img*2+1, npix_img*2+1))
+    pos0 = np.random.uniform(size = (nparts,2))
+    # phi
+    pos0[:,0] = pos0[:,0]*2*np.pi
+    # theta
+    pos0[:,1] = np.arccos(2*pos0[:,1]-1)
+    # ---------- Calculation of positions-------------------
+    
+    x0, y0, z0=spherical2cart(R,pos0[:,0],pos0[:,1])
+    xyz = np.concatenate((x0.reshape(-1,1),
+                              y0.reshape(-1,1),
+                              z0.reshape(-1,1)),axis=1)
+    
+    if return_coordinates:
+        out_coords = np.zeros((nsteps,nparts,3))
+        out_coords[0] = xyz
+    for j in range(1,nsteps):
+        if j%500==0:
+            print("Processing frame {}".format(j))
+            
+        bm = np.random.normal(scale=np.sqrt(2*D*dt)/R,size=(nparts,3))
+        # norm xyz is R
+        d_xyz = np.cross(xyz,bm)
+        xyz_new = xyz+d_xyz
+        xyz_new = R*xyz_new/norm(xyz_new,axis=1)[:,np.newaxis]
+        xyz=xyz_new.copy()
+        x1, y1, z1 = xyz_new[:,0],xyz_new[:,1],xyz_new[:,2].copy() # to not contaminate z
+        z1+=R
+        # pixel coordinates
+        positions_new = np.array([x1,y1]).T/psize + npix_img
+        
+        msk0 = np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1)
+        msk3 = np.logical_and(msk0,z1<z_cutoff)
+        positions_new = positions_new[msk3,:]
+        znew = z1[msk3]/psize
+        for k in range(positions_new.shape[0]):
+            frame = coord2counts(positions_new[k,0], positions_new[k,1],znew[k])
+            stack[j-1]+=frame
+            
+        if return_coordinates:
+            out_coords[j] = xyz_new
+    if save:
+        fname = datetime.datetime.now().__str__()[:19]
+        savefolder = savepath+fname+"/"
+        os.mkdir(savefolder)
+        stack_name = savefolder+"stack.tif"
+        tifffile.imsave(stack_name,stack)
+        
+        parameters_dict = {
+            "psize": psize,
+            "sigma_psf":sigma_psf, 
+            "sigmaz": sigmaz,
+            "dz_tirf": dz_tirf,
+            "dt": dt,
+            "D":D,
+            "R": R,
+            "brightness": brightness,
+            "nsteps": nsteps,
+            "nparts": nparts
+            }
+        
+        parameters_df = pd.DataFrame(parameters_dict, index=[0])
+        parameters_df.to_csv(savefolder+"parameters.csv")
+        
+        print('---- Processing FCS acquisition-----')
+        # processing
+        process_stack(stack_name, first_n = 0,
+                               last_n = 0,nsums = [1,2,3], default_dt = dt, 
+                               default_psize = psize)
+        
+        # export 
+        intensity_threshold = 0.8
+        thr = 0.03
+        merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
+              intensity_threshold = intensity_threshold, chi_threshold = thr)
+
+    if return_coordinates:
+        return out_coords
+    
 plot = True
 save = True
 
-psize = 0.16
-sigma_psf = 0.2/psize
+psize = 0.1
+sigma_psf = 0.1
 sigmaz = 4*sigma_psf
 dz_tirf = 0.2 # um
 
 dt = 1*10**-3 # s
-D = 0.5 #um2/s
+D = 1 #um2/s
 
 R = 5 #um
 brightness = 18*10**3 #Hz/molecule
 
-nsteps = 10000
-nparts = 1000
+nsteps = 20000
+nparts = 15000
 
-pos0 = np.random.uniform(size = (nparts,2))
-# phi
-pos0[:,0] = pos0[:,0]*2*np.pi
-# theta
-pos0[:,1] = np.arccos(2*pos0[:,1]-1)
-# pos0[:,0] = pos0[:,0]/np.sin(pos0[:,1])
-# ---------- Calculation of positions-------------------
-from numpy.linalg import norm
-positions = np.zeros((nsteps,nparts,2))
-positions_cart = np.zeros((nsteps,nparts,3))
-
-positions[0] = pos0
-
-x = np.zeros((nsteps,nparts))
-y = np.zeros((nsteps,nparts))
-z = np.zeros((nsteps,nparts))
-x[0], y[0], z[0]=spherical2cart(R,pos0[:,0],pos0[:,1])
-positions_cart[0] = spherical2cart(R,pos0[:,0],pos0[:,1]).T
-for j in range(1,nsteps):
-    xx,yy,zz = positions_cart[j-1,:,0],positions_cart[j-1,:,1],positions_cart[j-1,:,2]
-    xyz = positions_cart[j-1]
-    bm = np.random.normal(scale=np.sqrt(2*D*dt)/R,size=(nparts,3))
-    d_xyz = np.cross(xyz,bm)
-    xyz_new = xyz+d_xyz
-    positions_cart[j] = R*xyz_new/norm(xyz_new,axis=1)[:,np.newaxis]
-    
-    # 1/0
-x,y,z = positions_cart[:,:,0],positions_cart[:,:,1],positions_cart[:,:,2]
-
-# ---- plotting ----------
-plt.figure()
-ax = plt.axes(projection='3d')
-# set_axes_equal(ax)
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_zlabel('z')
-# ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
-for j in range(20):
-    # ax.scatter3D(x[:,j], y[:,j], z[:,j],color="C0")
-    ax.plot3D(x[:,j],y[:,j], z[:,j])
-
-# ---------- making image ------------------
-"""
+nparts = 5000
 npix_img = 16
-z_cutoff = 10*dz_tirf
-stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
 
-for j in range(nsteps):
-    if j%500==0:
-        print("Processing frame {}".format(j))
-        
-    x1, y1, z1 = x[j], y[j], z[j]
-    z1+=R
-    # round is necessary to ensure fair distribution of parts and not concentration in the centre
-    positions_new = np.array([x1,y1]).T/psize + npix_img
-    positions_new = np.round(positions_new).astype(int) 
-    
-    msk0 = np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1)
-    msk3 = np.logical_and(msk0,z1<z_cutoff)
-    positions_new = positions_new[msk3,:]
-    znew = z1[msk3]
-    for k in range(positions_new.shape[0]):
-        frame = coord2counts(positions_new[k,0], positions_new[k,1],znew[k])
-        stack[j]+=frame
-plt.figure()
-plt.subplot(221)
-plt.imshow(stack[0])
-plt.title('Frame 0')
-plt.subplot(222)
-plt.imshow(stack[50])
-plt.title('Frame 2000')
-plt.subplot(223)
-plt.imshow(stack[99])
-plt.title('Frame 9999')
-plt.subplot(224)
-plt.imshow(stack.sum(axis=0))
-plt.title('Sum of all frames')
-plt.suptitle('Summary of simulated acquisition')
-"""
+coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
+z_cutoff = 3*dz_tirf
 
-
-#------------ MSD stuff ---------------
-def chord2arc(d,R):
-    """d is chord size, R is radius"""
-    return 2*R*np.arcsin(d/(2*R))
-
-def get_chord(x,y,z,n0,n1):
-    return np.sqrt( (x[n0]-x[n1])**2+(y[n0]-y[n1])**2+(z[n0]-z[n1])**2 )
-
-def get_msds(ts,x,y,z):
-    msds = list()
-    for t in ts:
-        chord = get_chord(x,y,z,0,t)
-        msds.append( chord2arc(chord,R)**2 )
-    return np.asarray(msds)
-
-def calculate_msds(tmin=2,tmax=100,npts=10):
-    # calculates msds all over the map
-    all_mms = list()
-    ts = np.linspace(tmin,tmax,npts).astype(int)
-    ts= np.array(sorted(np.unique(ts)))
-    
-    plt.figure()
-    plt.subplot(121)
-    for j in range(nparts):
-        
-        mm = get_msds(ts,x[:,j],y[:,j],z[:,j])
-        all_mms.append(mm)
-        plt.plot(ts*dt,mm)
-    all_mms = np.asarray(all_mms)
-    mean_msd = all_mms.mean(axis=0)
-    plt.plot(ts*dt,mean_msd,"k--")
-    
-    plt.subplot(122)
-    from scipy.stats import linregress
-    
-    lr = linregress(ts*dt, mean_msd)
-    
-    plt.plot(ts*dt,mean_msd,label='Mean msd')
-    plt.plot(ts*dt,lr.slope*ts*dt+lr.intercept,"k--", label="Fit")
-    plt.xlabel('Time (s)')
-    plt.ylabel('MSD (um2/s)')
-    plt.legend()
-    
-    print('MSD: {:.2f} um²/s'.format(lr.slope))
-    print('D: {:.2f} um²/s'.format(lr.slope/4))
-
-
-def calculate_msds_single(xx,yy,zz,tmin=2,tmax=100,npts=10,plot=False):
-    # calculates msds for x,y,z set of coordinates. Returns diffusion coeff
-    all_mms = list()
-    ts = np.linspace(tmin,tmax,npts).astype(int)
-    ts= np.array(sorted(np.unique(ts)))
-    
-    mm = get_msds(ts,xx,yy,zz)
-    
-    lr = linregress(ts*dt, mm)
-    if plot:
-        plt.figure()
-        plt.plot(ts*dt,mm,label='Mean msd')
-        plt.plot(ts*dt,lr.slope*ts*dt+lr.intercept,"k--", label="Fit")
-        plt.xlabel('Time (s)')
-        plt.ylabel('MSD (um2/s)')
-        plt.legend()
-        
-    print('MSD: {:.2f} um²/s'.format(lr.slope))
-    print('D: {:.2f} um²/s'.format(lr.slope/4))
-    return lr.slope/4
-    
-"""def squaredispl(xx,yy,zz):
-    return (xx[-1]-xx[0])**2+(yy[-1]-yy[0])**2+(zz[-1]-zz[0])"""
-calculate_msds_single(x[:,0],y[:,0],z[:,0],plot=True)
-all_ds = []
-for j in range(nparts):
-    xx,yy,zz=x[:,j],y[:,j],z[:,j]
-    d0 = calculate_msds_single(xx,yy,zz,plot=False)
-    all_ds.append(d0)
-all_ds=np.asarray(all_ds)
-
-plt.figure()
-plt.subplot(221)
-plt.scatter(pos0[:,0],all_ds)
-plt.xlabel('Initial phi')
-plt.ylabel('D [µm²/s]')
-plt.subplot(222)
-plt.scatter(pos0[:,1],all_ds)
-plt.xlabel('Initial theta')
-plt.ylabel('D [µm²/s]')
-plt.subplot(223)
-plt.hist2d(pos0[:,0],all_ds,bins=20)
-plt.xlabel('Initial phi')
-plt.ylabel('D [µm²/s]')
-plt.title('Phi')
-plt.subplot(224)
-hh=plt.hist2d(pos0[:,1],all_ds)
-plt.xlabel('Initial theta')
-plt.ylabel('D [µm²/s]')
-
-print(hh[0].sum(axis=1))
-thetas_up = np.linspace(0,np.pi,10)
-dmeans=[]
-dstd=[]
-for j in range(1,len(thetas_up)):
-    msk = np.logical_and(pos0[:,1]<thetas_up[j],pos0[:,1]>thetas_up[j-1])
-    ds = all_ds[msk]
-    dmeans.append(np.mean(ds))
-    dstd.append(np.std(ds))
-    
-plt.figure()
-plt.subplot(121)
-plt.errorbar(thetas_up[1:],dmeans,yerr=dstd,capsize=5)
-plt.axhline(D,color='k',linestyle='--')
-plt.xlabel('Initial theta value')
-plt.ylabel('D [µm²/s]')
-
-plt.subplot(122)
-phis_up = np.linspace(0,np.pi,10)
-dmeans=[]
-dstd=[]
-for j in range(1,len(phis_up)):
-    msk = np.logical_and(pos0[:,0]<phis_up[j],pos0[:,0]>phis_up[j-1])
-    ds = all_ds[msk]
-    dmeans.append(np.mean(ds))
-    dstd.append(np.std(ds))
-plt.errorbar(phis_up[1:],dmeans,yerr=dstd,capsize=5)
-plt.axhline(D,color='k',linestyle='--')
-plt.xlabel('Initial phi value')
-plt.ylabel('D [µm²/s]')
-
-# density
-coord_to_check=z[-1:]
-subareas = np.linspace(-R,R,50)
-nrs = []
-for j in range(1,len(subareas)):
-    msk = np.logical_and(coord_to_check>subareas[j-1], coord_to_check<=subareas[j])
-    nr = np.count_nonzero(msk)
-    nrs.append(nr)
-nrs = np.asarray(nrs).astype(float)
-nrs/=float(coord_to_check.shape[0])
-# (np.pi*R**2*(subareas[1]-subareas[0]))
-theoretical_density = nparts/subareas.size
-
-plt.figure()
-plt.subplot(122)
-plt.plot(subareas[1:], nrs)
-plt.axhline(theoretical_density,color='k',linestyle='--')
-plt.subplot(122)
-plt.plot(subareas[1:], nrs)
-plt.axhline(theoretical_density,color='k',linestyle='--')
-plt.xlabel('distance [µm]')
-plt.ylabel('Particle density')
+if __name__=='__main__':
+    for j in range(1):
+        for R in [2]:
+            nparts_new = int(nparts*(R/5)**2)
+            simulate_spherical_diffusion(R,D,nsteps,nparts_new,
+                                         savepath="/home/aurelienb/Data/simulations/D1_new/")
+            
