@@ -15,9 +15,7 @@ def new_chi_square(y,yh):
     diffneg = diff<0
     
     diff =  diff**2
-    
     chi = 0
-    
     lab, num_features = label(diffpos)
     for j in range(1,num_features+1):
         msk = lab==j

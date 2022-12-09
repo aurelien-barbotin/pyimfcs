@@ -134,7 +134,7 @@ def compare_dicts(all_dicts):
 
 
 def compare_single_experiments(files_list):
-    all_dicts = [get_image_metadata(w) for w in files]
+    all_dicts = [get_image_metadata(w) for w in files_list]
     dic0 = all_dicts[0]
     keynames = names_to_test.values()
     same_params_perfile = True

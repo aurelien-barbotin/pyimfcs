@@ -62,4 +62,11 @@ if __name__=='__main__':
     plt.figure()
     for dd in ds:
         y = g2(taus,1,dd)
-        plt.semilogx(taus,y/y.max())
+        plt.semilogx(taus,y/y.max(), label="D={} µm²/s".format(dd))
+    plt.legend()
+    plt.xlabel('tau')
+    plt.ylabel('G(tau)')
+    # limits: for 50 000 frames, 1.26 ms exposure time
+    # Binning 2: D=0.045 -> tau/T = 100, D= 0.5: tau/T = 1000.
+    # D=4: tau/dt = 5
+    # D=10: tau/dt = 2

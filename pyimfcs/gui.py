@@ -186,7 +186,8 @@ class FCS_Visualisator(QWidget):
         self.plotBox.back_to_plot.disconnect(self.update_plot)
 
     def export_measurements(self):
-        filename = str(QFileDialog.getSaveFileName(self, "Select File name", filter="*.xlsx")[0])
+        filename = str(QFileDialog.getSaveFileName(self, "Select File name", 
+                                                   filter="*.xlsx")[0])
         if filename == "":
             return
         files = self.expListWidget.get_filenames()

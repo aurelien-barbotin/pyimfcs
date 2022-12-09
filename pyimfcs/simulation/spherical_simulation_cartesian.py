@@ -71,6 +71,10 @@ def g2d(x0,y0,sigma):
     return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))
 
 def coord2counts(x,y,z):
+    if remove_z_dependency:
+        frame = g2d(x,y,sigma_psf/psize)
+        return np.random.poisson(frame* brightness*dt)
+        
     zr = np.sqrt(2*np.log(2))*sigmaz/psize
     omegaz = sigma_psf/psize*np.sqrt(1+z/zr**2)
     frame = g2d(x,y,omegaz)/(omegaz**2*np.pi/2)*np.exp(-z*psize/dz_tirf)
@@ -221,6 +225,10 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         
         # export 
         intensity_threshold = 0.8
+        
+        if remove_z_dependency:
+            intensity_threshold = 0.5
+            
         thr = 0.03
         merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
               intensity_threshold = intensity_threshold, chi_threshold = thr)
@@ -235,13 +243,13 @@ psize = 0.1
 sigma_psf = 0.1
 sigmaz = 4*sigma_psf
 dz_tirf = 0.2 # um
-
 dt = 1*10**-3 # s
 D = 1 #um2/s
 
 R = 5 #um
 brightness = 18*10**3 #Hz/molecule
 
+remove_z_dependency = False
 nsteps = 20000
 nparts = 15000
 
@@ -252,9 +260,10 @@ coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 z_cutoff = 3*dz_tirf
 
 if __name__=='__main__':
-    for j in range(1):
-        for R in [2]:
-            nparts_new = int(nparts*(R/5)**2)
-            simulate_spherical_diffusion(R,D,nsteps,nparts_new,
-                                         savepath="/home/aurelienb/Data/simulations/D1_new/")
-            
+    for R in [0.25,0.5,1,2]:
+        z_cutoff = R 
+        print('!!! Beware of z cutoff')
+        nparts_new = int(nparts*(R/5)**2)
+        simulate_spherical_diffusion(R,D,nsteps,nparts_new,
+                     savepath="/home/aurelienb/Data/simulations/D1/")
+        

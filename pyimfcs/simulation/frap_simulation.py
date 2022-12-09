@@ -53,20 +53,39 @@ def g2d(x0,y0,sigma):
     return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))
 
 def coord2counts(x,y):
-    #!!! here lies the problem
+    #!!! in pixel coordinates
     frame = g2d(x,y,sigma_psf)
     return np.random.poisson(frame* brightness*dt)
+
 def simulate_2D_diff(D,nsteps,nparts, 
-                     savepath = "/home/aurelienb/Data/simulations/SLB/",crop=5):
+                     savepath = "/home/aurelienb/Data/simulations/SLB/",crop=5,
+                     bleach_radius=2):
+    
+    if not os.path.isdir(savepath):
+        os.mkdir(savepath)
     positions = np.random.uniform(size = (nparts,2))*npixels
+    
+    dists_pos = np.sqrt((positions[:,0]-npixels/2)**2+(positions[:,1]-npixels/2)**2)
+    positions=positions[dists_pos>bleach_radius/psize,:]
+    print(positions.shape)
+    nparts_afterbleaching = positions.shape[0]
+    x = np.linspace(-(npix_img*2+1)/2,(npix_img*2+1)/2,npix_img*2+1)
+    xx, yy = np.meshgrid(x,x)
+    
+    dists = np.sqrt(xx**2+yy**2)*psize
+    mask = dists<bleach_radius
+    
+    plt.figure()
+    plt.imshow(mask)
     
     stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
     
     for j in range(nsteps):
-        moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nparts,2) )
+        # in pixel space
+        moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nparts_afterbleaching,2) )
         positions_new = positions+moves
         # round is necessary to ensure fair distribution of parts and not concentration in the centre
-        positions_new = np.round(positions_new).astype(int)
+
         positions_new = np.mod(positions_new,npixels)
         positions = positions_new.copy()
         
@@ -79,10 +98,6 @@ def simulate_2D_diff(D,nsteps,nparts,
         if j%500==0:
             print("Processing frame {}".format(j))
     stack=stack[:,crop:-crop,crop:-crop]
-    x = np.linspace(-(npix_img*2+1)/2,(npix_img*2+1)/2,npix_img*2+1)
-    
-    xx, yy = np.meshgrid(x,x)
-
     stack = stack.astype(np.uint16)
     #------------ MSD stuff ---------------
     
@@ -99,37 +114,28 @@ def simulate_2D_diff(D,nsteps,nparts,
         "D":D,
         "brightness": brightness,
         "nsteps": nsteps,
-        "nparts": nparts
+        "nparts": nparts,
+        "bleach_radius":bleach_radius
         }
     
     parameters_df = pd.DataFrame(parameters_dict, index=[0])
     parameters_df.to_csv(savefolder+"parameters.csv")
     
-    print('---- Processing FCS acquisition-----')
-    # processing
-    process_stack(stack_name, first_n = 0,
-                           last_n = 0,nsums = [1,2,3,4,8], default_dt = dt, 
-                           default_psize = psize)
-    
-    # export 
-    intensity_threshold = 0
-    thr = 0.5
-    merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
-          intensity_threshold = intensity_threshold, chi_threshold = thr)
 
 # pixel size: 100 nm
 psize = 0.16 #um
 sigma_psf = 0.1/psize # pixels
-dt = 10**-3 # s
-D = 1 #um2/s
+dt = 10*10**-3 # s
+D = 2 #um2/s
 
 brightness = 18*10**3 #Hz/molecule
 
-npixels = 500
+npixels = 100
 
 npix_img = 24
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
-nsteps = 20000
-nparts = 10000
+nsteps = 100
+nparts = 50000
 
-simulate_2D_diff(D,nsteps,nparts,crop=7)
+simulate_2D_diff(D,nsteps,nparts,crop=1,
+                 savepath= "/home/aurelienb/Data/simulations/FRAP/" )

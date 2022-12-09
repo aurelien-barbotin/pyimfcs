@@ -1,107 +1,13 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Apr  9 12:09:25 2021
-@author: abarbotin
+Created on Wed Nov 30 10:03:57 2022
 
-Coordinates definition: 
-    https://en.wikipedia.org/wiki/Spherical_coordinate_system
-Motion on spherical coordinates:
-    https://www.e-education.psu.edu/meteo300/node/731
-Uniform distribution on a sphere:
-    https://www.bogotobogo.com/Algorithms/uniform_distribution_sphere.php
-    
-coordinates are stored in order (phi, theta)
-https://math.stackexchange.com/questions/3725288/infinitesimal-generator-of-the-brownian-motion-on-a-sphere
+@author: aurelienb
 """
-
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage.filters import gaussian
-
 from scipy.stats import linregress
-plt.close('all')
-
-
-def spherical2cart(R,phi,theta):
-    x = R*np.cos(phi)*np.sin(theta)
-    y = R*np.sin(phi)*np.sin(theta)
-    z = R*np.cos(theta)
-    return np.array([x, y, z])
-
-def cart2spherical(x,y,z):
-    theta = np.arccos(z)
-    phi = np.arctan2(y,x)
-    return np.array([phi, theta])
-
-plot = True
-save = True
-
-psize = 0.16
-sigma_psf = 0.2/psize
-sigmaz = 4*sigma_psf
-dz_tirf = 0.2 # um
-
-dt = 1*10**-3 # s
-D = 5 #um2/s
-
-R = 5 #um
-brightness = 18*10**3 #Hz/molecule
-
-nsteps = 1000
-nparts = 1500
-
-pos0 = np.random.uniform(size = (nparts,2))
-# phi
-pos0[:,0] = pos0[:,0]*2*np.pi
-# theta
-pos0[:,1] = np.arccos(2*pos0[:,1]-1)
-# pos0[:,0] = pos0[:,0]/np.sin(pos0[:,1])
-# ---------- Calculation of positions-------------------
-moves = np.random.normal(scale = np.sqrt(4*D*dt)/R,
-                         size = (nsteps,nparts,2) )
-
-moves[0] = 0
-
-# ---- new version
-amplitudes = np.random.normal(scale = np.sqrt(4*D*dt)/R,
-                         size = (nsteps,nparts) )**2
-angles = np.random.uniform(low=0,high=2*np.pi,size=(nsteps,nparts))
-# positions = np.cumsum(moves,axis=0)
-# positions = positions+pos0[np.newaxis,:,:]
-positions = np.zeros((nsteps,nparts,2))
-
-moves = np.random.normal(scale = np.sqrt(2*D*dt)/R,
-                         size = (nsteps,nparts,3))
-positions[0] = pos0
-x = np.zeros((nsteps,nparts))
-y = np.zeros((nsteps,nparts))
-z = np.zeros((nsteps,nparts))
-x[0], y[0], z[0]=spherical2cart(R,pos0[:,0],pos0[:,1])
-for j in range(1,nsteps):
-    # positions[j] = move_spherical(positions[j-1],moves[j])
-    p0 = positions[j-1]
-    phi_t = p0[:,0]
-    theta_t = p0[:,1]
-    dBtheta = np.sin(phi_t)*moves[j,:,0]-np.cos(phi_t)*moves[j,:,1]
-    dBphi = np.cos(theta_t)*(np.cos(phi_t)*moves[j,:,0]+np.sin(phi_t)*moves[j,:,1] )-np.sin(theta_t)*moves[j,:,2]
-    dthetat = dBtheta +0.5/np.tan(theta_t)*dt/2
-    dphit = dBphi/np.sin(theta_t)
-
-    positions[j,:,0] = phi_t + dphit
-    positions[j,:,1] = theta_t + dthetat
-    
-x,y,z = spherical2cart(R, positions[:,:,0], positions[:,:,1])
-
-# ---- plotting ----------è
-plt.figure()
-ax = plt.axes(projection='3d')
-# set_axes_equal(ax)
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_zlabel('z')
-# ax.scatter3D(x[0], y[0], z[0],color="C0")
-ax.scatter3D(x[-1], y[-1], z[-1],color="C1")
-
 #------------ MSD stuff ---------------
 def chord2arc(d,R):
     """d is chord size, R is radius"""
@@ -170,8 +76,16 @@ def calculate_msds_single(xx,yy,zz,tmin=2,tmax=100,npts=10,plot=False):
     print('D: {:.2f} um²/s'.format(lr.slope/4))
     return lr.slope/4
     
-"""def squaredispl(xx,yy,zz):
-    return (xx[-1]-xx[0])**2+(yy[-1]-yy[0])**2+(zz[-1]-zz[0])"""
+from spherical_simulation_cartesian import simulate_spherical_diffusion, cart2spherical
+
+R=0.25
+nparts=200
+nsteps=1000
+D=0.1
+dt=10**-3
+xyz = simulate_spherical_diffusion(R,D,nsteps,nparts,return_coordinates=True,save=False)
+x,y,z = xyz[:,:,0],xyz[:,:,1],xyz[:,:,2]
+
 calculate_msds_single(x[:,0],y[:,0],z[:,0],plot=True)
 all_ds = []
 for j in range(nparts):
@@ -180,6 +94,7 @@ for j in range(nparts):
     all_ds.append(d0)
 all_ds=np.asarray(all_ds)
 
+pos0 = cart2spherical(x[0]/R,y[0]/R,z[0]/R).T
 plt.figure()
 plt.subplot(221)
 plt.scatter(pos0[:,0],all_ds)
@@ -244,11 +159,9 @@ nrs/=float(coord_to_check.shape[0])
 theoretical_density = nparts/subareas.size
 
 plt.figure()
-plt.subplot(121)
 plt.plot(subareas[1:], nrs)
 plt.axhline(theoretical_density,color='k',linestyle='--')
-plt.subplot(122)
-plt.plot(subareas[1:], nrs)
-plt.axhline(theoretical_density,color='k',linestyle='--')
-plt.xlabel('distance [µm]')
+plt.xlabel('z distance [µm]')
 plt.ylabel('Particle density')
+
+calculate_msds(tmax=20)
