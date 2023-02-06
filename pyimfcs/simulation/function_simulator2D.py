@@ -103,7 +103,8 @@ def simulate_2D_diff(D,nsteps,nparts,
         "D":D,
         "brightness": brightness,
         "nsteps": nsteps,
-        "nparts": nparts
+        "nparts": nparts,
+        "npixels":npixels
         }
     
     parameters_df = pd.DataFrame(parameters_dict, index=[0])
@@ -117,7 +118,7 @@ def simulate_2D_diff(D,nsteps,nparts,
     
     # export 
     intensity_threshold = 0
-    thr = 0.5
+    thr = 0.03
     merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
           intensity_threshold = intensity_threshold, chi_threshold = thr)
 
@@ -135,5 +136,7 @@ npix_img = 24
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 20000
 nparts = 500
-simulate_2D_diff(D,nsteps,nparts,crop=7,
-                 savepath= "/home/aurelienb/Data/simulations/SLB/" )
+for nparts in [15000]:
+    for D in [0.05]:
+        simulate_2D_diff(D,nsteps,nparts,crop=7,
+             savepath= "/home/aurelienb/Data/simulations/SLB/parts_and_diffspeed/nparts{}".format(nparts) )

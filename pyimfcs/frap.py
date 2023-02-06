@@ -46,6 +46,8 @@ def make_model3(w,C,f0):
 def model_exp(t,tau,f0,fmax):
     return f0+(fmax-f0)*(1-np.exp(-t*np.log(2)/(tau)))
 
+def model_exp2(t,tau,f0,fmax,alpha):
+    return f0+(fmax-f0)*(1-np.exp(-t*np.log(2)/(tau)))**alpha
 if __name__=="__main__":
     from pyimfcs.constants import datapath
     from skimage.filters import threshold_otsu
@@ -83,9 +85,9 @@ if __name__=="__main__":
     
 
     
-    path = datapath+"../../NIKON/Aurelien/2022_12_05/FRAP_POPC/"
+    path = datapath+"../../NIKON/Aurelien/2022_12_05/FRAP_POPC/t1/"
     files = glob.glob(path+"*.tif")
-    file = files[2]
+    file = files[1]
     stack = tifffile.imread(file)
     tmask = 72
     tstart=74
@@ -97,7 +99,7 @@ if __name__=="__main__":
     # mask=binary_dilation(mask,footprint=np.ones((40,40)))
     trace = stack[tstart:tstart+len_recovery,mask].mean(axis=1)
     dt = 0.24 #s
-    dts = np.arange(trace.size)*dt #s
+    dts = np.arange(1,1+trace.size)*dt #s
     
     w = np.sqrt(np.count_nonzero(mask)/np.pi) *0.064 # um
     f0 = trace[0]

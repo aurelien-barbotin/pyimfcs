@@ -55,6 +55,55 @@ def plot_combined(combined,xname,measured,repeat, order = None,size = 8, showmed
     sns.reset_orig()
     
 
+
+def export_results(files_list_list, conditions, nsum="nsum 3", 
+                    keep_single_indices=True):
+    
+    if len(files_list_list)>1 and conditions is None:
+        return ValueError('Please specify condition names')
+    assert( conditions is None or len(conditions)==len(files_list_list))
+    
+    files = [w for flist in files_list_list for w in flist]
+    excels = [pd.ExcelFile(w) for w in files]
+    
+    if conditions is not None:
+        conditions_list = [conditions[j] for j, flist in 
+                           enumerate(files_list_list) for w in flist]
+    
+    all_names = [w.sheet_names for w in excels]
+    names0 = all_names[0]
+    kept_names = list()
+    for name in names0:
+          if np.all([name in sublist for sublist in all_names]):
+              kept_names.append(name)
+    
+    all_dfs = {}
+    for name in kept_names:
+        dfs = []
+        maxindex = 0
+        for j, xl in enumerate(excels):
+            df = xl.parse(sheet_name=name, index_col = 0)
+            if name=="parameters":
+                fname = files[j]
+                df["file"] = fname
+                
+            elif "nsum" in name:
+                if keep_single_indices:
+                    df['repeat']+=maxindex
+                    maxindex = df['repeat'].values.max()+1
+                else:
+                    df['repeat'] = maxindex
+                    maxindex += 1
+            if conditions is not None:
+                df["condition"] = conditions_list[j]
+            dfs.append(df)
+                
+        dfs = pd.concat(dfs)
+        all_dfs[name] = dfs
+    xname = "condition"
+    measured = "D [µm²/s]"
+    return all_dfs[nsum]
+
 def superplot_files(files_list_list, conditions, nsum="nsum 3", 
                     keep_single_indices=True, showmedian=False):
     

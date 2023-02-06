@@ -10,6 +10,12 @@ from pyimfcs.plotting import superplot_files
 import matplotlib.pyplot as plt
 plt.close('all')
 
+
+def add_path(path_list, path):
+    for j in range(len(path_list)):
+        path_list[j] = [path+w for w in path_list[j]]
+        
+        
 path = "/home/aurelienb/Documents/Projects/collab Charlene/"
 fileslist_list = [
     [path+"2022_10_05_control1.xlsx", path+"2022_10_05_control2.xlsx"],

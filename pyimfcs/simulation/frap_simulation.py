@@ -67,22 +67,17 @@ def simulate_2D_diff(D,nsteps,nparts,
     
     dists_pos = np.sqrt((positions[:,0]-npixels/2)**2+(positions[:,1]-npixels/2)**2)
     positions=positions[dists_pos>bleach_radius/psize,:]
-    print(positions.shape)
+    
     nparts_afterbleaching = positions.shape[0]
-    x = np.linspace(-(npix_img*2+1)/2,(npix_img*2+1)/2,npix_img*2+1)
-    xx, yy = np.meshgrid(x,x)
-    
-    dists = np.sqrt(xx**2+yy**2)*psize
-    mask = dists<bleach_radius
-    
-    plt.figure()
-    plt.imshow(mask)
-    
     stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
     
     for j in range(nsteps):
         # in pixel space
-        moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nparts_afterbleaching,2) )
+        if j>0:
+            moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nparts_afterbleaching,2) )
+        elif j==0:
+            moves=0
+            moves = np.random.normal(scale = np.sqrt(2*D*dt)/(psize),size = (nparts_afterbleaching,2) )
         positions_new = positions+moves
         # round is necessary to ensure fair distribution of parts and not concentration in the centre
 
@@ -95,7 +90,7 @@ def simulate_2D_diff(D,nsteps,nparts,
             xx,yy=positions_new[k]
             stack[j]+=coord2counts(xx, yy)
         
-        if j%500==0:
+        if j%5==0:
             print("Processing frame {}".format(j))
     stack=stack[:,crop:-crop,crop:-crop]
     stack = stack.astype(np.uint16)
@@ -121,21 +116,22 @@ def simulate_2D_diff(D,nsteps,nparts,
     parameters_df = pd.DataFrame(parameters_dict, index=[0])
     parameters_df.to_csv(savefolder+"parameters.csv")
     
-
-# pixel size: 100 nm
-psize = 0.16 #um
-sigma_psf = 0.1/psize # pixels
-dt = 10*10**-3 # s
-D = 2 #um2/s
-
-brightness = 18*10**3 #Hz/molecule
-
-npixels = 100
-
-npix_img = 24
-coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
-nsteps = 100
-nparts = 50000
-
-simulate_2D_diff(D,nsteps,nparts,crop=1,
-                 savepath= "/home/aurelienb/Data/simulations/FRAP/" )
+if __name__=="__main__":
+    # pixel size: 100 nm
+    psize = 0.16 #um
+    sigma_psf = 0.1/psize # pixels
+    dt = 0.05 # s
+    D = 3 #um2/s
+    
+    brightness = 5*10**3 #Hz/molecule
+    
+    npixels = 100
+    bleach_radius = 2
+    npix_img = 24
+    coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
+    nsteps = 100
+    nparts = 10000
+    for D in [0.5,1,1.5,2,2.5,3,3.5]:
+        simulate_2D_diff(D,nsteps,nparts,crop=1,
+                         savepath= "/home/aurelienb/Data/simulations/FRAP/variation_dcoeff/",
+                         bleach_radius = bleach_radius)

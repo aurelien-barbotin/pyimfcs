@@ -195,11 +195,11 @@ ax = plt.axes(projection='3d')
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('z')
-ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
-"""for j in range(20):
+# ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
+for j in range(20):
     # ax.scatter3D(x[:,j], y[:,j], z[:,j],color="C0")
-    ax.plot3D(z[:,j],y[:,j], x[:,j])"""
-
+    ax.plot3D(z[:,j],y[:,j], x[:,j])
+1/0
 phi0 = np.pi/2
 theta0=np.pi/2
 dphi,dtheta=get_deltas(phi0,theta0,ampl,angle)

@@ -12,7 +12,6 @@ Uniform distribution on a sphere:
     
 coordinates are stored in order (phi, theta)
 """
-
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.filters import gaussian
@@ -21,6 +20,7 @@ from scipy.stats import linregress
 import datetime
 import os
 from numpy.linalg import norm
+
 plt.close('all')
 
 def set_axes_equal(ax):
@@ -239,8 +239,8 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
 plot = True
 save = True
 
-psize = 0.1
-sigma_psf = 0.1
+psize = 0.16
+sigma_psf = 0.2
 sigmaz = 4*sigma_psf
 dz_tirf = 0.2 # um
 dt = 1*10**-3 # s
@@ -253,7 +253,7 @@ remove_z_dependency = False
 nsteps = 20000
 nparts = 15000
 
-nparts = 5000
+nparts = 10000
 npix_img = 16
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
@@ -261,9 +261,9 @@ z_cutoff = 3*dz_tirf
 
 if __name__=='__main__':
     for R in [0.25,0.5,1,2]:
-        z_cutoff = R 
-        print('!!! Beware of z cutoff')
+        # z_cutoff = R 
+        # print('!!! Beware of z cutoff')
         nparts_new = int(nparts*(R/5)**2)
         simulate_spherical_diffusion(R,D,nsteps,nparts_new,
-                     savepath="/home/aurelienb/Data/simulations/D1/")
+                     savepath="/home/aurelienb/Data/simulations/D1_sigma0.2_psize0p16/")
         
