@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import QListWidget,QFileDialog, QComboBox, QDialogButtonBox
 import numpy as np
 import glob
 import os
+import tifffile
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -26,6 +27,7 @@ from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.io import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process
 
+import h5py
 class ExperimentListWidget(QListWidget):
    """Class designed to contain the different correction rounds. Each correction
    element is stored in itemList. A correction item is a list of 
@@ -120,13 +122,14 @@ class FCS_Visualisator(QWidget):
     def __init__(self,*args,**kwargs):
         super().__init__(*args, **kwargs)
         self.setAcceptDrops(True)
-        self.folder = None
+        self.folder = "."
         
         self.newAnalystButton = QPushButton("Load")
         self.refreshButton = QPushButton("Refresh")
         self.trashButton = QPushButton("Trash")
         self.exportButton = QPushButton("Export")
         self.processingPushButton = QPushButton("Process Files")
+        self.maskPushButton = QPushButton('Set masks')
         
         self.newAnalystButton.clicked.connect(lambda :
             self.loadFiles(str(QFileDialog.getExistingDirectory(self, "Select Directory"))))
@@ -134,6 +137,8 @@ class FCS_Visualisator(QWidget):
         self.trashButton.clicked.connect(self.trash_measurement)
         self.exportButton.clicked.connect(self.export_measurements)
         self.processingPushButton.clicked.connect(self.process_measurements)
+        self.maskPushButton.clicked.connect(self.set_masks)
+        
         self.current_mode = None
         self.expListWidget = ExperimentListWidget()
         self.plotBox = MatplotlibWindow()
@@ -158,6 +163,7 @@ class FCS_Visualisator(QWidget):
         self.grid.addWidget(self.trashButton,0,2,1,1)
         self.grid.addWidget(self.exportButton,0,3,1,1)
         self.grid.addWidget(self.processingPushButton,0,4,1,1)
+        self.grid.addWidget(self.maskPushButton,0,5,1,1)
         self.grid.addWidget(self.expListWidget,1,0,9,1)
         
         self.grid.addWidget(self.plotBox,1,1,10,10)
@@ -225,7 +231,21 @@ class FCS_Visualisator(QWidget):
                 msg = QMessageBox()
                 msg.setText('Processing Finished')
                 msg.exec_()
-            
+                
+    def set_masks(self):
+        print('setting masks')
+        folder = self.folder
+        files = glob.glob(folder+"/*.h5")
+        for file in files:
+            maskname = file[:-3]+"_mask.tif"
+            print(maskname)
+            if os.path.isfile(maskname):
+                mask=tifffile.imread(maskname)
+                print("found mask for",file)
+                # !!! Might struggle with filenames
+                hf = h5py.File(file, 'a')
+                hf['parameters/mask'] = mask
+                
     def trash_measurement(self):
         try:
             file = self.expListWidget.currentItem().data(QtCore.Qt.UserRole)

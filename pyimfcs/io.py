@@ -4,7 +4,9 @@ import numpy as np
 import pandas as pd
 import tifffile
 
-from pyimfcs.metrics import new_chi_square
+from pyimfcs.metrics import new_chi_square, intensity_threshold
+from pyimfcs.methods import downsample_mask
+
 
 # parameters: [N,D,offset]
 def get_dict(h5f, dname):
@@ -220,7 +222,8 @@ def extract_from_h5(file, nsum = None, intensity_threshold = None,
     diffs = diffcoeffs.reshape(-1)[msk]
     return diffs
     
-def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold = None):
+def get_fit_error(files,nsums = None, ith = None, 
+                  chi_threshold = None, use_mask=True):
     """Retrieves and calculates diffusion coefficients and non-linear fit errors
     in a series of *.h5 FCS files.
     
@@ -229,17 +232,19 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
         nsums (list): Optional. if specified, list of binning values to export. If not, finds
             the available binning values in the dataset, returns an error if not
             all datasets were processed similarly
-        intensity_threshold (float): optional. If specified, intensity threshold
+        ith (float): optional. If specified, intensity threshold
             in fraction of max intensity. Has to be between 0 and 1
         chi_threshold (float): optional. If specified, removes all curves below 
-            a certain quality thresold
+            a certain quality threshold
+        use_mask (bool): optional. If True uses a binary mask stored.
     Returns:
-        list: [diffusion coefficients, error_metric, numbers of molecuules]. 
+        list: [diffusion coefficients, error_metric, numbers of molecules]. 
             Each item is a list of dictionaries."""
-
+    #TODO: refactoring loading the stack instead, beware of circular imports between import and class_imFCS
     diffs_out = list()
     chis_out = list()
     nmols_out = list()
+    indices_out = list() # for different positions in mask
     # if nsums is not specified; take the nsums in every file and check that 
     # it is consistent across the dataset
     check_nsums = False
@@ -256,6 +261,11 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             dict_traces = get_dict(h5f,'traces')
         except:
             print('Warning! Traces not present in h5 file')
+        try:
+            mask = h5f["parameters/mask"][()]
+        except:
+            print('Warning! No mask was found in h5 file')
+            mask = -1
         thumbnails_dict = get_dict(h5f,'thumbnails')
         h5f.close()
         
@@ -269,6 +279,7 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
         diffs_out.append( dict(zip(nsums,[[] for w in nsums])))
         chis_out.append(dict(zip(nsums,[[] for w in nsums])))
         nmols_out.append(dict(zip(nsums,[[] for w in nsums])))
+        indices_out.append(dict(zip(nsums,[[] for w in nsums])))
         
         for jj, nsum in enumerate(nsums):
             diffcoeffs = dict_diffcoeff[nsum][:,:,1]
@@ -293,16 +304,28 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             msk = np.ones_like(intensities, dtype = bool)
             msk[diffcoeffs.reshape(-1)<0] = False
             
-            if intensity_threshold is not None:
-                ithr = intensity_threshold*(
-                    np.percentile(intensities,98)-np.percentile(intensities,2)
-                    )+np.percentile(intensities,2)
+            # set mask for measurements. msk is boolean
                 
+            if ith is not None and not use_mask:
+                ithr = intensity_threshold(ith,intensities)
                 msk = np.logical_and(msk,
                                      intensities>ithr)
             if chi_threshold is not None:
                 msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
             
+            if use_mask and mask is not None:
+                # !!! add selection of hard mask
+                mask2 = downsample_mask(mask, nsum,hard_th=True).reshape(-1)
+                indices = np.zeros(mask2.size)
+                
+                for maskval in np.unique(mask2[mask2>0]):
+                    # intensity threshold for each mask respectively
+                    ithr2 = ith*(
+                        np.percentile(intensities[mask2==maskval],98)-np.percentile(intensities,2)
+                        )+np.percentile(intensities,2)
+                    tmp_mask2 = np.logical_and(mask2==maskval,intensities>ithr2)
+                    tmp_mask2=np.logical_and(msk,tmp_mask2)
+                    indices[tmp_mask2]=maskval
             chis_new = chis_new.reshape(-1)[msk]
             curves_reshaped = curves_reshaped[msk]
             fits_reshaped = fits_reshaped[msk]
@@ -312,9 +335,9 @@ def get_fit_error(files,nsums = None, intensity_threshold = None, chi_threshold 
             diffs_out[k][nsum] = diffs
             chis_out[k][nsum]= chis_new
             nmols_out[k][nsum]= nmols
-    return diffs_out, chis_out, nmols_out
+            indices_out[k][nsum] = indices
+    return diffs_out, chis_out, nmols_out, indices_out
 
-from pyimfcs.constants import tauD_fromfit
 def merge_fcs_results(files, out_name, intensity_threshold = None, chi_threshold = None):
     """Wrapper function to merge all experiment results in a single excel file"""
     

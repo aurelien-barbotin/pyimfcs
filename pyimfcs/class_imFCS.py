@@ -23,11 +23,11 @@ class StackFCS(object):
                  "metadata"]
     # parameters to save
     parameters_names = ["dt", "xscale", "yscale", "path", "nreg", "shifts",
-                        "first_n", "last_n", "clipval", "bl_kernel_size"]
+                        "first_n", "last_n", "clipval", "bl_kernel_size","mask"]
     
     default_psize=1
     default_dt=1
-    def __init__(self, path, mfactor=8, background_correction=True,
+    def __init__(self, path, background_correction=True,
                  blcorrf=None, first_n=0, last_n=0, fitter=None, dt=None,
                  remove_zeroes=False, clipval=0, load_stack=True):
 
@@ -60,7 +60,8 @@ class StackFCS(object):
         # shift correction
         self.nreg = 0
         self.shifts = np.zeros(1)
-
+        self.mask = np.ones((self.stack.shape[1],self.stack.shape[2]))
+        
         # resuts dictionaries
         self.correl_dicts = {}
         self.traces_dict = {}
@@ -179,15 +180,14 @@ class StackFCS(object):
         self.stack, shifts = stackreg(self.stack, nreg, plot=plot)
         self.nreg = nreg
         self.shifts = shifts
-    
+        
+    def set_mask(self,msk):
+        self.mask = msk
+        
     def downsample_time(self, ndown):
         """Downsamples an image stack in time"""
-        # self.stack = 
         nframes = (self.stack.shape[0]//ndown)*ndown
         self.stack = self.stack[:nframes]
-        """print(self.stack[:ndown,0,0])
-        print(self.stack.reshape((ndown,nframes//ndown,self.stack.shape[1],
-                            self.stack.shape[2]),order="F")[:,0,0,0])"""
         self.stack = self.stack.reshape((ndown,nframes//ndown,self.stack.shape[1],
                             self.stack.shape[2]),order="F").mean(axis=0)
         self.dt = self.dt*ndown
