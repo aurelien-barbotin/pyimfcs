@@ -16,7 +16,8 @@ from skimage.filters import threshold_otsu
 
 from pyimfcs.shift_correction import stackreg
 from pyimfcs.io import get_image_metadata
-from pyimfcs.metrics import new_chi_square
+from pyimfcs.metrics import new_chi_square, intensity_threshold
+from pyimfcs.methods import downsample_mask
 
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails", 
@@ -479,6 +480,75 @@ class StackFCS(object):
                 px = img[i * nsum:i * nsum + nsum, j * nsum:j * nsum + nsum].mean()
                 out[i, j] = px
         return out
+
+    def extract_results(self, ith = None, 
+                      chi_threshold = None, use_mask=True):
+        """Extracts results like diffusion coefficient, chisquares etc. Meant to replace
+        io.get_fit_error"""
+        
+        nsums = self.correl_dicts.keys()
+        diffs_out= dict(zip(nsums,[[] for w in nsums]))
+        chis_out = dict(zip(nsums,[[] for w in nsums]))
+        nmols_out= dict(zip(nsums,[[] for w in nsums]))
+        indices_out = dict(zip(nsums,[[] for w in nsums]))
+        self.calculate_chisquares()
+        
+        for jj, nsum in enumerate(nsums):
+            diffcoeffs = self.parfit_dict[nsum][:,:,1]
+            nmols = self.parfit_dict[nsum][:,:,0]
+            curves = self.correl_dicts[nsum]
+            curves_fits = self.yh_dict[nsum]
+            intensities = self.thumbnails_dict[nsum].reshape(-1)
+            ycurves = curves[:,:,:,1]
+            
+            chis = np.sqrt(((ycurves-curves_fits)**2).sum(axis=2) )
+            
+            chis_new = np.zeros_like(chis)
+            
+            for i in range(chis_new.shape[0]):
+                for j in range(chis_new.shape[1]):
+                    
+                    chis_new[i,j] = new_chi_square(ycurves[i,j], curves_fits[i,j])
+        
+            curves_reshaped = curves.reshape((curves.shape[0]*curves.shape[1],curves.shape[2],2))
+            fits_reshaped = curves_fits.reshape((curves.shape[0]*curves.shape[1],curves.shape[2]))
+            
+            msk = np.ones_like(intensities, dtype = bool)
+            msk[diffcoeffs.reshape(-1)<0] = False
+            
+            # set mask for measurements. msk is boolean
+                
+            if ith is not None and not use_mask:
+                ithr = intensity_threshold(ith,intensities)
+                msk = np.logical_and(msk,
+                                     intensities>ithr)
+            if chi_threshold is not None:
+                msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
+            
+            if use_mask and self.mask is not None:
+                # !!! add selection of hard mask
+                mask2 = downsample_mask(self.mask, nsum,hard_th=True).reshape(-1)
+                indices = np.zeros(mask2.size)
+                
+                for maskval in np.unique(mask2[mask2>0]):
+                    # intensity threshold for each mask respectively
+                    ithr2 = ith*(
+                        np.percentile(intensities[mask2==maskval],98)-np.percentile(intensities,2)
+                        )+np.percentile(intensities,2)
+                    tmp_mask2 = np.logical_and(mask2==maskval,intensities>ithr2)
+                    tmp_mask2=np.logical_and(msk,tmp_mask2)
+                    indices[tmp_mask2]=maskval
+            chis_new = chis_new.reshape(-1)[msk]
+            curves_reshaped = curves_reshaped[msk]
+            fits_reshaped = fits_reshaped[msk]
+            diffs = diffcoeffs.reshape(-1)[msk]
+            nmols = nmols.reshape(-1)[msk]
+            
+            diffs_out[nsum] = diffs
+            chis_out[nsum]= chis_new
+            nmols_out[nsum]= nmols
+            indices_out[nsum] = indices
+        return diffs_out, chis_out, nmols_out, indices_out
 
     def plot_parameter_maps(self, nsums, parn=1, cmap="jet", vmin=None,
                             vmax=None, maxval=None):
