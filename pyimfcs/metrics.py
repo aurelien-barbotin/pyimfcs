@@ -10,6 +10,8 @@ import numpy as np
 from scipy.ndimage import label
 
 def new_chi_square(y,yh):
+    if yh[0]==0:
+        return np.inf
     diff = (y-yh)/yh[0]
     diffpos = diff>0
     diffneg = diff<0
