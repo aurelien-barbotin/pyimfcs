@@ -61,7 +61,7 @@ class StackFCS(object):
         # shift correction
         self.nreg = 0
         self.shifts = np.zeros(1)
-        self.mask = np.ones((self.stack.shape[1],self.stack.shape[2]))
+        self.mask = None
         
         # resuts dictionaries
         self.correl_dicts = {}
@@ -128,7 +128,9 @@ class StackFCS(object):
                     h5f[dname + "/" + str(key)] = item
 
         for pn in self.parameters_names:
-            h5f["parameters/" + pn] = getattr(self, pn)
+            par =  getattr(self, pn)
+            if par is not None:
+                h5f["parameters/" + pn] = par
         if self.blcorrf is not None:
             h5f["blcorrf"] = self.blcorrf.__name__
         else:
@@ -515,21 +517,22 @@ class StackFCS(object):
             
             msk = np.ones_like(intensities, dtype = bool)
             msk[diffcoeffs.reshape(-1)<0] = False
-            
+            indices=np.zeros_like(intensities)
             # set mask for measurements. msk is boolean
+                
+            if chi_threshold is not None:
+                msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
                 
             if ith is not None and not use_mask:
                 ithr = intensity_threshold(ith,intensities)
                 msk = np.logical_and(msk,
                                      intensities>ithr)
-            if chi_threshold is not None:
-                msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
-            
+                indices[msk]=1
             if use_mask and self.mask is not None:
+                print("using mask")
                 # !!! add selection of hard mask
                 mask2 = downsample_mask(self.mask, nsum,hard_th=True).reshape(-1)
                 indices = np.zeros(mask2.size)
-                
                 for maskval in np.unique(mask2[mask2>0]):
                     # intensity threshold for each mask respectively
                     ithr2 = ith*(
@@ -538,11 +541,14 @@ class StackFCS(object):
                     tmp_mask2 = np.logical_and(mask2==maskval,intensities>ithr2)
                     tmp_mask2=np.logical_and(msk,tmp_mask2)
                     indices[tmp_mask2]=maskval
+            else:
+                print('not using masks')
             chis_new = chis_new.reshape(-1)[msk]
             curves_reshaped = curves_reshaped[msk]
             fits_reshaped = fits_reshaped[msk]
             diffs = diffcoeffs.reshape(-1)[msk]
             nmols = nmols.reshape(-1)[msk]
+            indices = indices.reshape(-1)[msk]
             
             diffs_out[nsum] = diffs
             chis_out[nsum]= chis_new

@@ -69,7 +69,7 @@ def save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns, parameters_di
     """Saves the results of several FCS experiments in a single excel file.
     Parameters:
         out_name (string): output file name. Extension is added later
-        file (list): list of all filenames in the dataset
+        files (list): list of all filenames in the dataset
         nsums (list): integers, different pixel binnings
         all_diffs (list): list of diffusion coefficients dictionaries, same 
             size as files. Keys are the binning values (typically 2,3,4 or 2,4,8)
@@ -305,11 +305,12 @@ def get_fit_error(files,nsums = None, ith = None,
             msk[diffcoeffs.reshape(-1)<0] = False
             
             # set mask for measurements. msk is boolean
-                
+            indices = np.zeros_like(msk)
             if ith is not None and not use_mask:
                 ithr = intensity_threshold(ith,intensities)
                 msk = np.logical_and(msk,
                                      intensities>ithr)
+                indices[msk]=1
             if chi_threshold is not None:
                 msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
             
@@ -331,7 +332,7 @@ def get_fit_error(files,nsums = None, ith = None,
             fits_reshaped = fits_reshaped[msk]
             diffs = diffcoeffs.reshape(-1)[msk]
             nmols = nmols.reshape(-1)[msk]
-            
+            indices = indices[msk]
             diffs_out[k][nsum] = diffs
             chis_out[k][nsum]= chis_new
             nmols_out[k][nsum]= nmols
