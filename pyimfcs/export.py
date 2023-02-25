@@ -40,7 +40,7 @@ def merge_fcs_results(out_name, files, ith = None,
         raise ValueError('No files selected')
     nsums = None
     all_dfs={}
-    for j,file in enumerate(files):
+    for nfile,file in enumerate(files):
         print(file)
         stack = StackFCS(file,load_stack=False)
         stack.load()
@@ -64,7 +64,7 @@ def merge_fcs_results(out_name, files, ith = None,
             chi = chis[nsum]
             nmol = nmolecules[nsum]
             indice = indices[nsum].astype(int)
-            repeats_arr = np.full(diff.size, j)
+            repeats_arr = np.full(diff.size, nfile)
             name_arr = np.full(diff.size, fname)
             nsum_arr = np.full(diff.size, nsum)
             

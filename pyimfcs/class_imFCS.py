@@ -554,6 +554,7 @@ class StackFCS(object):
             chis_out[nsum]= chis_new
             nmols_out[nsum]= nmols
             indices_out[nsum] = indices
+        print(len(diffs))
         return diffs_out, chis_out, nmols_out, indices_out
 
     def plot_parameter_maps(self, nsums, parn=1, cmap="jet", vmin=None,
