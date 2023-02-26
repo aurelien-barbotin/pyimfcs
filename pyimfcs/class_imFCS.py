@@ -494,7 +494,9 @@ class StackFCS(object):
         nmols_out= dict(zip(nsums,[[] for w in nsums]))
         indices_out = dict(zip(nsums,[[] for w in nsums]))
         self.calculate_chisquares()
-        
+        if self.mask is None:
+            use_mask=False
+            
         for jj, nsum in enumerate(nsums):
             diffcoeffs = self.parfit_dict[nsum][:,:,1]
             nmols = self.parfit_dict[nsum][:,:,0]
@@ -529,7 +531,6 @@ class StackFCS(object):
                                      intensities>ithr)
                 indices[msk]=1
             if use_mask and self.mask is not None:
-                print("using mask")
                 # !!! add selection of hard mask
                 mask2 = downsample_mask(self.mask, nsum,hard_th=True).reshape(-1)
                 indices = np.zeros(mask2.size)
@@ -541,6 +542,7 @@ class StackFCS(object):
                     tmp_mask2 = np.logical_and(mask2==maskval,intensities>ithr2)
                     tmp_mask2=np.logical_and(msk,tmp_mask2)
                     indices[tmp_mask2]=maskval
+                msk = np.logical_and(msk,indices>0)
             else:
                 print('not using masks')
             chis_new = chis_new.reshape(-1)[msk]
