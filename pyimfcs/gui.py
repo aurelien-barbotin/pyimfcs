@@ -24,7 +24,7 @@ from matplotlib.image import AxesImage
 
 from pyimfcs.plotting import interactive_fcs_plot
 from pyimfcs.class_imFCS import StackFCS
-from pyimfcs.io import merge_fcs_results
+from pyimfcs.export import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process
 
 import h5py
@@ -120,6 +120,7 @@ class FCS_Visualisator(QWidget):
     onclick_function = None
     current_stack = None
     def __init__(self,*args,**kwargs):
+        """This method is necessary innit?"""
         super().__init__(*args, **kwargs)
         self.setAcceptDrops(True)
         self.folder = "."
@@ -202,14 +203,15 @@ class FCS_Visualisator(QWidget):
         if tht.replace('.','',1).isdigit():
             thr = float(tht)
         
-        intensity_threshold = None
+        ith = None
         intensity_threshold_tmp = self.intensityLineEdit.text()
         if intensity_threshold_tmp.replace('.','',1).isdigit():
-            intensity_threshold = float(intensity_threshold_tmp)
-            
+            ith = float(intensity_threshold_tmp)
+        use_mask=self.useMaskCheckBox.isChecked()
         print('Start exporting measurements ...')
-        merge_fcs_results(files, filename, 
-              intensity_threshold = intensity_threshold, chi_threshold = thr)
+        merge_fcs_results(filename, files,
+              ith = ith, chi_threshold = thr, 
+              use_mask=use_mask)
         print('Done exporting measurments')
     
     def process_measurements(self):
@@ -300,15 +302,15 @@ class FCS_Visualisator(QWidget):
         if tht.replace('.','',1).isdigit():
             chi_thr = float(tht)
         
-        intensity_threshold = None
+        ith = None
         intensity_threshold_tmp = self.intensityLineEdit.text()
         if intensity_threshold_tmp.replace('.','',1).isdigit():
-            intensity_threshold = float(intensity_threshold_tmp)
-            
+            ith = float(intensity_threshold_tmp)
+        use_mask = self.useMaskCheckBox.isChecked()
         self.plotBox.figure.clf()
         self.onclick_function = interactive_fcs_plot(self.current_stack, fig=fig, 
                         nsum = nsum, vmax=vmax, vmin=vmin ,chi_threshold=chi_thr, 
-                        light_version=light_version, intensity_threshold=intensity_threshold)
+                        light_version=light_version, ith=ith,use_mask=use_mask)
         self.plotBox.onclick_function = self.onclick_function
         
           
@@ -357,10 +359,15 @@ class FCS_Visualisator(QWidget):
         self.thresholdLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
         
         self.intensityLineEdit = QLineEdit("0.8")
-        # self.intensityLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
+        self.intensityLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
+        
         self.lightDisplayCheckBox = QCheckBox("Light version")
         self.lightDisplayCheckBox.setChecked(True)
         self.lightDisplayCheckBox.toggled.connect(lambda : self.update_plot(load_stack= not self.lightDisplayCheckBox.isChecked()))
+        
+        self.useMaskCheckBox = QCheckBox("Use masks")
+        self.useMaskCheckBox.setChecked(False)
+        self.useMaskCheckBox.toggled.connect(lambda : self.update_plot(load_stack=False))
         
         toplay.addWidget(QLabel("Binning"),0,0)
         toplay.addWidget(self.binningComboBox,0,1)
@@ -374,15 +381,17 @@ class FCS_Visualisator(QWidget):
         toplay.addWidget(self.intensityLineEdit,4,1)
         toplay.addWidget(QLabel("Intensity threshold (0-1)"),4,0)
         toplay.addWidget(self.lightDisplayCheckBox,5,0,1,2)
+        toplay.addWidget(self.useMaskCheckBox,6,0,1,2)
         self.metrics_tab = top
-   
+
 from pyimfcs.process import get_metadata_zeiss
 
 class ParametersDialog(QDialog):
+    #TODO: look for these params in a json file or sth
     first_n = 15000
     last_n = 0
-    nsums=[2,3]
-    nreg=4000
+    nsums = [2,3]
+    nreg = 4000
     dt = 1
     xscale=1
     yscale=1
@@ -450,8 +459,8 @@ class ParametersDialog(QDialog):
         super().accept()
         
 app = QApplication([])
-files = glob.glob("/home/aurelienb/Data/2022_09_22/*.tif")
-win = ParametersDialog(files)
+#files = glob.glob("/home/aurelienb/Data/2022_09_22/*.tif")
+#win = ParametersDialog(files)
 
 win = FCS_Visualisator()
 win.show()

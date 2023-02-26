@@ -16,6 +16,7 @@ import numpy as np
 
 from pyimfcs.io import get_dict
 from pyimfcs.class_imFCS import new_chi_square
+from pyimfcs.methods import indices_intensity_threshold
 
 def plot_combined(combined,xname,measured,repeat, order = None,size = 8, showmedian=False):
     """Plots results stored in a Dataframe using the SUperplots paradigm.
@@ -161,7 +162,7 @@ class FakeEvent():
 
 def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None, 
                     vmax = None, vmin = None, chi_threshold = None, 
-                    intensity_threshold = None, light_version = True):
+                    ith = None, light_version = True,use_mask=False):
     """Single method for display of FCS results."""
     mutable_object = {}
     
@@ -281,7 +282,7 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
     image = stack.thumbnails_dict[nsum]
 
 
-    im = axes[0].imshow(image)
+    im = axes[0].imshow(image,cmap="gray")
     line0, = axes[0].plot(0,0,"x",color="red")
     axes[0].set_title("Intensity")
     fig.colorbar(im,ax=axes[0])
@@ -298,13 +299,19 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
             stack.calculate_chisquares()
         chi_map = stack.chisquares_dict[nsum]
         dmap[chi_map>chi_threshold] = np.nan
-    
-    if intensity_threshold is not None:
-        ithr = intensity_threshold*(np.percentile(image,98)- 
-                                    np.percentile(image,2)) + np.percentile(image,2)
+    from pyimfcs.metrics import intensity_threshold
+    from pyimfcs.methods import downsample_mask
+    if ith is not None and use_mask and stack.mask is not None:
+        mask = downsample_mask(stack.mask, nsum)
+        labels = indices_intensity_threshold(mask,ith,image)
+        for lab in np.unique(labels):
+            if lab!=0:
+                mask_int=labels==lab
+                axes[0].contour(mask_int,levels=[0.5], colors="C{}".format(int(lab)))
+    elif ith is not None:
+        ithr = intensity_threshold(ith,image)
         mask_int = (image>ithr).astype(float)
         axes[0].contour(mask_int,levels=[0.5], colors="red")
-        
     im2 = axes[1].imshow(dmap)
     axes[1].set_title("Diffusion coeff.")
     line1, = axes[1].plot(0,0,"x",color="red")

@@ -339,25 +339,6 @@ def get_fit_error(files,nsums = None, ith = None,
             indices_out[k][nsum] = indices
     return diffs_out, chis_out, nmols_out, indices_out
 
-def merge_fcs_results(files, out_name, intensity_threshold = None, chi_threshold = None):
-    """Wrapper function to merge all experiment results in a single excel file"""
-    
-    if len(files)==0:
-        raise ValueError('No files selected')
-        
-    all_diffs,all_chis, all_ns = get_fit_error(files, nsums = None, intensity_threshold=intensity_threshold, 
-                                       chi_threshold=chi_threshold)
-    assert(len(all_diffs)>0)
-    nsums = sorted(list(all_diffs[0].keys()))
-    for w in all_diffs:
-        assert(sorted(list(w.keys())) ==nsums for w in all_diffs)
-        
-    parameters_dict = {"chi_threshold": chi_threshold,
-                       "intensity_threshold":intensity_threshold}
-    
-    save_as_excel(out_name,files,nsums,all_diffs,all_chis, all_ns,
-                  parameters_dict=parameters_dict)
-    
 def merge_excels(fileslist_list, out_name, keep_single_indices = False, 
                  conditions = None, chi_threshold = None):
     """Merge ther esults of FCS experiments in a single file.
