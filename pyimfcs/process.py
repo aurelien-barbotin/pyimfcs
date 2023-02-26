@@ -12,7 +12,7 @@ from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.blcorr import blexp_double_offset
 
 from pyimfcs.fitting import Fitter
-from pyimfcs.plotting import multiplot_stack
+from pyimfcs.plotting import interactive_fcs_plot
 from pyimfcs.io import get_image_metadata
 
 import os
@@ -92,7 +92,7 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
         stack.fit_curves(ft,xmax=None)
         
         if plot:
-            multiplot_stack(stack,nsums[-1], chi_threshold = chi_threshold)
+            interactive_fcs_plot(stack,nsums[-1], chi_threshold = chi_threshold)
             ttl = path.split(os.sep)[-1]
             plt.suptitle(ttl)
             

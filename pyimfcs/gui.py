@@ -22,7 +22,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 
-from pyimfcs.plotting import interactive_plot_h5
+from pyimfcs.plotting import interactive_fcs_plot
 from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.io import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process
@@ -306,7 +306,7 @@ class FCS_Visualisator(QWidget):
             intensity_threshold = float(intensity_threshold_tmp)
             
         self.plotBox.figure.clf()
-        self.onclick_function = interactive_plot_h5(self.current_stack, fig=fig, 
+        self.onclick_function = interactive_fcs_plot(self.current_stack, fig=fig, 
                         nsum = nsum, vmax=vmax, vmin=vmin ,chi_threshold=chi_thr, 
                         light_version=light_version, intensity_threshold=intensity_threshold)
         self.plotBox.onclick_function = self.onclick_function
