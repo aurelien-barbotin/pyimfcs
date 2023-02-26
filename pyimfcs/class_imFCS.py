@@ -17,7 +17,7 @@ from skimage.filters import threshold_otsu
 from pyimfcs.shift_correction import stackreg
 from pyimfcs.io import get_image_metadata
 from pyimfcs.metrics import new_chi_square, intensity_threshold
-from pyimfcs.methods import downsample_mask
+from pyimfcs.methods import downsample_mask, indices_intensity_threshold
 
 class StackFCS(object):
     dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails", 
@@ -185,6 +185,7 @@ class StackFCS(object):
         self.shifts = shifts
         
     def set_mask(self,msk):
+        # probably obsolete
         self.mask = msk
         
     def downsample_time(self, ndown):
@@ -279,7 +280,6 @@ class StackFCS(object):
             chimap = self.chisquares_dict[nSum]
             th_map = np.logical_and(th_map, chimap<chi_th)
         if ith is not None:
-            from pyimfcs.metrics import intensity_threshold
             thr = intensity_threshold(ith,self.thumbnails_dict[nSum])
             th_map = np.logical_and(th_map,self.thumbnails_dict[nSum]>thr)
         self.set_threshold_map(th_map)
@@ -532,19 +532,9 @@ class StackFCS(object):
                 indices[msk]=1
             if use_mask and self.mask is not None:
                 # !!! add selection of hard mask
-                mask2 = downsample_mask(self.mask, nsum,hard_th=True).reshape(-1)
-                indices = np.zeros(mask2.size)
-                for maskval in np.unique(mask2[mask2>0]):
-                    # intensity threshold for each mask respectively
-                    ithr2 = ith*(
-                        np.percentile(intensities[mask2==maskval],98)-np.percentile(intensities,2)
-                        )+np.percentile(intensities,2)
-                    tmp_mask2 = np.logical_and(mask2==maskval,intensities>ithr2)
-                    tmp_mask2=np.logical_and(msk,tmp_mask2)
-                    indices[tmp_mask2]=maskval
+                indices = indices_intensity_threshold(
+                    downsample_mask(self.mask, nsum).reshape(-1),ith,intensities)
                 msk = np.logical_and(msk,indices>0)
-            else:
-                print('not using masks')
             chis_new = chis_new.reshape(-1)[msk]
             curves_reshaped = curves_reshaped[msk]
             fits_reshaped = fits_reshaped[msk]
@@ -556,7 +546,6 @@ class StackFCS(object):
             chis_out[nsum]= chis_new
             nmols_out[nsum]= nmols
             indices_out[nsum] = indices
-        print(len(diffs))
         return diffs_out, chis_out, nmols_out, indices_out
 
     def plot_parameter_maps(self, nsums, parn=1, cmap="jet", vmin=None,
