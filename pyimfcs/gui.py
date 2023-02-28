@@ -197,6 +197,7 @@ class FCS_Visualisator(QWidget):
                                                    filter="*.xlsx")[0])
         if filename == "":
             return
+        
         files = self.expListWidget.get_filenames()
         thr = None
         tht  = self.thresholdLineEdit.text()
@@ -209,9 +210,11 @@ class FCS_Visualisator(QWidget):
             ith = float(intensity_threshold_tmp)
         use_mask=self.useMaskCheckBox.isChecked()
         print('Start exporting measurements ...')
+        self.exportButton.setEnabled(False)
         merge_fcs_results(filename, files,
               ith = ith, chi_threshold = thr, 
               use_mask=use_mask)
+        self.exportButton.setEnabled(True)
         print('Done exporting measurments')
     
     def process_measurements(self):
