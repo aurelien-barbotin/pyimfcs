@@ -250,6 +250,7 @@ class FCS_Visualisator(QWidget):
                 # !!! Might struggle with filenames
                 hf = h5py.File(file, 'a')
                 hf['parameters/mask'] = mask
+                hf.close()
                 
     def trash_measurement(self):
         try:

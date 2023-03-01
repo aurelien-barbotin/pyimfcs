@@ -39,8 +39,7 @@ class StackFCS(object):
         if load_stack:
             self.stack = tifffile.imread(path)
             if len(self.stack.shape) == 2:
-                self.stack = self.stack.reshape((*self.stack.shape, 1))
-                print("Scanning FCS")
+                raise ValueError('imFCS data must be 3-dimensional')
             self.stack = self.stack[self.first_n:self.stack.shape[0] - self.last_n]
         else:
             self.stack = np.zeros((10, 50, 50))
@@ -54,6 +53,8 @@ class StackFCS(object):
         self.clipval = clipval
 
         if background_correction:
+            print(self.stack)
+            print(self.stack.min())
             self.stack = self.stack - self.stack.min()
 
         self.blcorrf = blcorrf
@@ -114,9 +115,11 @@ class StackFCS(object):
             name = os.path.splitext(self.path)[0] + ".h5"
         if not name.endswith(".h5"):
             name += ".h5"
+        print(name)
         if os.path.isfile(name):
-            os.remove(name)
             print("Removing existing file with same name")
+
+            os.remove(name)
         h5f = h5py.File(name, "w")
 
         dicts_to_save = [self.correl_dicts, self.traces_dict, self.parfit_dict,

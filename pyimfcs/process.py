@@ -60,8 +60,11 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
         if export_summaries:
             if not os.path.isdir(export_folder):
                 os.mkdir(export_folder)
-        stack = StackFCS(path, background_correction = True,                     
-                             first_n = first_n, last_n = last_n, clipval = 0)
+        try:
+            stack = StackFCS(path, background_correction = True,                     
+                                 first_n = first_n, last_n = last_n, clipval = 0)
+        except:
+            continue
         if not stack.metadata_fully_loaded:
             print('Metadata was not loaded in file {}'.format(path.split(os.sep)[-1]))
             if default_dt is not None:
