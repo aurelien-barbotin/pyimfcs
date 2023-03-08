@@ -243,7 +243,7 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
                 axes[5].semilogx(curve[:,0], fits/fits[:normsize].mean(), 
                          color="k",linestyle='--')
         
-        ns, dm, ds = stack.get_param_coord(nsum,jj0,ii0,parn=1)
+        ns, dm, ds = stack.get_param_coord(nsum,jj0,ii0,parn=parn)
         axes[3].cla()
         axes[3].errorbar(ns,dm,yerr=ds,capsize=5)
         
@@ -288,6 +288,7 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
     fig.colorbar(im,ax=axes[0])
     
     dmap = stack.parfit_dict[nsum][:,:,parn].copy()
+    dmap=dmap.astype(float)
     dmap[dmap<0] = np.nan
     if vmax is not None:
         dmap[dmap>vmax] = np.nan

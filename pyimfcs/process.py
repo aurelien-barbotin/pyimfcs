@@ -81,7 +81,6 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
                 plt.savefig(export_folder+"drift_correction.png")
                 plt.close()
         stack.set_bleaching_function(blexp_double_offset)
-        # stack.set_bleaching_function(bleaching_correct_sliding,wsize = 5000)
         
         for nSum in nsums:
             stack.correlate_stack(nSum)

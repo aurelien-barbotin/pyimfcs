@@ -14,13 +14,18 @@ coordinates are stored in order (phi, theta)
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage.filters import gaussian
 
 from scipy.stats import linregress
 import datetime
 import os
 from numpy.linalg import norm
 
+from pyimfcs.class_imFCS import StackFCS
+from pyimfcs.fitting import Fitter
+from pyimfcs.export import merge_fcs_results
+
+import tifffile
+import pandas as pd
 plt.close('all')
 
 def set_axes_equal(ax):
@@ -111,12 +116,6 @@ def move_spherical_upg(p0,ampl,angle):
     return mv_full
 
 # ---- processing helpers ------
-from pyimfcs.class_imFCS import StackFCS
-from pyimfcs.fitting import Fitter
-from pyimfcs.io import merge_fcs_results
-
-import tifffile
-import pandas as pd
 def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
                            plot=False, default_dt= None, default_psize = None, 
                            fitter = None, export_summaries = True, 
@@ -230,8 +229,8 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
             intensity_threshold = 0.5
             
         thr = 0.03
-        merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
-              intensity_threshold = intensity_threshold, chi_threshold = thr)
+        merge_fcs_results( savefolder+"FCS_results",[stack_name[:-4]+".h5"], 
+              ith = intensity_threshold, chi_threshold = thr)
 
     if return_coordinates:
         return out_coords
@@ -240,20 +239,19 @@ plot = True
 save = True
 
 psize = 0.16
-sigma_psf = 0.2
-sigmaz = 4*sigma_psf
 dz_tirf = 0.2 # um
 dt = 1*10**-3 # s
-D = 1 #um2/s
+D = 6 #um2/s
 
-R = 5 #um
+sigma_psf = 0.2
+sigmaz = 4*sigma_psf
+
+R = 0.5 #um
 brightness = 18*10**3 #Hz/molecule
 
 remove_z_dependency = False
-nsteps = 20000
-nparts = 15000
-
-nparts = 10000
+nsteps = 40000
+nparts = 50
 npix_img = 16
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
@@ -263,7 +261,7 @@ if __name__=='__main__':
     for R in [0.25,0.5,1,2]:
         # z_cutoff = R 
         # print('!!! Beware of z cutoff')
-        nparts_new = int(nparts*(R/5)**2)
-        simulate_spherical_diffusion(R,D,nsteps,nparts_new,
-                     savepath="/home/aurelienb/Data/simulations/D1_sigma0.2_psize0p16/")
+        nparts_eff=int(nparts*(R/0.5)**2)
+        simulate_spherical_diffusion(R,D,nsteps,nparts_eff,
+                     savepath="/home/aurelienb/Data/simulations/effect_of_R_fast/")
         

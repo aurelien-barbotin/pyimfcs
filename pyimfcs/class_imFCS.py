@@ -53,8 +53,6 @@ class StackFCS(object):
         self.clipval = clipval
 
         if background_correction:
-            print(self.stack)
-            print(self.stack.min())
             self.stack = self.stack - self.stack.min()
 
         self.blcorrf = blcorrf

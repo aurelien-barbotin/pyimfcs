@@ -53,6 +53,33 @@ def gim2D(a=0.1,sigma=0.1, ginf=False):
             
     return G_im
 
+def gim2D_2components(a=0.1,sigma=0.1, ginf=False):
+    """Creates a fit function taking into account paramters of PSF
+    
+    Parameters:
+        a (float): pixel side length
+        sigma (float): Gaussian standard deviation """
+    if ginf:
+        def G_im(tau,N,D1,D2,A2,Ginf):
+            """"""
+            k1 = a/(2*np.sqrt(D1*tau+sigma**2 ))
+            k2 = a/(2*np.sqrt(D2*tau+sigma**2 ))
+            return 1/N*( 
+                erf(k1)+(np.exp(-k1**2)-1)/(k1*np.sqrt(np.pi)) +
+                A2* (erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi)))
+                        )**2 + Ginf
+    else:
+        def G_im(tau,N,D1,D2,A2):
+            """"""
+            k1 = a/(2*np.sqrt(D1*tau+sigma**2 ) )
+            k2 = a/(2*np.sqrt(D2*tau+sigma**2 ) )
+            return 1/N*( 
+                erf(k1)+(np.exp(-k1**2)-1)/(k1*np.sqrt(np.pi)) +
+                A2* (erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi)))
+                        )**2
+            
+    return G_im
+
 def gim3D(a=0.1,sigmaxy=0.1,sigmaz=0.5, ginf=False):
     """Creates a fit function taking into account paramters of PSF
     
@@ -86,13 +113,18 @@ def gim3D(a=0.1,sigmaxy=0.1,sigmaz=0.5, ginf=False):
     return G_im
 
 fit_functions = {"2D":gim2D,
-                 "3D":gim3D}
+                 "3D":gim3D,
+                 "2D_2c":gim2D_2components}
 
-fit_p0 = {"2D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])],
-          "3D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])]}
+fit_p0 = {"2D": [lambda x: 1/x[0,1]/3, lambda x: 0.23**2/4/np.median(x[:,0])],
+          "2D_2c": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0]),
+                    lambda x: 0.23/2/np.median(x[:,0]),lambda x:0.5],
+          "3D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])]
+          }
+
 class Fitter(object):
     
-    def __init__(self,name, parameters_dict, ginf=False, p0 = None):
+    def __init__(self,name, parameters_dict, ginf=False, p0 = None,bounds=None):
         self.parameters_dict = parameters_dict
         self.ginf = ginf
         self.name = name
@@ -103,6 +135,7 @@ class Fitter(object):
         self.fitter = fit_functions[self.name](**parameters_dict,ginf=ginf)
         self.p0 = p0
         self.p0f = fit_p0[self.name]
+        self.bounds = bounds
         
     def set_sum(self,nsum):
         self.full_parameters_dict["a"] = self.parameters_dict["a"]*nsum
@@ -116,10 +149,15 @@ class Fitter(object):
                 p0.append(0)
             self.p0 = tuple(p0)
             
-            popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1], p0=self.p0)
+            if self.bounds is not None:
+                popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1], p0=self.p0,
+                                   bounds=self.bounds)
+            else:
+                popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1], p0=self.p0)
             yh = self.fitter(curve[:,0],*popt)
             return popt, yh
         except Exception as e:
+            # raise e
             print("Fitting error")
             print(e)
             sig = signature(self.fitter)

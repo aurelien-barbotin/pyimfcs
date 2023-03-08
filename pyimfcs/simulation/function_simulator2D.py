@@ -12,7 +12,7 @@ import tifffile
 
 from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.fitting import Fitter
-from pyimfcs.io import merge_fcs_results
+from pyimfcs.export import merge_fcs_results
 from pyimfcs.blcorr import blexp_double_offset
 import os
 import pandas as pd
@@ -120,11 +120,11 @@ def simulate_2D_diff(D,nsteps,nparts,
     intensity_threshold = 0
     thr = 0.03
     merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
-          intensity_threshold = intensity_threshold, chi_threshold = thr)
+          intensity_threshold = intensity_threshold, ith = thr)
 
 # pixel size: 100 nm
-psize = 0.05 #um
-sigma_psf = 0.1/psize # pixels
+psize = 0.1 #um
+sigma_psf = 0.2/psize # pixels
 dt = 10**-3 # s
 D = 2 #um2/s
 
@@ -135,8 +135,8 @@ npixels = 100
 npix_img = 24
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 20000
-nparts = 500
-for nparts in [15000]:
-    for D in [0.05]:
-        simulate_2D_diff(D,nsteps,nparts,crop=7,
-             savepath= "/home/aurelienb/Data/simulations/SLB/parts_and_diffspeed/nparts{}".format(nparts) )
+nparts = 20000
+
+for D in [5]:
+    simulate_2D_diff(D,nsteps,nparts,crop=7,
+         savepath= "/home/aurelienb/Data/simulations/SLB/Ds_multi/" )

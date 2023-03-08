@@ -71,7 +71,16 @@ def get_singlechannel_file(path, verbose = True):
     metadata = get_image_metadata(path)
     par_dict ={}
     for nn in names_to_test.keys():
-        ref = metadata[names_to_test[nn]]
+        name = names_to_test[nn]
+        if name in metadata:
+            ref = metadata[name]
+        else:
+            candidates_list = list(filter(lambda x: name in x,metadata.keys()))
+            if len(candidates_list)==1:
+                ref = metadata[candidates_list[0]]
+            else:
+                raise KeyError("key {} not found in {} metadata".format(name, path))
+            
         par_dict[nn] = ref
     return par_dict
 
@@ -187,11 +196,33 @@ def get_single_parameter(path, parname):
     raise KeyError('Parameter not in file')
 
 if __name__=="__main__":
-    from PyImFCS.constants import datapath
-    path = datapath + "2022_04_04/2_tempoff/Image 7.tif"
-    out = get_single_parameter(path, "laser intensity")
-    print(out)
+    import sys, getopt
+    import json
+    import argparse
+    import glob
+    import os
+    # argv[0] is the script itself
     
-    path2=datapath+"/2022_03_29/2_NR12A/Image 10_GP.tif"
-    out = get_single_parameter(path2, "laser intensity")
-    print(out)
+    parser = argparse.ArgumentParser(description='Find stats of a tif file generated with Zen')
+    parser.add_argument("-a", "--all", help="Finds stats on all tif files in folder")
+    parser.add_argument("-n", "--name", help="Finds stats of a single file")
+    parser.add_argument("-p", "--parameter", help="specify if only 1 parameter is interesting")
+    args = parser.parse_args()
+    
+    if args.name is not None:
+        print(json.dumps(get_singlechannel_file(args.name),indent=2))
+    elif args.all is not None:
+        files = glob.glob(args.all+'/*.tif')
+        for file in files:
+            name = os.path.split(file)[-1]
+            try:
+                if args.parameter is None:
+                    print(name,'\n------')
+                    print(json.dumps(get_singlechannel_file(file),indent=2))
+                else:
+                    print(name,end=": ")
+                    print(get_singlechannel_file(file)[args.parameter])
+            except Exception as e:
+                print("Metadata unreadable")
+                print(e)
+            print()
