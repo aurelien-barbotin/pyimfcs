@@ -196,17 +196,15 @@ def get_single_parameter(path, parname):
     raise KeyError('Parameter not in file')
 
 if __name__=="__main__":
-    import sys, getopt
     import json
     import argparse
     import glob
     import os
-    # argv[0] is the script itself
     
     parser = argparse.ArgumentParser(description='Find stats of a tif file generated with Zen')
     parser.add_argument("-a", "--all", help="Finds stats on all tif files in folder")
     parser.add_argument("-n", "--name", help="Finds stats of a single file")
-    parser.add_argument("-p", "--parameter", help="specify if only 1 parameter is interesting")
+    parser.add_argument("-p", "--parameter", help="If you want to plot only one of the parameters")
     args = parser.parse_args()
     
     if args.name is not None:

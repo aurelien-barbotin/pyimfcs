@@ -83,13 +83,15 @@ def blexp_double_offset(trace, plot=False, downsample = True, ndowns = 500):
           subtr.min() #c
           )
     bounds = ((0, 1, 0, 1, 0),
-              (2*subtr.max(), xt.max()*10, 1, xt.max()*10,0.8))
+              (2*subtr.max(), xt.max()*10, 1, xt.max()*10,1))
     
     try:
         popt,_ = curve_fit(expf,xt,subtr,p0=p0,bounds = bounds)
     except Exception as e:
         print("Bleaching correction failed with error:")
         print(e)
+        print(bounds)
+        print(p0)
         return trace
     # redefine subtr and xt to have right number of points
     subtr = trace/trace.max()
