@@ -345,6 +345,7 @@ class FCS_Visualisator(QWidget):
             self.expListWidget.fill(folder)
             self.connects()
             self.folder = folder
+            os.chdir(folder)
             
     def refreshFileList(self):
         self.loadFiles(self.folder)
@@ -366,7 +367,7 @@ class FCS_Visualisator(QWidget):
         self.vminLineEdit = QLineEdit("None")
         self.vminLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
         
-        self.thresholdLineEdit = QLineEdit("0.03")
+        self.thresholdLineEdit = QLineEdit("0.015")
         self.thresholdLineEdit.editingFinished.connect(lambda : self.update_plot(load_stack=False))
         
         self.intensityLineEdit = QLineEdit("0.8")
@@ -477,9 +478,7 @@ class ParametersDialog(QDialog):
         try:
             with open(os.path.join(BUNDLE_DIR,"data/default_parameters_fordialog.json")
                       ,"r") as f:
-                print('opening')
                 self.default_parameter_dialog = json.load(f)
-                print('end opening')
         except:
             self.default_parameter_dialog = {"first_n":15000,
                                          "last_n":0,
@@ -497,11 +496,9 @@ class ParametersDialog(QDialog):
         self.yscale=self.default_parameter_dialog['yscale']
         
     def save_params(self):
-        print("saving params")
         with open(os.path.join(BUNDLE_DIR,"data/default_parameters_fordialog.json")
                   ,"w") as f:
             json.dump(self.default_parameter_dialog,f,indent=2)
-        print('end saving params')
     def accept(self):
         self.update_params()
         super().accept()
