@@ -196,6 +196,7 @@ def get_single_parameter(path, parname):
     raise KeyError('Parameter not in file')
 
 if __name__=="__main__":
+    # Script to call in command line to check named metadata
     import json
     import argparse
     import glob

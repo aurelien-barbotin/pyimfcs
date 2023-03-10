@@ -1,0 +1,13 @@
+{
+  "first_n": 0,
+  "last_n": 0,
+  "nsums": [
+    2,
+    3
+  ],
+  "nreg": 0,
+  "dt": 4.76,
+  "xscale": 0.16,
+  "yscale": 0.16,
+  "psize": 0.16
+}

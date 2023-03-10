@@ -90,8 +90,6 @@ def blexp_double_offset(trace, plot=False, downsample = True, ndowns = 500):
     except Exception as e:
         print("Bleaching correction failed with error:")
         print(e)
-        print(bounds)
-        print(p0)
         return trace
     # redefine subtr and xt to have right number of points
     subtr = trace/trace.max()

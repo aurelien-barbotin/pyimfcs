@@ -5,6 +5,14 @@ Created on Tue Jun 21 10:41:12 2022
 
 @author: aurelienb
 """
+import numpy as np
+import glob
+import os
+import tifffile
+import h5py
+import sys
+import json
+
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import (QDialog, QWidget, QApplication,QListWidgetItem,
                              QPushButton, QLineEdit, QLabel, QSpinBox, QMessageBox)
@@ -12,10 +20,7 @@ from PyQt5.QtWidgets import (QDialog, QWidget, QApplication,QListWidgetItem,
 from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWidgets import QGridLayout,QGroupBox,QCheckBox
 from PyQt5.QtWidgets import QListWidget,QFileDialog, QComboBox, QDialogButtonBox
-import numpy as np
-import glob
-import os
-import tifffile
+
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -25,9 +30,11 @@ from matplotlib.image import AxesImage
 from pyimfcs.plotting import interactive_fcs_plot
 from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.export import merge_fcs_results
-from pyimfcs.process import batch_bacteria_process
+from pyimfcs.process import batch_bacteria_process, get_metadata_zeiss
 
-import h5py
+
+BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+
 class ExperimentListWidget(QListWidget):
    """Class designed to contain the different correction rounds. Each correction
    element is stored in itemList. A correction item is a list of 
@@ -388,17 +395,8 @@ class FCS_Visualisator(QWidget):
         toplay.addWidget(self.useMaskCheckBox,6,0,1,2)
         self.metrics_tab = top
 
-from pyimfcs.process import get_metadata_zeiss
-
 class ParametersDialog(QDialog):
-    #TODO: look for these params in a json file or sth
-    first_n = 15000
-    last_n = 0
-    nsums = [2,3]
-    nreg = 4000
-    dt = 1
-    xscale=1
-    yscale=1
+
     def __init__(self, files):
         super().__init__()
         QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -406,7 +404,7 @@ class ParametersDialog(QDialog):
         self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        # !!! add default values saved somewhere
+        self.load_params()
         if len(files)>0:
             file = files[0]
             try:
@@ -450,14 +448,60 @@ class ParametersDialog(QDialog):
     
     def update_params(self):
         self.first_n = self.first_nSpinBox.value()
+        self.default_parameter_dialog['first_n'] = self.first_n
+        
         self.last_n = self.last_nSpinBox.value()
+        self.default_parameter_dialog['last_n'] = self.last_n
+        
         nsums= self.nsumsLineEdit.text()
         self.nsums = [int(w) for w in nsums.split(",")]
+        self.default_parameter_dialog['nsums']=self.nsums
+        
         self.nreg= self.registrationSpinBox.value()
+        self.default_parameter_dialog['nreg'] = self.nreg
+        
         self.dt = float(self.dtLineEdit.text())*10**-3 # conversion in s
+        self. default_parameter_dialog['dt'] = self.dt*10**3 #reconversion in ms for saving
+        
         self.psize = float(self.psizeLineEdit.text())
+        self.default_parameter_dialog['psize'] = self.psize
+        
         self.xscale=self.psize
+        self.default_parameter_dialog['xscale'] = self.xscale
+        
         self.yscale=self.psize
+        self.default_parameter_dialog['yscale'] = self.yscale
+        self.save_params()
+        
+    def load_params(self):
+        try:
+            with open(os.path.join(BUNDLE_DIR,"data/default_parameters_fordialog.json")
+                      ,"r") as f:
+                print('opening')
+                self.default_parameter_dialog = json.load(f)
+                print('end opening')
+        except:
+            self.default_parameter_dialog = {"first_n":15000,
+                                         "last_n":0,
+                                         "nsums":[2,3],
+                                         "nreg":4000,
+                                         "dt":1,
+                                         "xscale":1,
+                                         "yscale":1}
+        self.first_n = self.default_parameter_dialog['first_n']
+        self.last_n = self.default_parameter_dialog['last_n']
+        self.nsums = self.default_parameter_dialog['nsums']
+        self.nreg = self.default_parameter_dialog['nreg']
+        self.dt = self.default_parameter_dialog['dt']
+        self.xscale=self.default_parameter_dialog['xscale']
+        self.yscale=self.default_parameter_dialog['yscale']
+        
+    def save_params(self):
+        print("saving params")
+        with open(os.path.join(BUNDLE_DIR,"data/default_parameters_fordialog.json")
+                  ,"w") as f:
+            json.dump(self.default_parameter_dialog,f,indent=2)
+        print('end saving params')
     def accept(self):
         self.update_params()
         super().accept()
