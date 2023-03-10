@@ -50,6 +50,8 @@ def merge_fcs_results(out_name, files, ith = None,
         chis = stack_res["non_linear_chis"]
         nmolecules = stack_res["number_molecules"]
         indices = stack_res['indices']
+        square_errors = stack_res['square_errors']
+        
         # check that nsums are identical in all files
         nsums_tmp = sorted(diffs.keys())
         if nsums is None:
@@ -67,22 +69,24 @@ def merge_fcs_results(out_name, files, ith = None,
             diff = diffs[nsum]
             chi = chis[nsum]
             nmol = nmolecules[nsum]
+            square_error = square_errors[nsum]
             indice = indices[nsum].astype(int)
             repeats_arr = np.full(diff.size, nfile)
             name_arr = np.full(diff.size, fname)
             nsum_arr = np.full(diff.size, nsum)
-            
-            out_arr = np.array([name_arr,repeats_arr, diff, nsum_arr, chi, nmol,indice]).T
+            out_arr = np.array([name_arr,repeats_arr, diff, nsum_arr, chi, 
+                                nmol,indice, square_error]).T
             
             df = pd.DataFrame(out_arr, columns = 
                               ["filename", "repeat","D [µm²/s]","binning",
-                               "fit error", "N","label"])
+                               "fit error", "N","label","square error"])
             df = df.astype({'filename':"str",
                            "repeat":"int",
                            "D [µm²/s]":"float",
                            "fit error":"float",
                            "N": "float",
-                           "label":"int"})
+                           "label":"int",
+                           "square error": "float"})
             all_dfs[nsum].append(df)
         
     parameters_dict = {"chi_threshold": chi_threshold,

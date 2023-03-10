@@ -166,62 +166,6 @@ def save_tiff_withmetadata(outname,st, meta_dict):
     writer = tifffile.TiffWriter(outname,imagej=True)
     writer.write(st,metadata=meta_dict)
     
-
-def extract_from_h5(file, nsum = None, intensity_threshold = None, 
-                    chi_threshold = None):
-    """Extracts diffusion coefficients from a processed *.h5 file.
-    Parameters:
-        nsum (int): desired binning value
-        intensity_threshold (float): optional. in [0,1]
-        chi_threshold (float): optional. If specified, removes all curves below 
-            with quality metric above this thresold.
-    Returns:
-        list: diffusion coefficients"""
-    if nsum is None:
-        raise ValueError('Please specify a nsum value') 
-    # dATA LOADING
-    h5f = h5py.File(file,mode='r')
-    dict_diffcoeff = get_dict(h5f, "parameters_fits")
-    dict_curves = get_dict(h5f, "correlations")
-    dict_curves_fits = get_dict(h5f, "yhat")
-    thumbnails_dict = get_dict(h5f,'thumbnails')
-    h5f.close()
-    
-    # Processing
-    diffcoeffs = dict_diffcoeff[nsum][:,:,1]
-    curves = dict_curves[nsum]
-    curves_fits = dict_curves_fits[nsum]
-    intensities = thumbnails_dict[nsum].reshape(-1)
-    
-    ycurves = curves[:,:,:,1]
-    
-    chis = np.sqrt(((ycurves-curves_fits)**2).sum(axis=2) )
-    
-    chis_new = np.zeros(ycurves.shape[:2])
-    
-    for i in range(chis_new.shape[0]):
-        for j in range(chis_new.shape[1]):
-            
-            chis_new[i,j] = new_chi_square(ycurves[i,j], curves_fits[i,j])
-
-    curves_reshaped = curves.reshape((curves.shape[0]*curves.shape[1],curves.shape[2],2))
-    fits_reshaped = curves_fits.reshape((curves.shape[0]*curves.shape[1],curves.shape[2]))
-    
-    msk = np.ones_like(intensities, dtype = bool)
-    msk[diffcoeffs.reshape(-1)<0] = False
-    
-    if intensity_threshold is not None:
-        ithr = intensity_threshold*(
-            np.percentile(intensities,98)-np.percentile(intensities,2)
-            )+np.percentile(intensities,2)
-        
-        msk = np.logical_and(msk,
-                             intensities>ithr)
-    if chi_threshold is not None:
-        msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
-    diffs = diffcoeffs.reshape(-1)[msk]
-    return diffs
-    
 def get_fit_error(files,nsums = None, ith = None, 
                   chi_threshold = None, use_mask=True):
     """Retrieves and calculates diffusion coefficients and non-linear fit errors

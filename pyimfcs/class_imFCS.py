@@ -20,6 +20,7 @@ from pyimfcs.metrics import new_chi_square, intensity_threshold
 from pyimfcs.methods import downsample_mask, indices_intensity_threshold
 
 class StackFCS(object):
+    # Dictionaries to save and load
     dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails", 
                  "metadata"]
     # parameters to save
@@ -69,7 +70,8 @@ class StackFCS(object):
         self.yh_dict = {}
         self.chisquares_dict = {}
         self.thumbnails_dict = {}
-
+        self.square_err_dict = {}
+        
         self.metadata = {}
         self.metadata_fully_loaded = False
         if dt is None and load_stack:
@@ -392,6 +394,27 @@ class StackFCS(object):
                 chisquares.append(chisquares_tmp)
             self.chisquares_dict[nsum] = np.array(chisquares)
 
+    def calculate_square_error(self):
+        """Calculates the square error to the fit"""
+        nsums = self.correl_dicts.keys()
+        for nsum in nsums:
+            correls = self.correl_dicts[nsum]
+            fits = self.yh_dict[nsum]
+            square_err = []
+            for j in range(correls.shape[0]):
+                square_err_tmp = []
+                for k in range(correls.shape[1]):
+                    corr = correls[j, k]
+                    yh = fits[j, k]
+                    
+                    if yh[0]==0:
+                        err=np.inf
+                    else:
+                        err = np.mean(( (corr[:, 1]- yh)/yh[0])**2)
+                    square_err_tmp.append(err)
+                square_err.append(square_err_tmp)
+            self.square_err_dict[nsum] = np.array(square_err)
+            
     def parameter_map(self, nsum=None, parn=1):
         print('Caution! You are using a resampled parameter map')
         if nsum is None:
@@ -497,9 +520,12 @@ class StackFCS(object):
         results = {"diffusion_coefficients": mk_outdic(),
                    "non_linear_chis":mk_outdic(),
                    "number_molecules":mk_outdic(),
-                   "indices":mk_outdic()
+                   "indices":mk_outdic(),
+                   "square_errors":mk_outdic()
                    }
         self.calculate_chisquares()
+        self.calculate_square_error()
+        
         if self.mask is None:
             use_mask=False
             
@@ -509,6 +535,8 @@ class StackFCS(object):
             curves = self.correl_dicts[nsum]
             curves_fits = self.yh_dict[nsum]
             intensities = self.thumbnails_dict[nsum].reshape(-1)
+            square_errors = self.square_err_dict[nsum].reshape(-1)
+            
             ycurves = curves[:,:,:,1]
             
             chis = np.sqrt(((ycurves-curves_fits)**2).sum(axis=2) )
@@ -547,11 +575,13 @@ class StackFCS(object):
             diffs = diffcoeffs.reshape(-1)[msk]
             nmols = nmols.reshape(-1)[msk]
             indices = indices.reshape(-1)[msk]
-      
+            square_errors = square_errors.reshape(-1)[msk]
+            
             results["diffusion_coefficients"][nsum] = diffs
             results["non_linear_chis"][nsum] = chis_new
             results["number_molecules"][nsum] = nmols
             results["indices"][nsum] = indices
+            results["square_errors"][nsum] = square_errors
         return results
     
     def plot_parameter_maps(self, nsums, parn=1, cmap="jet", vmin=None,
