@@ -20,7 +20,7 @@ def summarise_df(df):
     repeat = df.groupby('repeat')['repeat'].last()
     filename = df.groupby('repeat')['filename'].last()
     binning = df.groupby('repeat')['binning'].last()
-
+    valid_fractions = df.groupby("repeat")["valid fraction"].mean()
     out_df = pd.DataFrame.from_dict({
                         "filename": filename,
                         "binning": binning,
@@ -28,7 +28,8 @@ def summarise_df(df):
                         "Mean":means,
                         "Stdev": std,
                         "Median":medians,
-                        "Count":count})
+                        "Count":count,
+                        "valid fraction": valid_fractions})
     return out_df
     
 def merge_fcs_results(out_name, files, ith = None, 
@@ -51,7 +52,7 @@ def merge_fcs_results(out_name, files, ith = None,
         nmolecules = stack_res["number_molecules"]
         indices = stack_res['indices']
         square_errors = stack_res['square_errors']
-        
+        valid_fraction=stack_res["valid_fraction"]
         # check that nsums are identical in all files
         nsums_tmp = sorted(diffs.keys())
         if nsums is None:
@@ -74,31 +75,43 @@ def merge_fcs_results(out_name, files, ith = None,
             repeats_arr = np.full(diff.size, nfile)
             name_arr = np.full(diff.size, fname)
             nsum_arr = np.full(diff.size, nsum)
+            valid_fraction_arr = np.ones_like(diff)*valid_fraction[nsum]
             out_arr = np.array([name_arr,repeats_arr, diff, nsum_arr, chi, 
-                                nmol,indice, square_error]).T
+                                nmol,indice, square_error,valid_fraction_arr]).T
             
             df = pd.DataFrame(out_arr, columns = 
                               ["filename", "repeat","D [µm²/s]","binning",
-                               "fit error", "N","label","square error"])
+                               "fit error", "N","label","square error","valid fraction"])
             df = df.astype({'filename':"str",
                            "repeat":"int",
                            "D [µm²/s]":"float",
                            "fit error":"float",
                            "N": "float",
                            "label":"int",
-                           "square error": "float"})
+                           "square error": "float",
+                           "valid fraction":"float"})
             all_dfs[nsum].append(df)
-        
+            
     parameters_dict = {"chi_threshold": chi_threshold,
                        "intensity_threshold":ith}
     # Extracts global parameters
+    global_summaries = []
+    global_names = []
     for nsum in nsums:
         all_dfs[nsum] = pd.concat(all_dfs[nsum])
         knm = "nsum {}".format(nsum)
-        parameters_dict[knm+"_median"] = np.median(all_dfs[nsum]["D [µm²/s]"].values)
+        global_names.append(knm)
+        sum_dict={"Median":np.median(all_dfs[nsum]["D [µm²/s]"].values),
+                  "Mean": np.mean(all_dfs[nsum]["D [µm²/s]"].values),
+                  "stdev":np.std(all_dfs[nsum]["D [µm²/s]"].values),
+                  "valid fractions": np.mean(all_dfs[nsum]["valid fraction"].values)
+                  }
+        global_summaries.append(sum_dict)
+        """parameters_dict[knm+"_median"] = np.median(all_dfs[nsum]["D [µm²/s]"].values)
         parameters_dict[knm+"_mean"] = np.mean(all_dfs[nsum]["D [µm²/s]"].values)
         parameters_dict[knm+"_std"] = np.std(all_dfs[nsum]["D [µm²/s]"].values)
-    
+        parameters_dict[knm+"_valid_fractions"] = np.mean(all_dfs[nsum]["valid fraction"].values)
+        """
     # Writes in excel file
     with pd.ExcelWriter(out_name+".xlsx") as writer:  
         dfs_total = []
@@ -107,6 +120,8 @@ def merge_fcs_results(out_name, files, ith = None,
             dfs_total.append(summarise_df(all_dfs[nsum]))
             dfpooled.to_excel(writer, sheet_name = "nsum {}".format(nsum))
         dfs_total = pd.concat(dfs_total)
-        dfs_total.to_excel(writer, sheet_name = "summaries all")
+        dfs_total.to_excel(writer, sheet_name = "summaries file by file")
+        dfs_global = pd.DataFrame.from_records(global_summaries,index=global_names)
+        dfs_global.to_excel(writer, sheet_name = "summary")
         df_pars = pd.DataFrame(parameters_dict, index=[0]).T
         df_pars.to_excel(writer, sheet_name = "parameters")

@@ -521,7 +521,8 @@ class StackFCS(object):
                    "non_linear_chis":mk_outdic(),
                    "number_molecules":mk_outdic(),
                    "indices":mk_outdic(),
-                   "square_errors":mk_outdic()
+                   "square_errors":mk_outdic(),
+                   "valid_fraction":mk_outdic() # fraction of curves removed from chi
                    }
         self.calculate_chisquares()
         self.calculate_square_error()
@@ -558,17 +559,24 @@ class StackFCS(object):
                 
             if chi_threshold is not None:
                 msk = np.logical_and(msk, chis_new.reshape(-1)<chi_threshold)
-                
+            # mask of values we want to keep, regardless of validity
+            msk_for_values =np.ones_like(intensities,dtype=bool)
             if ith is not None and not use_mask:
                 ithr = intensity_threshold(ith,intensities)
                 msk = np.logical_and(msk,
                                      intensities>ithr)
                 indices[msk]=1
+                msk_for_values = intensities>ithr
             if use_mask and self.mask is not None:
                 # !!! add selection of hard mask
                 indices = indices_intensity_threshold(
                     downsample_mask(self.mask, nsum).reshape(-1),ith,intensities)
                 msk = np.logical_and(msk,indices>0)
+                msk_for_values = indices>0
+            if np.count_nonzero(msk_for_values)==0:
+                valid_measures=0
+            else:
+                valid_measures = np.count_nonzero(msk)/np.count_nonzero(msk_for_values)
             chis_new = chis_new.reshape(-1)[msk]
             curves_reshaped = curves_reshaped[msk]
             fits_reshaped = fits_reshaped[msk]
@@ -582,6 +590,7 @@ class StackFCS(object):
             results["number_molecules"][nsum] = nmols
             results["indices"][nsum] = indices
             results["square_errors"][nsum] = square_errors
+            results["valid_fraction"][nsum] = valid_measures
         return results
     
     def plot_parameter_maps(self, nsums, parn=1, cmap="jet", vmin=None,
