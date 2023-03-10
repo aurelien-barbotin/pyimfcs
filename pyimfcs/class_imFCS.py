@@ -487,13 +487,18 @@ class StackFCS(object):
     def extract_results(self, ith = None, 
                       chi_threshold = None, use_mask=True):
         """Extracts results like diffusion coefficient, chisquares etc. Meant to replace
-        io.get_fit_error"""
+        io.get_fit_error. Returns a single dictionary, each key being a quantity
+        measured"""
         
         nsums = self.correl_dicts.keys()
-        diffs_out= dict(zip(nsums,[[] for w in nsums]))
-        chis_out = dict(zip(nsums,[[] for w in nsums]))
-        nmols_out= dict(zip(nsums,[[] for w in nsums]))
-        indices_out = dict(zip(nsums,[[] for w in nsums]))
+        
+        mk_outdic= lambda:dict(zip(nsums,[[] for w in nsums]))
+        # results: a dictionary containing results dictionaries
+        results = {"diffusion_coefficients": mk_outdic(),
+                   "non_linear_chis":mk_outdic(),
+                   "number_molecules":mk_outdic(),
+                   "indices":mk_outdic()
+                   }
         self.calculate_chisquares()
         if self.mask is None:
             use_mask=False
@@ -542,13 +547,13 @@ class StackFCS(object):
             diffs = diffcoeffs.reshape(-1)[msk]
             nmols = nmols.reshape(-1)[msk]
             indices = indices.reshape(-1)[msk]
-            
-            diffs_out[nsum] = diffs
-            chis_out[nsum]= chis_new
-            nmols_out[nsum]= nmols
-            indices_out[nsum] = indices
-        return diffs_out, chis_out, nmols_out, indices_out
-
+      
+            results["diffusion_coefficients"][nsum] = diffs
+            results["non_linear_chis"][nsum] = chis_new
+            results["number_molecules"][nsum] = nmols
+            results["indices"][nsum] = indices
+        return results
+    
     def plot_parameter_maps(self, nsums, parn=1, cmap="jet", vmin=None,
                             vmax=None, maxval=None):
         assert len(nsums) >= 1

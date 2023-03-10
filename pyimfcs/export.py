@@ -44,8 +44,12 @@ def merge_fcs_results(out_name, files, ith = None,
         print(file)
         stack = StackFCS(file,load_stack=False)
         stack.load()
-        diffs,chis, nmolecules, indices = stack.extract_results(ith=ith,
+        stack_res = stack.extract_results(ith=ith,
                                         chi_threshold=chi_threshold,use_mask=use_mask)
+        diffs = stack_res["diffusion_coefficients"]
+        chis = stack_res["non_linear_chis"]
+        nmolecules = stack_res["number_molecules"]
+        indices = stack_res['indices']
         # check that nsums are identical in all files
         nsums_tmp = sorted(diffs.keys())
         if nsums is None:
