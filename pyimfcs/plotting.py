@@ -182,7 +182,6 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
         axes = np.asarray(axes)
     axes=axes.ravel(order='C')
     def onclick(event):
-        print('onclick')
         if event.inaxes not in axes[0:2]:
             return
         X_coordinate = event.xdata

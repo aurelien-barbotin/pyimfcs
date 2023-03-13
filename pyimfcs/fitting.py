@@ -164,4 +164,4 @@ class Fitter(object):
             popt = [-1]*(len(sig.parameters)-1)
             yh = np.zeros_like(curve[:,0])
             return popt, yh
-    
+

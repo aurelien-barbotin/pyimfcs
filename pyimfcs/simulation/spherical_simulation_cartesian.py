@@ -138,7 +138,7 @@ def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
         sigmaxy = sigma_psf
         print('sigmaxy',sigmaxy)
         parameters_dict = {"a":yscale, "sigma":sigmaxy}
-        ft = Fitter("2D",parameters_dict, ginf=True)
+        ft = Fitter("2D",parameters_dict, ginf=False)
     else:
         ft = fitter
     
@@ -238,10 +238,10 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
 plot = True
 save = True
 
-psize = 0.16
+psize = 0.1
 dz_tirf = 0.2 # um
 dt = 1*10**-3 # s
-D = 6 #um2/s
+D = 2 #um2/s
 
 sigma_psf = 0.2
 sigmaz = 4*sigma_psf
@@ -251,17 +251,18 @@ brightness = 18*10**3 #Hz/molecule
 
 remove_z_dependency = False
 nsteps = 40000
-nparts = 50
+nparts = 100
 npix_img = 16
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 z_cutoff = 3*dz_tirf
 
 if __name__=='__main__':
-    for R in [0.25,0.5,1,2]:
-        # z_cutoff = R 
-        # print('!!! Beware of z cutoff')
-        nparts_eff=int(nparts*(R/0.5)**2)
-        simulate_spherical_diffusion(R,D,nsteps,nparts_eff,
-                     savepath="/home/aurelienb/Data/simulations/effect_of_R_fast/")
+    # z_cutoff = R 
+    # print('!!! Beware of z cutoff')
+    for sigma in [0.1,0.15,0.2,0.25]:
+        sigma_psf = sigma
+        sigmaz = 4*sigma_psf
+        simulate_spherical_diffusion(R,D,nsteps,nparts,
+                     savepath="/home/aurelienb/Data/simulations/sigma_effect_differentN/")
         

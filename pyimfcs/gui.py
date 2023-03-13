@@ -201,7 +201,8 @@ class FCS_Visualisator(QWidget):
 
     def export_measurements(self):
         filename = str(QFileDialog.getSaveFileName(self, "Select File name", 
-                                                   filter="*.xlsx")[0])
+                                    os.path.join(os.getcwd(),"results.xlsx"),
+                                    filter="*.xlsx")[0])
         if filename == "":
             return
         
@@ -228,7 +229,7 @@ class FCS_Visualisator(QWidget):
         fd = QFileDialog()
         fd.setAcceptDrops(True)
         
-        folder = str(fd.getExistingDirectory(self, "Select Directory"))
+        folder = str(fd.getExistingDirectory(self, "Select Directory",os.getcwd()))
         if folder=="":
             return
         files = glob.glob(folder+"/*.tif")
@@ -345,6 +346,7 @@ class FCS_Visualisator(QWidget):
             self.expListWidget.fill(folder)
             self.connects()
             self.folder = folder
+            print("chdir:",folder)
             os.chdir(folder)
             
     def refreshFileList(self):
