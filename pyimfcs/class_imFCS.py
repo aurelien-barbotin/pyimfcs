@@ -19,10 +19,19 @@ from pyimfcs.io import get_image_metadata
 from pyimfcs.metrics import new_chi_square, intensity_threshold
 from pyimfcs.methods import downsample_mask, indices_intensity_threshold
 
+# dictionary of old names used in StackFCS. Keys are old names, values new ones
+legacy_dic_names = {"fcs_curves_dict":"correlations", 
+                    "traces_dict":"traces" ,
+                    "fit_results_dict":"parameters_fits", 
+                    "yh_dict":"yhat", 
+                    "thumbnails_dict":"thumbnails", 
+                    "metadata_dict":"metadata",
+                    "fitting_parameters_dict":"fitting_parameters_dict"}
+
 class StackFCS(object):
     # Dictionaries to save and load
-    dic_names = ["correlations", "traces", "parameters_fits", "yhat", "thumbnails", 
-                 "metadata"]
+    dic_names = ["fcs_curves_dict", "traces_dict", "fit_results_dict", 
+                 "yh_dict", "thumbnails_dict", "metadata_dict","fitting_parameters_dict"]
     # parameters to save
     parameters_names = ["dt", "xscale", "yscale", "path", "nreg", "shifts",
                         "first_n", "last_n", "clipval", "bl_kernel_size","mask"]
@@ -64,20 +73,21 @@ class StackFCS(object):
         self.mask = None
         
         # resuts dictionaries
-        self.correl_dicts = {}
+        self.fcs_curves_dict = {}
         self.traces_dict = {}
-        self.parfit_dict = {}
+        self.fit_results_dict = {}
         self.yh_dict = {}
         self.chisquares_dict = {}
         self.thumbnails_dict = {}
         self.square_err_dict = {}
+        self.fitting_parameters_dict = {}
         
-        self.metadata = {}
+        self.metadata_dict = {}
         self.metadata_fully_loaded = False
         if dt is None and load_stack:
             try:
                 metadata = get_image_metadata(path)
-                self.metadata = metadata
+                self.metadata_dict = metadata
                 dt = metadata['finterval']
                 if 'Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1' in metadata:
                     xscale = metadata['Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX #1'] * 10 ** 6
@@ -115,15 +125,14 @@ class StackFCS(object):
             name = os.path.splitext(self.path)[0] + ".h5"
         if not name.endswith(".h5"):
             name += ".h5"
-        print(name)
         if os.path.isfile(name):
             print("Removing existing file with same name")
 
             os.remove(name)
         h5f = h5py.File(name, "w")
 
-        dicts_to_save = [self.correl_dicts, self.traces_dict, self.parfit_dict,
-                         self.yh_dict, self.thumbnails_dict, self.metadata]
+        dicts_to_save = [self.fcs_curves_dict, self.traces_dict, self.fit_results_dict,
+                         self.yh_dict, self.thumbnails_dict, self.metadata, self.fitting_parameters]
         for j, dic in enumerate(dicts_to_save):
             dname = self.dic_names[j]
             for key, item in dic.items():
@@ -144,43 +153,26 @@ class StackFCS(object):
             name = os.path.splitext(self.path)[0] + ".h5"
 
         h5f = h5py.File(name, "r")
-        dicts_to_load = {"correlations": self.correl_dicts,
-                         "traces": self.traces_dict,
-                         "parameters_fits": self.parfit_dict,
-                         "yhat": self.yh_dict,
-                         "thumbnails": self.thumbnails_dict,
-                         "metadata": self.metadata}
-        save_after = False
-        for j in range(len(dicts_to_load)):
+        
+        for j in range(len(self.dic_names)):
             dname = self.dic_names[j]
-            if dname == "thumbnails" and dname not in h5f.keys():
-                print('Thumbnails not found: thye will be recalculated and saved')
-                save_after = True
-                out_dic = dicts_to_load[dname]
-                ds = h5f["traces"]
-                for key in ds.keys():
-                    dd = ds[key][()]
-                    out_dic[int(key)] = dd.sum(axis=-1)
-            elif dname not in h5f.keys():
-                print("Warning: key {} not in loaded file".format(dname))
-                continue
-            else:
-                # don't load traces in the 'light' version
-                if light_version and dname == "traces" and not save_after:
+            out_dic = getattr(self,dname)
+            if dname not in h5f.keys():
+                if legacy_dic_names[dname] in h5f.keys():
+                    dname=legacy_dic_names[dname]
+                else:
+                    print("Warning: key {} not in loaded file".format(dname))
                     continue
-                out_dic = dicts_to_load[dname]
-                ds = h5f[dname]
-                for key in ds.keys():
-                    dd = ds[key][()]
-                    try:
-                        out_dic[int(key)] = dd
-                    except:
-                        out_dic[key] = dd
+
+            ds = h5f[dname]
+            for key in ds.keys():
+                dd = ds[key][()]
+                try:
+                    out_dic[int(key)] = dd
+                except:
+                    out_dic[key] = dd
         for par in h5f["parameters"].keys():
             setattr(self, par, h5f["parameters"][par][()])
-        if save_after:
-            self.save(name=name)
-            print('Saving again')
 
     def registration(self, nreg, plot=False):
         self.stack, shifts = stackreg(self.stack, nreg, plot=plot)
@@ -213,7 +205,7 @@ class StackFCS(object):
         """Only method that correlates """
         if nSum > self.stack.shape[1] or nSum > self.stack.shape[2]:
             raise ValueError("Trying to sum more pixels than present in the stack")
-        if nSum not in self.correl_dicts.keys():
+        if nSum not in self.fcs_curves_dict.keys():
             print("correlating stack, binning {}".format(nSum))
             correls = []
             traces = []
@@ -240,20 +232,20 @@ class StackFCS(object):
                 traces.append(trtmp)
             correls = np.asarray(correls)
             
-            self.correl_dicts[nSum] = correls
+            self.fcs_curves_dict[nSum] = correls
             self.traces_dict[nSum] = np.asarray(traces)
             self.thumbnails_dict[nSum] = thumbnail
 
     def get_curve(self, i0=0, j0=0, nSum=1):
         self.correlate_stack(nSum)
 
-        correls = self.correl_dicts[nSum]
+        correls = self.fcs_curves_dict[nSum]
         correl = correls[i0, j0]
         return correl
 
     def get_all_curves(self, nSum=1, spacing=0, npts=None, plot=True):
         self.correlate_stack(nSum)
-        correls = self.correl_dicts[nSum]
+        correls = self.fcs_curves_dict[nSum]
 
         if self.threshold_map is not None:
             pass
@@ -269,7 +261,7 @@ class StackFCS(object):
         return correls
 
     def get_correlation_dict(self):
-        return self.correl_dicts
+        return self.fcs_curves_dict
 
     def average_curve(self, nSum=1, plot=False, chi_th = None, 
                       ith = None, normalise_with_N = False):
@@ -287,9 +279,9 @@ class StackFCS(object):
             th_map = np.logical_and(th_map,self.thumbnails_dict[nSum]>thr)
         self.set_threshold_map(th_map)
         
-        correls = self.correl_dicts[nSum].copy()
+        correls = self.fcs_curves_dict[nSum].copy()
         if normalise_with_N:
-            correls[:, :, :, 1] = correls[:, :, :, 1]*self.parfit_dict[nSum][:,:,0][:,:,np.newaxis]
+            correls[:, :, :, 1] = correls[:, :, :, 1]*self.fit_results_dict[nSum][:,:,0][:,:,np.newaxis]
         if self.threshold_map is not None:
             cs = correls[self.threshold_map]
             avg = cs[:, :, 1].mean(axis=(0))
@@ -347,10 +339,10 @@ class StackFCS(object):
 
     def fit_curves(self, fitter, xmax=None):
         self.fitter = fitter
-        nsums = self.correl_dicts.keys()
+        nsums = self.fcs_curves_dict.keys()
         for nsum in nsums:
             self.fitter.set_sum(nsum)
-            correls = self.correl_dicts[nsum]
+            correls = self.fcs_curves_dict[nsum]
             popts = []
             yhs = []
             chisquares = []
@@ -374,14 +366,15 @@ class StackFCS(object):
                 yhs.append(yh_tmp)
                 chisquares.append(chisquares_tmp)
 
-            self.parfit_dict[nsum] = np.array(popts)
+            self.fit_results_dict[nsum] = np.array(popts)
             self.yh_dict[nsum] = np.array(yhs)
             self.chisquares_dict[nsum] = np.array(chisquares)
-
+        self.fitting_parameters = fitter.parameters_dict
+        
     def calculate_chisquares(self):
-        nsums = self.correl_dicts.keys()
+        nsums = self.fcs_curves_dict.keys()
         for nsum in nsums:
-            correls = self.correl_dicts[nsum]
+            correls = self.fcs_curves_dict[nsum]
             fits = self.yh_dict[nsum]
             chisquares = []
             for j in range(correls.shape[0]):
@@ -396,9 +389,9 @@ class StackFCS(object):
 
     def calculate_square_error(self):
         """Calculates the square error to the fit"""
-        nsums = self.correl_dicts.keys()
+        nsums = self.fcs_curves_dict.keys()
         for nsum in nsums:
-            correls = self.correl_dicts[nsum]
+            correls = self.fcs_curves_dict[nsum]
             fits = self.yh_dict[nsum]
             square_err = []
             for j in range(correls.shape[0]):
@@ -418,8 +411,8 @@ class StackFCS(object):
     def parameter_map(self, nsum=None, parn=1):
         print('Caution! You are using a resampled parameter map')
         if nsum is None:
-            nsum = min(self.parfit_dict.keys())
-        out = self.parfit_dict[nsum][:, :, parn]
+            nsum = min(self.fit_results_dict.keys())
+        out = self.fit_results_dict[nsum][:, :, parn]
         out = np.repeat(out, nsum, axis=0)
         out = np.repeat(out, nsum, axis=1)
         return out
@@ -443,11 +436,11 @@ class StackFCS(object):
             plt.subplot(122)
             plt.imshow(to_keep)
 
-        return self.parfit_dict[nsum][:uu, :vv, parn][to_keep]
+        return self.fit_results_dict[nsum][:uu, :vv, parn][to_keep]
 
     def get_param_coord(self, nsum, i0, j0, parn=1, exclude_neg=True):
         """Get the value of given parameters for all binning values below nsum"""
-        sums = self.correl_dicts.keys()
+        sums = self.fcs_curves_dict.keys()
         sums = sorted([w for w in sums if w <= nsum])
         ds_means = list()
         ds_std = list()
@@ -458,7 +451,7 @@ class StackFCS(object):
             j00 = int(np.ceil(j0 * nsum / ns))
             j01 = int(np.floor((j0 + 1) * nsum / ns))
 
-            ds = self.parfit_dict[ns][i00:i01, j00:j01, parn]
+            ds = self.fit_results_dict[ns][i00:i01, j00:j01, parn]
             if exclude_neg:
                 ds = ds[ds >= 0]
             ds_means.append(np.mean(ds))
@@ -471,7 +464,7 @@ class StackFCS(object):
 
     def get_acf_coord(self, nsum, i0, j0, parn=1, average=True):
 
-        sums = self.correl_dicts.keys()
+        sums = self.fcs_curves_dict.keys()
         sums = sorted([w for w in sums if w <= nsum])
         all_corrs = list()
         all_yhs = list()
@@ -482,7 +475,7 @@ class StackFCS(object):
 
             j00 = int(np.ceil(j0 * nsum / ns))
             j01 = int(np.floor((j0 + 1) * nsum / ns))
-            corrs = self.correl_dicts[ns][i00:i01, j00:j01]
+            corrs = self.fcs_curves_dict[ns][i00:i01, j00:j01]
             yhs = self.yh_dict[ns][i00:i01, j00:j01]
             if average:
                 corrs = corrs.mean(axis=(0, 1))
@@ -513,7 +506,7 @@ class StackFCS(object):
         io.get_fit_error. Returns a single dictionary, each key being a quantity
         measured"""
         
-        nsums = self.correl_dicts.keys()
+        nsums = self.fcs_curves_dict.keys()
         
         mk_outdic= lambda:dict(zip(nsums,[[] for w in nsums]))
         # results: a dictionary containing results dictionaries
@@ -531,9 +524,9 @@ class StackFCS(object):
             use_mask=False
             
         for jj, nsum in enumerate(nsums):
-            diffcoeffs = self.parfit_dict[nsum][:,:,1]
-            nmols = self.parfit_dict[nsum][:,:,0]
-            curves = self.correl_dicts[nsum]
+            diffcoeffs = self.fit_results_dict[nsum][:,:,1]
+            nmols = self.fit_results_dict[nsum][:,:,0]
+            curves = self.fcs_curves_dict[nsum]
             curves_fits = self.yh_dict[nsum]
             intensities = self.thumbnails_dict[nsum].reshape(-1)
             square_errors = self.square_err_dict[nsum].reshape(-1)
@@ -606,7 +599,7 @@ class StackFCS(object):
         parmaps = list()
         for j in range(len(nsums)):
             nsum = nsums[j]
-            parmap = self.parfit_dict[nsum][:, :, parn].copy()
+            parmap = self.fit_results_dict[nsum][:, :, parn].copy()
             if maxval is not None:
                 parmap[parmap > maxval] = np.nan
             im = self.downsample_image(nsum)
@@ -647,7 +640,7 @@ class StackFCS(object):
         plt.semilogx(correl[:, 0], correl[:, 1])
 
     def plot_D(self, show_acceptable=True):
-        nsums = sorted(self.parfit_dict.keys())
+        nsums = sorted(self.fit_results_dict.keys())
         nsums = np.asarray(nsums)
         ds_means = list()
         ds_std = list()
@@ -667,7 +660,7 @@ class StackFCS(object):
             dmax = observation_sizes ** 2 / (factor * self.dt * 10)
             dmins = observation_sizes ** 2 / (factor * self.dt * self.stack.shape[0] / 100)
         for ns in nsums:
-            ds = self.parfit_dict[ns][:, :, 1]
+            ds = self.fit_results_dict[ns][:, :, 1]
             # !!! check threshold maps here
             ds_means.append(np.median(ds))
             ds_std.append((np.percentile(ds, 75) - np.percentile(ds, 25)) / 2)
@@ -687,7 +680,7 @@ class StackFCS(object):
         return nsums, ds_means, ds_std
 
     def plot_intensity_correlation(self, nsum, parn=1):
-        parmap = self.parfit_dict[nsum][:, :, parn]
+        parmap = self.fit_results_dict[nsum][:, :, parn]
         parameters = list()
         intensities = list()
         stack_avg = self.stack.mean(axis=0)
@@ -703,7 +696,7 @@ class StackFCS(object):
         return np.asarray(parameters), np.asarray(intensities)
 
     def plot_fits(self, nSum, maxcurves=None, dz=0.2):
-        curves = self.correl_dicts[nSum]
+        curves = self.fcs_curves_dict[nSum]
         chisquares = self.chisquares_dict[nSum]
         sp1 = np.asarray(curves.shape)
         fits = self.yh_dict[nSum]
@@ -735,7 +728,7 @@ class StackFCS(object):
         dictionary"""
         assert order_dict is not None
 
-        curves = self.correl_dicts[nSum].reshape(-1, *self.correl_dicts[nSum].shape[2:])
+        curves = self.fcs_curves_dict[nSum].reshape(-1, *self.fcs_curves_dict[nSum].shape[2:])
         parameters = order_dict[nSum].reshape(-1)
         fits = self.yh_dict[nSum].reshape(-1, *self.yh_dict[nSum].shape[2:])
         fig, axes = plt.subplots(1, 2, sharex=True, sharey=True)
@@ -779,7 +772,7 @@ class StackFCS(object):
         plt.legend()
 
     def plot_taus(self, show_acceptable=True):
-        nsums = sorted(self.parfit_dict.keys())
+        nsums = sorted(self.fit_results_dict.keys())
         nsums = np.asarray(nsums)
         ds_means = list()
         ds_std = list()
@@ -795,7 +788,7 @@ class StackFCS(object):
 
         nsums = list(nsums)
         for j, ns in enumerate(nsums):
-            ds = self.parfit_dict[ns][:, :, 1]
+            ds = self.fit_results_dict[ns][:, :, 1]
             #TODO here
             """if self.threshold_map is not None:
                 th = self.get_threshold_map(ns)

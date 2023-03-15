@@ -293,7 +293,7 @@ class FCS_Visualisator(QWidget):
             current_index = int(self.binningComboBox.currentIndex())
             self.current_stack = StackFCS(file, load_stack = False)
             self.current_stack.load(light_version =light_version)
-            nsums = self.current_stack.parfit_dict.keys()
+            nsums = self.current_stack.fit_results_dict.keys()
             _ = self.update_binnings(list(nsums))
             new_index = 0
             if current_index<len(nsums):
@@ -348,7 +348,6 @@ class FCS_Visualisator(QWidget):
             self.expListWidget.fill(folder)
             self.connects()
             self.folder = folder
-            print("chdir:",folder)
             os.chdir(folder)
             
     def refreshFileList(self):

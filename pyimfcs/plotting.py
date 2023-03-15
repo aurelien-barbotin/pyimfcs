@@ -282,7 +282,7 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
     axes[0].set_title("Intensity")
     fig.colorbar(im,ax=axes[0])
     
-    dmap = stack.parfit_dict[nsum][:,:,parn].copy()
+    dmap = stack.fit_results_dict[nsum][:,:,parn].copy()
     dmap=dmap.astype(float)
     dmap[dmap<0] = np.nan
     if vmax is not None:
