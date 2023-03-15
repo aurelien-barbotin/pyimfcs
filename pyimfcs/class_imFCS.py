@@ -133,10 +133,15 @@ class StackFCS(object):
 
         for dname in self.dic_names:
             dic = getattr(self, dname)
+            print('dname',dname)
             for key, item in dic.items():
+                if type(item)==bytes:
+                    item = item.decode('utf-8')
+                # print(type(item))
                 if type(item)!=list and type(item)!=bytes:
                     h5f[dname + "/" + str(key)] = item
-
+                else:
+                    print("not encoded")
         for pn in self.parameters_names:
             par =  getattr(self, pn)
             if par is not None:
@@ -367,7 +372,7 @@ class StackFCS(object):
             self.fit_results_dict[nsum] = np.array(popts)
             self.yh_dict[nsum] = np.array(yhs)
             self.chisquares_dict[nsum] = np.array(chisquares)
-        self.fitting_parameters = fitter.parameters_dict
+        self.fitting_parameters_dict = fitter.parameters_dict
         
     def calculate_chisquares(self):
         nsums = self.fcs_curves_dict.keys()
@@ -467,8 +472,11 @@ class StackFCS(object):
         out_dict['psize [nm]'] = self.xscale*10**3
         out_dict['dt [ms]'] = self.dt*10**3
         path,fname = os.path.split(self.path)
-        out_dict["path"] = path.decode('utf-8')
-        out_dict["filename"] = fname.decode('utf-8')
+        def sdec(f): 
+            if type(f)==bytes: return f.decode('utf-8') 
+            else: return f
+        out_dict["path"] = sdec(path)
+        out_dict["filename"] = sdec(fname)
         
         return out_dict
     

@@ -13,6 +13,8 @@ path='/run/user/1000/gvfs/smb-share:server=data.micalis.com,share=proced/microsc
 stack = StackFCS(path,load_stack=False)
 stack.fcs_curves_dict={"test":0.5}
 stack.load()
-
+stack.fitting_parameters_dict={"a":0.1,"mtype":"2D","ginf":True}
+stack.path = stack.path.decode('utf-8')
+stack.save()
 a1=stack.describe()
 a2=stack.describe()
