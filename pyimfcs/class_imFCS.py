@@ -133,11 +133,12 @@ class StackFCS(object):
 
         for dname in self.dic_names:
             dic = getattr(self, dname)
-            print('dname',dname)
             for key, item in dic.items():
                 if type(item)==bytes:
-                    item = item.decode('utf-8')
-                # print(type(item))
+                    try:
+                        item = item.decode('utf-8')
+                    except:
+                        pass
                 if type(item)!=list and type(item)!=bytes:
                     h5f[dname + "/" + str(key)] = item
                 else:

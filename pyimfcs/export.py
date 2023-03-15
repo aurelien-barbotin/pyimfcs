@@ -114,7 +114,9 @@ def merge_fcs_results(out_name, files, ith = None,
         global_summaries.append(sum_dict)
 
     # Writes in excel file
-    with pd.ExcelWriter(out_name+".xlsx") as writer:  
+    if not out_name.endswith(".xlsx"):
+        out_name = out_name + ".xlsx"
+    with pd.ExcelWriter(out_name) as writer:  
         dfs_total = []
         for nsum in nsums:
             dfpooled = all_dfs[nsum]
