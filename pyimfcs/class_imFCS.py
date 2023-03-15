@@ -127,14 +127,12 @@ class StackFCS(object):
             name += ".h5"
         if os.path.isfile(name):
             print("Removing existing file with same name")
-
             os.remove(name)
+            
         h5f = h5py.File(name, "w")
 
-        dicts_to_save = [self.fcs_curves_dict, self.traces_dict, self.fit_results_dict,
-                         self.yh_dict, self.thumbnails_dict, self.metadata, self.fitting_parameters]
-        for j, dic in enumerate(dicts_to_save):
-            dname = self.dic_names[j]
+        for dname in self.dic_names:
+            dic = getattr(self, dname)
             for key, item in dic.items():
                 if type(item)!=list and type(item)!=bytes:
                     h5f[dname + "/" + str(key)] = item
@@ -462,6 +460,18 @@ class StackFCS(object):
         mask = ~np.isnan(ds_means)
         return sums[mask], ds_means[mask], ds_std[mask]
 
+    def describe(self):
+        """Returns a dictionary of parameters describing the stack. Includes 
+        physical parameters like pixel size and fitting parameters"""
+        out_dict=self.fitting_parameters_dict.copy()
+        out_dict['psize [nm]'] = self.xscale*10**3
+        out_dict['dt [ms]'] = self.dt*10**3
+        path,fname = os.path.split(self.path)
+        out_dict["path"] = path.decode('utf-8')
+        out_dict["filename"] = fname.decode('utf-8')
+        
+        return out_dict
+    
     def get_acf_coord(self, nsum, i0, j0, parn=1, average=True):
 
         sums = self.fcs_curves_dict.keys()

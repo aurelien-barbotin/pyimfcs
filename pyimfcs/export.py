@@ -41,10 +41,15 @@ def merge_fcs_results(out_name, files, ith = None,
         raise ValueError('No files selected')
     nsums = None
     all_dfs={}
+    descriptions = []
     for nfile,file in enumerate(files):
         print(file)
         stack = StackFCS(file,load_stack=False)
         stack.load()
+        
+        description = stack.describe()
+        descriptions.append(description)
+        
         stack_res = stack.extract_results(ith=ith,
                                         chi_threshold=chi_threshold,use_mask=use_mask)
         diffs = stack_res["diffusion_coefficients"]
@@ -107,11 +112,7 @@ def merge_fcs_results(out_name, files, ith = None,
                   "valid fractions": np.mean(all_dfs[nsum]["valid fraction"].values)
                   }
         global_summaries.append(sum_dict)
-        """parameters_dict[knm+"_median"] = np.median(all_dfs[nsum]["D [µm²/s]"].values)
-        parameters_dict[knm+"_mean"] = np.mean(all_dfs[nsum]["D [µm²/s]"].values)
-        parameters_dict[knm+"_std"] = np.std(all_dfs[nsum]["D [µm²/s]"].values)
-        parameters_dict[knm+"_valid_fractions"] = np.mean(all_dfs[nsum]["valid fraction"].values)
-        """
+
     # Writes in excel file
     with pd.ExcelWriter(out_name+".xlsx") as writer:  
         dfs_total = []
@@ -121,7 +122,9 @@ def merge_fcs_results(out_name, files, ith = None,
             dfpooled.to_excel(writer, sheet_name = "nsum {}".format(nsum))
         dfs_total = pd.concat(dfs_total)
         dfs_total.to_excel(writer, sheet_name = "summaries file by file")
+        dfs_description=pd.DataFrame.from_records(descriptions)
+        dfs_description.to_excel(writer, sheet_name = "stack parameters")
         dfs_global = pd.DataFrame.from_records(global_summaries,index=global_names)
         dfs_global.to_excel(writer, sheet_name = "summary")
         df_pars = pd.DataFrame(parameters_dict, index=[0]).T
-        df_pars.to_excel(writer, sheet_name = "parameters")
+        df_pars.to_excel(writer, sheet_name = "export parameters")
