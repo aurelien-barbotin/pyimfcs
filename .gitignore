@@ -5,4 +5,4 @@
 **.xlsx
 **.h5
 **summaries**/
-./pyimfcs/models/*.json
+pyimfcs/models/*.json
