@@ -6,11 +6,17 @@ Created on Tue Apr 27 09:27:18 2021
 @author: aurelien
 """
 
+import os
+import sys
+import json
+
 import numpy as np
+
+from inspect import signature
 from scipy.special import erf
 from scipy.optimize import curve_fit
 
-from inspect import signature
+BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
 def fwhm2sigma(fw):
     """let us remember it once and for all"""
@@ -20,9 +26,7 @@ def sigma2fwhm(sig):
     """let us remember it once and for all"""
     return sig*np.sqrt(8*np.log(2))
 
-
-
-# --- fit class --------------------
+# --- fit functions --------------------
 
 def gim2D(a=0.1,sigma=0.1, ginf=False,**kwargs):
     """Creates a fit function taking into account paramters of PSF
@@ -178,10 +182,6 @@ class Fitter(object):
             popt = [-1]*(len(sig.parameters)-1)
             yh = np.zeros_like(curve[:,0])
             return popt, yh
-import os
-import sys
-import json
-BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
 def create_model_dict(name,parameters_dict):
     """Method used to create a parameter dictionary"""
@@ -189,8 +189,8 @@ def create_model_dict(name,parameters_dict):
     with open(filename,"w") as f:
         json.dump(parameters_dict,f,indent=2)
 
-
-pardict = {"sigma":0.20,
-           "ginf":True,
-           "mtype":"2D"}
-create_model_dict("2D_lens1X_legacy",pardict)
+if __name__=='__main__':
+    pardict = {"sigma":0.20,
+               "ginf":True,
+               "mtype":"2D"}
+    create_model_dict("2D_lens1X_legacy",pardict)
