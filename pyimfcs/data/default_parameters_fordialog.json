@@ -2,15 +2,13 @@
   "first_n": 0,
   "last_n": 0,
   "nsums": [
-    1,
     2,
-    3,
-    4,
-    5
+    3
   ],
   "nreg": 0,
-  "dt": 1.75,
-  "xscale": 0.16,
-  "yscale": 0.16,
-  "psize": 0.16
+  "dt": 1.26,
+  "xscale": 0.128,
+  "yscale": 0.128,
+  "psize": 0.128,
+  "fit_model_name": "2D_lens2p5X"
 }

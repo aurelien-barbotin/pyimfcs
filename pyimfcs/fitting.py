@@ -24,7 +24,7 @@ def sigma2fwhm(sig):
 
 # --- fit class --------------------
 
-def gim2D(a=0.1,sigma=0.1, ginf=False):
+def gim2D(a=0.1,sigma=0.1, ginf=False,**kwargs):
     """Creates a fit function taking into account paramters of PSF
     
     Parameters:
@@ -53,7 +53,7 @@ def gim2D(a=0.1,sigma=0.1, ginf=False):
             
     return G_im
 
-def gim2D_2components(a=0.1,sigma=0.1, ginf=False):
+def gim2D_2components(a=0.1,sigma=0.1, ginf=False,**kwargs):
     """Creates a fit function taking into account paramters of PSF
     
     Parameters:
@@ -80,7 +80,7 @@ def gim2D_2components(a=0.1,sigma=0.1, ginf=False):
             
     return G_im
 
-def gim3D(a=0.1,sigmaxy=0.1,sigmaz=0.5, ginf=False):
+def gim3D(a=0.1,sigmaxy=0.1,sigmaz=0.5, ginf=False,**kwargs):
     """Creates a fit function taking into account paramters of PSF
     
     Parameters:
@@ -115,6 +115,13 @@ def gim3D(a=0.1,sigmaxy=0.1,sigmaz=0.5, ginf=False):
 fit_functions = {"2D":gim2D,
                  "3D":gim3D,
                  "2D_2c":gim2D_2components}
+# microscope-dependent parameters for fitting model
+fit_parameters_dict = {"2D":["sigma","ginf"],
+                       "3D":["sigma","sigmaz","ginf"],
+                       "2D_2c":['sigma',"ginf"]
+                       }
+
+fit_parameter_types = {'sigma': float, 'sigmaz':float,"ginf":bool}
 
 fit_p0 = {"2D": [lambda x: 1/x[0,1]/3, lambda x: 0.23**2/4/np.median(x[:,0])],
           "2D_2c": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0]),
@@ -124,23 +131,30 @@ fit_p0 = {"2D": [lambda x: 1/x[0,1]/3, lambda x: 0.23**2/4/np.median(x[:,0])],
 
 class Fitter(object):
     
-    def __init__(self,name, parameters_dict, ginf=False, p0 = None,bounds=None):
+    def __init__(self,parameters_dict, p0 = None,bounds=None):
+        """Object used to fit curves. Creates the fitting model from the PSF parameters
+        and given a desired fitting type.
+        Parameters:
+            parameters_dict (dict): dictionary input to one of the models
+            p0 (tuple): initial guess for fitting, for scipy.optimize.curve_fit
+            bounds (tuple): bounds for method curve_fit"""
+        ginf = parameters_dict['ginf']
+        mtype = parameters_dict['mtype']
         self.parameters_dict = parameters_dict
         self.ginf = ginf
-        self.name = name
-        if self.name not in fit_functions:
+        self.mtype = mtype
+        if self.mtype not in fit_functions:
             raise KeyError('Unknown fitter')
         
         self.full_parameters_dict = parameters_dict.copy() # takes nsum in account
-        self.fitter = fit_functions[self.name](**parameters_dict,ginf=ginf)
+        self.fitter = fit_functions[self.mtype](**parameters_dict)
         self.p0 = p0
-        self.p0f = fit_p0[self.name]
+        self.p0f = fit_p0[self.mtype]
         self.bounds = bounds
         
     def set_sum(self,nsum):
         self.full_parameters_dict["a"] = self.parameters_dict["a"]*nsum
-        self.fitter = fit_functions[self.name](**self.full_parameters_dict,
-                                               ginf=self.ginf)
+        self.fitter = fit_functions[self.mtype](**self.full_parameters_dict)
         
     def fit(self,curve):
         try:
@@ -164,4 +178,19 @@ class Fitter(object):
             popt = [-1]*(len(sig.parameters)-1)
             yh = np.zeros_like(curve[:,0])
             return popt, yh
+import os
+import sys
+import json
+BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
+def create_model_dict(name,parameters_dict):
+    """Method used to create a parameter dictionary"""
+    filename = BUNDLE_DIR+"/models/"+name+".json"
+    with open(filename,"w") as f:
+        json.dump(parameters_dict,f,indent=2)
+
+
+pardict = {"sigma":0.20,
+           "ginf":True,
+           "mtype":"2D"}
+create_model_dict("2D_lens1X_legacy",pardict)

@@ -85,9 +85,10 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
         for nSum in nsums:
             stack.correlate_stack(nSum)
         if fitter is None:
-            sigmaxy = 0.2
+            raise KeyError("Please specify a fitting method")
+            """sigmaxy = 0.2
             parameters_dict = {"a":yscale, "sigma":sigmaxy}
-            ft = Fitter("2D",parameters_dict, ginf=True)
+            ft = Fitter("2D",parameters_dict, ginf=True)"""
         else:
             ft = fitter
         

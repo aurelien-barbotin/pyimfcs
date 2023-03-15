@@ -18,7 +18,7 @@ from pyimfcs.io import get_dict
 from pyimfcs.class_imFCS import new_chi_square
 from pyimfcs.methods import indices_intensity_threshold
 
-def plot_combined(combined,xname,measured,repeat, order = None,size = 8, showmedian=False):
+def plot_combined(combined,xname,measured,repeat, order = None,size = 12, showmedian=False):
     """Plots results stored in a Dataframe using the SUperplots paradigm.
     
     Parameters:
@@ -39,16 +39,12 @@ def plot_combined(combined,xname,measured,repeat, order = None,size = 8, showmed
     
     fig, ax = plt.subplots(1,1)
     
-    """sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax,
-                   color='gray',alpha=1, inner=None)"""
-    print(repeat, type(repeat))
-    print(ReplicateAverages[repeat],combined[repeat])
+    # all
+    sns.swarmplot(x=xname, y=measured, hue=repeat, data=combined, order = order,ax=ax)
+    # averages of replicates
     sns.swarmplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
                        linewidth=2, data=ReplicateAverages, size=size, 
                        order = order,ax=ax)
-    
-    sns.swarmplot(x=xname, y=measured, hue=repeat, data=combined, order = order,ax=ax)
-    
     sns.boxplot(x=xname, y=measured, data=combined, order = order,ax=ax,
                    boxprops={"facecolor": (.0, .6, .8, .0)})
     ax.set_ylim(bottom=0)

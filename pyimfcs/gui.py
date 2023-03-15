@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (QDialog, QWidget, QApplication,QListWidgetItem,
                              QPushButton, QLineEdit, QLabel, QSpinBox, QMessageBox)
 
 from PyQt5.QtWidgets import QVBoxLayout
-from PyQt5.QtWidgets import QGridLayout,QGroupBox,QCheckBox
+from PyQt5.QtWidgets import QGridLayout,QGroupBox,QCheckBox,QHBoxLayout
 from PyQt5.QtWidgets import QListWidget,QFileDialog, QComboBox, QDialogButtonBox
 
 
@@ -31,7 +31,7 @@ from pyimfcs.plotting import interactive_fcs_plot
 from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.export import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process, get_metadata_zeiss
-
+from pyimfcs.fitting import Fitter
 
 BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
@@ -126,8 +126,9 @@ class MatplotlibWindow(QDialog):
 class FCS_Visualisator(QWidget):
     onclick_function = None
     current_stack = None
+    
     def __init__(self,*args,**kwargs):
-        """This method is necessary innit?"""
+        """This method is necessary innit? Mate"""
         super().__init__(*args, **kwargs)
         self.setAcceptDrops(True)
         self.folder = "."
@@ -150,17 +151,13 @@ class FCS_Visualisator(QWidget):
         self.current_mode = None
         self.expListWidget = ExperimentListWidget()
         self.plotBox = MatplotlibWindow()
-        # self.plotBox.resize(1600,800)
         
         self.make_metrics_tab()
-        # self.make_labelling_tab()
+        # self.make_processing_tab()
         
         self.imageComparisonWidget = QWidget()
         self.imageComparisonWidgetOn=False
         self.connects()
-        
-        # TODO
-        self.loaded = ""
         
         self.expListWidget.fill(".")
             
@@ -172,6 +169,7 @@ class FCS_Visualisator(QWidget):
         self.grid.addWidget(self.exportButton,0,3,1,1)
         self.grid.addWidget(self.processingPushButton,0,4,1,1)
         self.grid.addWidget(self.maskPushButton,0,5,1,1)
+        
         self.grid.addWidget(self.expListWidget,1,0,9,1)
         
         self.grid.addWidget(self.plotBox,1,1,10,10)
@@ -236,10 +234,14 @@ class FCS_Visualisator(QWidget):
         if len(files)>0:
             pdial = ParametersDialog(files)
             if pdial.exec():
+                parameters_dict = pdial.model_parameter_dict
+                parameters_dict["a"] = pdial.psize
+                fitter = Fitter(parameters_dict)
+                
                 batch_bacteria_process(files, first_n = pdial.first_n,
                                        last_n = pdial.last_n,nsums = pdial.nsums,
                                        nreg = pdial.nreg, default_dt = pdial.dt, 
-                                       default_psize = pdial.psize)
+                                       default_psize = pdial.psize, fitter=fitter)
                 self.loadFiles(folder=folder)
                 msg = QMessageBox()
                 msg.setText('Processing Finished')
@@ -397,7 +399,18 @@ class FCS_Visualisator(QWidget):
         toplay.addWidget(self.lightDisplayCheckBox,5,0,1,2)
         toplay.addWidget(self.useMaskCheckBox,6,0,1,2)
         self.metrics_tab = top
-
+        
+    def make_processing_tab(self):
+        """Unused yet. Maybe later"""
+        top = QGroupBox('Fitting options')
+        toplay = QHBoxLayout()
+        top.setLayout(toplay)
+        name = "test"
+        self.changeFitterPushButton = QPushButton("Change fit function")
+        toplay.addWidget(QLabel('Fitter name: '))
+        toplay.addWidget(self.changeFitterPushButton)
+        self.processing_tab = top
+        
 class ParametersDialog(QDialog):
 
     def __init__(self, files):
@@ -407,7 +420,9 @@ class ParametersDialog(QDialog):
         self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        self.find_models()
         self.load_params()
+        
         if len(files)>0:
             file = files[0]
             try:
@@ -417,7 +432,6 @@ class ParametersDialog(QDialog):
                 pass
             
         self.layout = QGridLayout()
-        
         self.first_nSpinBox = QSpinBox()
         self.first_nSpinBox.setMaximum(10**5)
         self.first_nSpinBox.setValue(self.first_n)
@@ -433,23 +447,29 @@ class ParametersDialog(QDialog):
         self.registrationSpinBox.setMinimum(0)
         self.registrationSpinBox.setValue(self.nreg)
         
-        self.layout.addWidget(QLabel('Remove first n frames'),0,0)
-        self.layout.addWidget(self.first_nSpinBox,0,1)
-        self.layout.addWidget(QLabel('Remove Last n frames'),1,0)
-        self.layout.addWidget(self.last_nSpinBox,1,1)
-        self.layout.addWidget(QLabel('Binning values'),2,0)
-        self.layout.addWidget(self.nsumsLineEdit,2,1)
-        self.layout.addWidget(QLabel('Frame interval (ms)'),3,0)
-        self.layout.addWidget(self.dtLineEdit,3,1)
-        self.layout.addWidget(QLabel('Pixel size (µm)'),4,0)
-        self.layout.addWidget(self.psizeLineEdit,4,1)
-        self.layout.addWidget(QLabel('Registration pooling value'),5,0)
-        self.layout.addWidget(self.registrationSpinBox,5,1)
+        shift_row= 1 # to move everything up or down if needed
+        self.layout.addWidget(QLabel('Fitting model'), shift_row-1, 0, 1, 1)
+        self.layout.addWidget(self.modelsComboBox, shift_row-1, 1, 1, 1)
+        self.layout.addWidget(QLabel('Remove first n frames'),0+shift_row,0)
+        self.layout.addWidget(self.first_nSpinBox,0+shift_row,1)
+        self.layout.addWidget(QLabel('Remove Last n frames'),1+shift_row,0)
+        self.layout.addWidget(self.last_nSpinBox,1+shift_row,1)
+        self.layout.addWidget(QLabel('Binning values'),2+shift_row,0)
+        self.layout.addWidget(self.nsumsLineEdit,2+shift_row,1)
+        self.layout.addWidget(QLabel('Frame interval (ms)'),3+shift_row,0)
+        self.layout.addWidget(self.dtLineEdit,3+shift_row,1)
+        self.layout.addWidget(QLabel('Pixel size (µm)'),4+shift_row,0)
+        self.layout.addWidget(self.psizeLineEdit,4+shift_row,1)
+        self.layout.addWidget(QLabel('Registration pooling value'),5+shift_row,0)
+        self.layout.addWidget(self.registrationSpinBox,5+shift_row,1)
         
         self.layout.addWidget(self.buttonBox,10,0,1,2)
         self.setLayout(self.layout)
     
     def update_params(self):
+        self.load_model()
+        self.default_parameter_dialog['fit_model_name'] = self.modelsComboBox.currentText()
+        
         self.first_n = self.first_nSpinBox.value()
         self.default_parameter_dialog['first_n'] = self.first_n
         
@@ -474,7 +494,29 @@ class ParametersDialog(QDialog):
         
         self.yscale=self.psize
         self.default_parameter_dialog['yscale'] = self.yscale
+        
         self.save_params()
+      
+        
+    def find_models(self):
+        self.models = glob.glob(os.path.join(BUNDLE_DIR,"models/*.json"))
+        self.modelnames = [os.path.split(w)[-1][:-5] for w in self.models]
+            
+        self.modelsComboBox = QComboBox()
+        for mname in self.modelnames:
+            self.modelsComboBox.addItem(mname)
+            
+    def load_model(self):
+        """Loads the model currently selected stored in a json file"""
+        current_index = int(self.modelsComboBox.currentIndex())
+        model = self.models[current_index]
+        
+        with open(model, "r") as f:
+            self.model_parameter_dict = json.load(f)
+            
+    def set_model_combobox_fromname(self,name):
+        index = self.modelnames.index(name)
+        self.modelsComboBox.setCurrentIndex(index)
         
     def load_params(self):
         try:
@@ -496,11 +538,13 @@ class ParametersDialog(QDialog):
         self.dt = self.default_parameter_dialog['dt']
         self.xscale=self.default_parameter_dialog['xscale']
         self.yscale=self.default_parameter_dialog['yscale']
+        self.set_model_combobox_fromname(self.default_parameter_dialog['fit_model_name'])
         
     def save_params(self):
         with open(os.path.join(BUNDLE_DIR,"data/default_parameters_fordialog.json")
                   ,"w") as f:
             json.dump(self.default_parameter_dialog,f,indent=2)
+            
     def accept(self):
         self.update_params()
         super().accept()
