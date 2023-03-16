@@ -32,7 +32,7 @@ from pyimfcs.class_imFCS import StackFCS
 from pyimfcs.export import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process, get_metadata_zeiss
 from pyimfcs.fitting import Fitter
-
+from pyimfcs.splash_screen import LoadingWindow
 BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
 class ExperimentListWidget(QListWidget):
@@ -217,9 +217,13 @@ class FCS_Visualisator(QWidget):
         use_mask=self.useMaskCheckBox.isChecked()
         print('Start exporting measurements ...')
         self.exportButton.setEnabled(False)
+        msg1 = LoadingWindow()
+        msg1.show()
+        app.processEvents()
         merge_fcs_results(filename, files,
               ith = ith, chi_threshold = thr, 
               use_mask=use_mask)
+        msg1.close()
         self.exportButton.setEnabled(True)
         print('Done exporting measurments')
     
@@ -234,6 +238,9 @@ class FCS_Visualisator(QWidget):
         if len(files)>0:
             pdial = ParametersDialog(files)
             if pdial.exec():
+                msg1 = LoadingWindow()
+                msg1.show()
+                app.processEvents()
                 parameters_dict = pdial.model_parameter_dict
                 parameters_dict["a"] = pdial.psize
                 fitter = Fitter(parameters_dict)
@@ -243,6 +250,7 @@ class FCS_Visualisator(QWidget):
                                        nreg = pdial.nreg, default_dt = pdial.dt, 
                                        default_psize = pdial.psize, fitter=fitter)
                 self.loadFiles(folder=folder)
+                msg1.close()
                 msg = QMessageBox()
                 msg.setText('Processing Finished')
                 msg.exec_()
