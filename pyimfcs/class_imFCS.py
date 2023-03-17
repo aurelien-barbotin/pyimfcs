@@ -167,7 +167,8 @@ class StackFCS(object):
                 else:
                     print("Warning: key {} not in loaded file".format(dname))
                     continue
-
+            if light_version and dname=="traces_dict":
+                continue
             ds = h5f[dname]
             for key in ds.keys():
                 dd = ds[key][()]
