@@ -21,7 +21,6 @@ from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWidgets import QGridLayout,QGroupBox,QCheckBox,QHBoxLayout
 from PyQt5.QtWidgets import QListWidget,QFileDialog, QComboBox, QDialogButtonBox
 
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -33,6 +32,7 @@ from pyimfcs.export import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process, get_metadata_zeiss
 from pyimfcs.fitting import Fitter
 from pyimfcs.splash_screen import LoadingWindow
+
 BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
 class ExperimentListWidget(QListWidget):
@@ -122,7 +122,6 @@ class MatplotlibWindow(QDialog):
     def plot(self):
         self.canvas.draw()
         
-
 class FCS_Visualisator(QWidget):
     onclick_function = None
     current_stack = None
@@ -522,7 +521,11 @@ class ParametersDialog(QDialog):
             self.model_parameter_dict = json.load(f)
             
     def set_model_combobox_fromname(self,name):
-        index = self.modelnames.index(name)
+        try:
+            index = self.modelnames.index(name)
+        except:
+            print('Saved model was not found')
+            index = 0
         self.modelsComboBox.setCurrentIndex(index)
         
     def load_params(self):
