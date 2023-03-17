@@ -6,3 +6,4 @@
 **.h5
 **summaries**/
 pyimfcs/models/*.json
+pyimfcs/data/*.json
