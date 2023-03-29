@@ -525,7 +525,6 @@ class StackFCS(object):
         """Extracts results like diffusion coefficient, chisquares etc. Meant to replace
         io.get_fit_error. Returns a single dictionary, each key being a quantity
         measured"""
-        
         nsums = self.fcs_curves_dict.keys()
         
         mk_outdic= lambda:dict(zip(nsums,[[] for w in nsums]))
@@ -535,6 +534,7 @@ class StackFCS(object):
                    "number_molecules":mk_outdic(),
                    "indices":mk_outdic(),
                    "square_errors":mk_outdic(),
+                   "intensities":mk_outdic(),
                    "valid_fraction":mk_outdic() # fraction of curves removed from chi
                    }
         self.calculate_chisquares()
@@ -597,12 +597,14 @@ class StackFCS(object):
             nmols = nmols.reshape(-1)[msk]
             indices = indices.reshape(-1)[msk]
             square_errors = square_errors.reshape(-1)[msk]
+            intensities = intensities.reshape(-1)[msk]
             
             results["diffusion_coefficients"][nsum] = diffs
             results["non_linear_chis"][nsum] = chis_new
             results["number_molecules"][nsum] = nmols
             results["indices"][nsum] = indices
             results["square_errors"][nsum] = square_errors
+            results["intensities"][nsum] = intensities
             results["valid_fraction"][nsum] = valid_measures
         return results
     

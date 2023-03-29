@@ -18,16 +18,19 @@ t1 = time.time()
 import glob
 plt.close('all')
 
-path = datapath+"/2023_03_14/2_44_37/2p5X/Image 63.tif"
+path = datapath+"2023_03_17/1_44_37/NR/Image 4.tif"
 
 load = False
-save = False
+save = True
 
 
 # binning 3, first_n 1000: 1 point OK. 3000: 3 pts OK , 5000: 5, 10000: 3, 800: 4
 stack = StackFCS(path, background_correction = True,                     
-                     first_n = 0, last_n = 0, clipval = 0)
+                     first_n = 10000, last_n = 0, clipval = 0)
 
+stack.xscale=0.2
+stack.yscale=0.2
+# stack.dt=0.00126
 print('Exposure time {:.2f} ms'.format(stack.dt*1000))
 print('Pixel size {} nm'.format(stack.xscale*1000))
 xscale = stack.xscale
@@ -42,10 +45,10 @@ except:
     print("no data could be loaded")
     
 stack.set_bleaching_function(blexp_double_offset)
-nsums=[3]
+nsums=[2,3]
 curves_avg = stack.binned_average_curves(nsums,n_norm=2)
 
-sigmaxy = 0.2
+sigmaxy = 0.19
 parameters_dict = {"a":yscale, "sigma":sigmaxy,"ginf":True, "mtype":"2D"}
 ft = Fitter(parameters_dict)
 

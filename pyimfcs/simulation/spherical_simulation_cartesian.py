@@ -177,10 +177,13 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         d_xyz = np.cross(xyz,bm)
         xyz_new = xyz+d_xyz
         xyz_new = R*xyz_new/norm(xyz_new,axis=1)[:,np.newaxis]
+        if return_coordinates:
+            out_coords[j]=xyz_new
         xyz=xyz_new.copy()
         x1, y1, z1 = xyz_new[:,0],xyz_new[:,1],xyz_new[:,2].copy() # to not contaminate z
         z1+=R
         # pixel coordinates
+
         positions_new = np.array([x1,y1]).T/psize + npix_img
         
         msk0 = np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1)
@@ -191,8 +194,21 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
             frame = coord2counts(positions_new[k,0], positions_new[k,1],znew[k])
             stack[j-1]+=frame
             
-        if return_coordinates:
-            out_coords[j] = xyz_new
+    if plot and return_coordinates:
+        if plot:
+            plt.figure()
+            ax = plt.axes(projection='3d')
+            # set_axes_equal(ax)
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_zlabel('z')
+            # ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
+            for j in range(20):
+                # ax.scatter3D(x[:,j], y[:,j], z[:,j],color="C0")
+                print(out_coords[:,j].shape)
+                
+                ax.plot3D(out_coords[:,j,0],out_coords[:,j,1], out_coords[:,j,2])
+            
     if save:
         fname = datetime.datetime.now().__str__()[:19]
         savefolder = savepath+fname+"/"
@@ -241,7 +257,7 @@ save = True
 psize = 0.1
 dz_tirf = 0.2 # um
 dt = 1*10**-3 # s
-D = 2 #um2/s
+D = 0.5 #um2/s
 
 sigma_psf = 0.2
 sigmaz = 4*sigma_psf
@@ -250,8 +266,8 @@ R = 0.5 #um
 brightness = 18*10**3 #Hz/molecule
 
 remove_z_dependency = False
-nsteps = 40000
-nparts = 100
+nsteps = 100
+nparts = 20
 npix_img = 16
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
@@ -260,9 +276,11 @@ z_cutoff = 3*dz_tirf
 if __name__=='__main__':
     # z_cutoff = R 
     # print('!!! Beware of z cutoff')
+    simulate_spherical_diffusion(R,D,nsteps,nparts,plot=True,return_coordinates=True,
+                 savepath="/home/aurelienb/Data/simulations/sigma_effect_differentN/")
     for sigma in [0.1,0.15,0.2,0.25]:
         sigma_psf = sigma
         sigmaz = 4*sigma_psf
-        simulate_spherical_diffusion(R,D,nsteps,nparts,
+        simulate_spherical_diffusion(R,D,nsteps,nparts,plot=True,return_coordinates=True,
                      savepath="/home/aurelienb/Data/simulations/sigma_effect_differentN/")
         

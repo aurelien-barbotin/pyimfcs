@@ -21,13 +21,15 @@ intensity_name = "Experiment|AcquisitionBlock|MultiTrackSetup|TrackSetup|Attenua
 timespan_name = "Experiment|AcquisitionBlock|TimeSeriesSetup|Switch|SwitchAction|SetIntervalAction|Interval|TimeSpan|Value"
 xresolution_name = 'Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingX'
 yresolution_name = 'Experiment|AcquisitionBlock|AcquisitionModeSetup|ScalingY'
+creationdate_name = 'Information|Document|CreationDate'
 names_to_test = {"gain": gain_name,
                  "exposure time": exptime_name,
                  "tube lens": tubelens_name,
                  "acquisition mode":acqmode_name,
                  "laser intensity":intensity_name,
                  'xresolution': xresolution_name,
-                 'yresolution':yresolution_name
+                 'yresolution':yresolution_name,
+                 'creation date':creationdate_name
                  }
 all_par_names = {"gain": gain_name,
                  "exposure time": exptime_name,
@@ -36,12 +38,13 @@ all_par_names = {"gain": gain_name,
                  "laser intensity":intensity_name,
                  'time span': timespan_name,
                  'xresolution': xresolution_name,
-                 'yresolution':yresolution_name
+                 'yresolution':yresolution_name,
+                 'creation date':creationdate_name
                  }
 short = lambda x: x.split("/")[-1].split(".")[0]
-
 def compare_channel_file(path, verbose = True):
     all_same = True
+
     metadata = get_image_metadata(path)
     nchannels = len(list(filter(lambda x: gain_name in x,metadata.keys())))
     outstring = "# channels: {}\n".format(nchannels)

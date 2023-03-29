@@ -266,6 +266,8 @@ class FCS_Visualisator(QWidget):
                 print("found mask for",file)
                 # !!! Might struggle with filenames
                 hf = h5py.File(file, 'a')
+                if 'parameters/mask' in hf:
+                    del hf['parameters/mask']
                 hf['parameters/mask'] = mask
                 hf.close()
                 
