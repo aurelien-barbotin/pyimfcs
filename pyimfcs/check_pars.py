@@ -82,7 +82,7 @@ def get_singlechannel_file(path, verbose = True):
             if len(candidates_list)==1:
                 ref = metadata[candidates_list[0]]
             else:
-                raise KeyError("key {} not found in {} metadata".format(name, path))
+                ref = 'Not found'
             
         par_dict[nn] = ref
     return par_dict
@@ -205,26 +205,28 @@ if __name__=="__main__":
     import glob
     import os
     
-    parser = argparse.ArgumentParser(description='Find stats of a tif file generated with Zen')
+    parser = argparse.ArgumentParser(description='Find stats of a tif file generated with Zen. Calls the script pyimfcs.check_pars')
     parser.add_argument("-a", "--all", help="Finds stats on all tif files in folder")
     parser.add_argument("-n", "--name", help="Finds stats of a single file")
     parser.add_argument("-p", "--parameter", help="If you want to plot only one of the parameters")
     args = parser.parse_args()
     
-    if args.name is not None:
-        print(json.dumps(get_singlechannel_file(args.name),indent=2))
-    elif args.all is not None:
+    if args.all is not None:
         files = glob.glob(args.all+'/*.tif')
-        for file in files:
-            name = os.path.split(file)[-1]
-            try:
-                if args.parameter is None:
-                    print(name,'\n------')
-                    print(json.dumps(get_singlechannel_file(file),indent=2))
-                else:
-                    print(name,end=": ")
-                    print(get_singlechannel_file(file)[args.parameter])
-            except Exception as e:
-                print("Metadata unreadable")
-                print(e)
-            print()
+    elif args.name is not None:
+        files = [args.name]
+    else:
+        raise ValueError('Please use the parameters -a or -n')
+    for file in files:
+        name = os.path.split(file)[-1]
+        try:
+            if args.parameter is None:
+                print(name,'\n------')
+                print(json.dumps(get_singlechannel_file(file),indent=2))
+            else:
+                print(name,end=": ")
+                print(get_singlechannel_file(file)[args.parameter])
+        except Exception as e:
+            print("Metadata unreadable")
+            print(e)
+        print()
