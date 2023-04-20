@@ -17,4 +17,5 @@ where `path_to_pyimfcs` is the path to the folder containing `setup.py`
 Usage:
 ------
 It is recommended to use pyimfcs with its gui, for this simply run
-`python -m pyimfcs.gui`
+
+	python -m pyimfcs.gui
