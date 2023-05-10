@@ -1,14 +1,14 @@
 {
-  "first_n": 0,
-  "last_n": 0,
+  "first_n": 10000,
+  "last_n": 30000,
   "nsums": [
     2,
     3
   ],
   "nreg": 0,
   "dt": 1.26,
-  "xscale": 0.16,
-  "yscale": 0.16,
-  "psize": 0.16,
+  "xscale": 0.1,
+  "yscale": 0.1,
+  "psize": 0.1,
   "fit_model_name": "2D_lens1X"
 }

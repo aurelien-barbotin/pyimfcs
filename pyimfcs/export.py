@@ -71,7 +71,7 @@ def merge_fcs_results(out_name, files, ith = None,
                     
         # populates dataframes
         for nsum in nsums:
-            fname = file
+            fname = description['filename']
             diff = diffs[nsum]
             chi = chis[nsum]
             nmol = nmolecules[nsum]
