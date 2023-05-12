@@ -31,7 +31,7 @@ def get_metadata_zeiss(file):
 
 def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4000,
                            plot=False, default_dt= None, default_psize = None, 
-                           fitter = None, export_summaries = True, 
+                           default_fitparams = None, export_summaries = True, 
                            chi_threshold = 0.03, ith=0.8):
     """Processes a series of FCS exeriments saved as tiffs.
     Parameters:
@@ -46,7 +46,8 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
             Units: s. Used if value could not be retrieved from metadata
         default_psize (float): if specified, default value to use for pixel size,
             in micrometers. Used only if could not be retrieved from metadata
-        fitter (Fitter): object of the class Fitter
+        default_fitparams (dict): default parameters for constructor of the
+            Fitter class.
         export_summaries (bool): if True, saves summaries of the processing"""
     if export_summaries:
         export_path = os.path.split(files[0])[0]+"/summaries/"
@@ -84,13 +85,13 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
         
         for nSum in nsums:
             stack.correlate_stack(nSum)
-        if fitter is None:
-            raise KeyError("Please specify a fitting method")
-            """sigmaxy = 0.2
-            parameters_dict = {"a":yscale, "sigma":sigmaxy}
-            ft = Fitter("2D",parameters_dict, ginf=True)"""
+        if default_fitparams is None:
+            raise KeyError("Please specify a fitting parameters")
         else:
-            ft = fitter
+            parameters_dict = default_fitparams.copy()
+            if stack.metadata_fully_loaded:
+                parameters_dict["a"] = stack.xscale
+            ft = Fitter(parameters_dict)
         
         stack.fit_curves(ft,xmax=None)
         

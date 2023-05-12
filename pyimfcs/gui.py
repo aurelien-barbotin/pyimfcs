@@ -242,12 +242,14 @@ class FCS_Visualisator(QWidget):
                 app.processEvents()
                 parameters_dict = pdial.model_parameter_dict
                 parameters_dict["a"] = pdial.psize
-                fitter = Fitter(parameters_dict)
+                # fitter = Fitter(parameters_dict)
                 
                 batch_bacteria_process(files, first_n = pdial.first_n,
                                        last_n = pdial.last_n,nsums = pdial.nsums,
                                        nreg = pdial.nreg, default_dt = pdial.dt, 
-                                       default_psize = pdial.psize, fitter=fitter)
+                                       default_psize = pdial.psize, 
+                                       default_fitparams=parameters_dict)
+                
                 self.loadFiles(folder=folder)
                 msg1.close()
                 msg = QMessageBox()
