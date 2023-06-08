@@ -144,7 +144,6 @@ def compare_dicts(all_dicts):
     print(outstring)
     return same_params_perfile
 
-
 def compare_single_experiments(files_list):
     all_dicts = [get_image_metadata(w) for w in files_list]
     dic0 = all_dicts[0]

@@ -494,7 +494,7 @@ class ParametersDialog(QDialog):
         self.default_parameter_dialog['nreg'] = self.nreg
         
         self.dt = float(self.dtLineEdit.text())*10**-3 # conversion in s
-        self. default_parameter_dialog['dt'] = self.dt*10**3 #reconversion in ms for saving
+        self. default_parameter_dialog['dt'] = self.dt #reconversion in ms for saving
         
         self.psize = float(self.psizeLineEdit.text())
         self.default_parameter_dialog['psize'] = self.psize

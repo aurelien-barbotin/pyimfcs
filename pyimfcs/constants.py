@@ -41,19 +41,21 @@ def calculate_dmax(exp_time,aeff):
 
 if __name__=='__main__':
     plt.close('all')
-    bins = np.arange(1,4)
+    bins = np.arange(1,10)
     a_effs = bins*0.16
-    w0 = 0.2 #um
-    exptime = 4.76*10**-3
+    w0 = 0.19 #um, also called sigma psf
+    finterval = 1*10**-3 #s, innterval between frames
     a_effs = calculate_a_eff(a_effs,w0)
-    Dinterest = 5
+    Dinterest = 3
     
-    taus=calculate_tauD(a_effs, Dinterest)*10**3
-    dmax = calculate_dmax(exptime,a_effs)
+    transit_times=calculate_tauD(a_effs, Dinterest)
+    
+    time_experiment = finterval*50000 # s
+    dmax = calculate_dmax(finterval,a_effs)
     
     for j in range(len(dmax)):
         print("binning {}, Dmax {:.2f}".format(bins[j], dmax[j]))
-        print("D {} µm2/s, binning {}, tauD {:.2f}".format(Dinterest,bins[j], taus[j]))
+        print("D {} µm2/s, binning {}, tauD {:.2f}".format(Dinterest,bins[j], transit_times[j]))
     
     g2 = gim2D(a=0.16*3,sigma=0.2)
     taus = np.logspace(-3,1)*1.26
@@ -66,6 +68,7 @@ if __name__=='__main__':
     plt.legend()
     plt.xlabel('tau')
     plt.ylabel('G(tau)')
+    
     # limits: for 50 000 frames, 1.26 ms exposure time
     # Binning 2: D=0.045 -> tau/T = 100, D= 0.5: tau/T = 1000.
     # D=4: tau/dt = 5

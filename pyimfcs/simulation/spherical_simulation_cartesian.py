@@ -56,9 +56,7 @@ def set_axes_equal(ax):
     ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
     ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
-    
-def gauss(x,sig):
-    return np.exp(-2*x**2/(sig**2))
+
 
 def spherical2cart(R,phi,theta):
     x = R*np.cos(phi)*np.sin(theta)
@@ -73,47 +71,13 @@ def cart2spherical(x,y,z):
 
 def g2d(x0,y0,sigma):
     y,x=coords
-    return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))
+    return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))/sigma**2
 
 def coord2counts(x,y,z):
-    if remove_z_dependency:
-        frame = g2d(x,y,sigma_psf/psize)
-        return np.random.poisson(frame* brightness*dt)
-        
-    zr = np.sqrt(2*np.log(2))*sigmaz/psize
-    omegaz = sigma_psf/psize*np.sqrt(1+z/zr**2)
-    frame = g2d(x,y,omegaz)/(omegaz**2*np.pi/2)*np.exp(-z*psize/dz_tirf)
-
+    # pixel coordinates
+    frame = g2d(x,y,sigma_psf/psize)*np.exp(-z*psize/dz_tirf)
     return np.random.poisson(frame* brightness*dt)
 
-def move_spherical(p0,mv):
-    """mv: move, raw, amplitude sqrt(4dt)/r"""
-    theta = p0[:,1].reshape(-1,1)
-    c0 = 1/np.sqrt(1+np.pi**2*np.sin(theta)**4)
-    # print(c0**2+c0**2*(np.pi*np.sin(theta))**2*np.sin(theta)**2)
-    # print(mv.shape,p0.shape,c0.shape)
-    mv_full= np.concatenate(( mv[:,0].reshape(-1,1)*c0, 
-                             mv[:,1].reshape(-1,1)*c0*np.pi*np.sin(theta)),axis=1 )
-    return (p0+mv_full)
-
-def get_deltas(phi,theta,ampl,angle):
-    denominator = np.sqrt(np.tan(angle)**2+1)
-    dtheta = np.sqrt(ampl)*np.tan(angle)/denominator
-    dphi = np.sqrt(ampl)/(np.sin(theta)*denominator)*np.sign(np.cos(angle))
-    return dphi, dtheta
-
-def move_spherical_upg(p0,ampl,angle):
-    """mv: move, raw, amplitude sqrt(4dt)/r"""
-    theta = p0[:,1]
-    phi = p0[:,0]
-    dphi,dtheta = get_deltas(phi,theta,ampl,angle)
-    # print(c0**2+c0**2*(np.pi*np.sin(theta))**2*np.sin(theta)**2)
-    # print(mv.shape,p0.shape,c0.shape)
-    mv_full= np.concatenate(( 
-        (phi+dphi).reshape(-1,1),
-        (theta+dtheta).reshape(-1,1),
-        ),axis=1 )
-    return mv_full
 
 # ---- processing helpers ------
 def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
@@ -137,29 +101,29 @@ def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
     if fitter is None:
         sigmaxy = sigma_psf
         print('sigmaxy',sigmaxy)
-        parameters_dict = {"a":yscale, "sigma":sigmaxy}
-        ft = Fitter("2D",parameters_dict, ginf=False)
+        parameters_dict = {"a":yscale, "sigma":sigmaxy,"mtype":"2D","ginf":True}
+        ft = Fitter(parameters_dict)
     else:
         ft = fitter
-    
+    ft.bounds=((10**-4,0.03,-1),
+               (10,D*3,1))
     stack.fit_curves(ft,xmax=None)
     
-    stack.save()
-    
+    stack.save()    
 
 def simulate_spherical_diffusion(R,D,nsteps,nparts, 
                  savepath = "/home/aurelienb/Data/simulations/", plot=False,
-                 return_coordinates=False,save=True):
+                 return_coordinates=False, save=True):
     if not os.path.isdir(savepath):
         os.mkdir(savepath)
-    stack = np.zeros((nsteps-1,npix_img*2+1, npix_img*2+1))
+    stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
     pos0 = np.random.uniform(size = (nparts,2))
     # phi
     pos0[:,0] = pos0[:,0]*2*np.pi
     # theta
     pos0[:,1] = np.arccos(2*pos0[:,1]-1)
-    # ---------- Calculation of positions-------------------
     
+    # ---------- Calculation of positions-------------------
     x0, y0, z0=spherical2cart(R,pos0[:,0],pos0[:,1])
     xyz = np.concatenate((x0.reshape(-1,1),
                               y0.reshape(-1,1),
@@ -168,22 +132,25 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
     if return_coordinates:
         out_coords = np.zeros((nsteps,nparts,3))
         out_coords[0] = xyz
-    for j in range(1,nsteps):
+        
+    for j in range(1,nsteps+1):
         if j%500==0:
             print("Processing frame {}".format(j))
             
         bm = np.random.normal(scale=np.sqrt(2*D*dt)/R,size=(nparts,3))
+        
         # norm xyz is R
         d_xyz = np.cross(xyz,bm)
         xyz_new = xyz+d_xyz
         xyz_new = R*xyz_new/norm(xyz_new,axis=1)[:,np.newaxis]
+        
         if return_coordinates:
             out_coords[j]=xyz_new
         xyz=xyz_new.copy()
         x1, y1, z1 = xyz_new[:,0],xyz_new[:,1],xyz_new[:,2].copy() # to not contaminate z
         z1+=R
+        
         # pixel coordinates
-
         positions_new = np.array([x1,y1]).T/psize + npix_img
         
         msk0 = np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1)
@@ -214,7 +181,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         savefolder = savepath+fname+"/"
         os.mkdir(savefolder)
         stack_name = savefolder+"stack.tif"
-        tifffile.imsave(stack_name,stack)
+        tifffile.imwrite(stack_name,stack)
         
         parameters_dict = {
             "psize": psize,
@@ -235,14 +202,12 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         print('---- Processing FCS acquisition-----')
         # processing
         process_stack(stack_name, first_n = 0,
-                               last_n = 0,nsums = [1,2,3], default_dt = dt, 
+                               last_n = 0,nsums = [1,2,3,4,5], default_dt = dt, 
                                default_psize = psize)
         
         # export 
         intensity_threshold = 0.8
         
-        if remove_z_dependency:
-            intensity_threshold = 0.5
             
         thr = 0.03
         merge_fcs_results( savefolder+"FCS_results",[stack_name[:-4]+".h5"], 
@@ -254,33 +219,32 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
 plot = True
 save = True
 
-psize = 0.1
-dz_tirf = 0.2 # um
+psize = 0.05
+dz_tirf = 0.1 # um
 dt = 1*10**-3 # s
-D = 0.5 #um2/s
+D = 1 #um2/s
 
-sigma_psf = 0.2
+sigma_psf = 0.19
 sigmaz = 4*sigma_psf
 
-R = 0.5 #um
+R = 10 #um, RADIUS!
 brightness = 18*10**3 #Hz/molecule
 
-remove_z_dependency = False
-nsteps = 100
-nparts = 20
-npix_img = 16
+nsteps = 50000
+nparts = 500
+npix_img = 10
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
-z_cutoff = 3*dz_tirf
+z_cutoff = 50*dz_tirf
 
 if __name__=='__main__':
+    import time
+    t0 = time.time()
     # z_cutoff = R 
     # print('!!! Beware of z cutoff')
-    simulate_spherical_diffusion(R,D,nsteps,nparts,plot=True,return_coordinates=True,
-                 savepath="/home/aurelienb/Data/simulations/sigma_effect_differentN/")
-    for sigma in [0.1,0.15,0.2,0.25]:
-        sigma_psf = sigma
-        sigmaz = 4*sigma_psf
-        simulate_spherical_diffusion(R,D,nsteps,nparts,plot=True,return_coordinates=True,
-                     savepath="/home/aurelienb/Data/simulations/sigma_effect_differentN/")
-        
+    for j in range(2):
+        for ps in [0.05,0.1,0.16,0.3]:
+            psize=ps
+            simulate_spherical_diffusion(R,D,nsteps,nparts,plot=False,return_coordinates=False,
+                 savepath="/home/aurelienb/Data/simulations/2023_06_05/psizes/ztirf100nm4/")
+    print('elapsed: ',time.time()-t0)

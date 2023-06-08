@@ -15,7 +15,7 @@ from skimage.filters import try_all_threshold, threshold_li
 
 import glob
 
-mainpath = "/home/aurelienb/Data/2023_05_12/1_BSLBs/"
+mainpath = "/home/aurelienb/Data/2023_05_17/"
 files = glob.glob(mainpath+"*.tif")
 files = list(filter(lambda x: x[-9:]!="_mask.tif",files))
 for path in files:
