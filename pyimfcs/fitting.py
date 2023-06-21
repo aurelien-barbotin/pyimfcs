@@ -155,7 +155,7 @@ fit_parameters_dict = {"2D":["sigma","ginf"],
 
 fit_parameter_types = {'sigma': float, 'sigmaz':float,"ginf":bool}
 
-fit_p0 = {"2D": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,0])],
+fit_p0 = {"2D": [lambda x: 1/x[0,1]/3, lambda x: 0.23**2/4/np.median(x[:,0])],
           "2D_2c": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0]),
                     lambda x: 0.23/2/np.median(x[:,0]),lambda x:0.5],
           "3D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])],
