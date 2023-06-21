@@ -26,6 +26,7 @@ from pyimfcs.export import merge_fcs_results
 
 import tifffile
 import pandas as pd
+
 plt.close('all')
 
 def set_axes_equal(ax):
@@ -83,7 +84,7 @@ def coord2counts(x,y,z):
 def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
                            plot=False, default_dt= None, default_psize = None, 
                            fitter = None, export_summaries = True, 
-                           chi_threshold = 0.03, ith=0.8):
+                           chi_threshold = 0.03, ith=0.8,shifts=(0,0)):
 
     stack = StackFCS(path, background_correction = True,                     
                          first_n = first_n, last_n = last_n, clipval = 0)
@@ -94,6 +95,9 @@ def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
     xscale = stack.xscale
     yscale = stack.yscale
     assert(xscale==yscale)
+    if shifts is not None:
+        sx,sy = shifts
+        stack.stack = stack.stack[:,sx:,sy:]
     # stack.set_bleaching_function(bleaching_correct_sliding,wsize = 5000)
     
     for nSum in nsums:
@@ -113,7 +117,7 @@ def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
 
 def simulate_spherical_diffusion(R,D,nsteps,nparts, 
                  savepath = "/home/aurelienb/Data/simulations/", plot=False,
-                 return_coordinates=False, save=True):
+                 return_coordinates=False, save=True,shifts=(0,0)):
     if not os.path.isdir(savepath):
         os.mkdir(savepath)
     stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
@@ -202,8 +206,8 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         print('---- Processing FCS acquisition-----')
         # processing
         process_stack(stack_name, first_n = 0,
-                               last_n = 0,nsums = [1,2,3,4,5], default_dt = dt, 
-                               default_psize = psize)
+                               last_n = 0,nsums = [1,2,3,4,5,8,10,15], default_dt = dt, 
+                               default_psize = psize,shifts=shifts)
         
         # export 
         intensity_threshold = 0.8
@@ -219,20 +223,20 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
 plot = True
 save = True
 
-psize = 0.05
+psize = 0.1
 dz_tirf = 0.1 # um
 dt = 1*10**-3 # s
-D = 1 #um2/s
+D = 2 #um2/s
 
 sigma_psf = 0.19
 sigmaz = 4*sigma_psf
 
-R = 10 #um, RADIUS!
+R = 2.5 #um, RADIUS!
 brightness = 18*10**3 #Hz/molecule
 
 nsteps = 50000
 nparts = 500
-npix_img = 10
+npix_img = 15
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 z_cutoff = 50*dz_tirf
@@ -240,11 +244,12 @@ z_cutoff = 50*dz_tirf
 if __name__=='__main__':
     import time
     t0 = time.time()
-    # z_cutoff = R 
-    # print('!!! Beware of z cutoff')
-    for j in range(2):
-        for ps in [0.05,0.1,0.16,0.3]:
-            psize=ps
-            simulate_spherical_diffusion(R,D,nsteps,nparts,plot=False,return_coordinates=False,
-                 savepath="/home/aurelienb/Data/simulations/2023_06_05/psizes/ztirf100nm4/")
+    #for j in range(4):
+    for sx in [0,2,4]:
+        for sy in [0,3,6]:
+            nparts = max(10,int(1000*(R/10)**2))
+            simulate_spherical_diffusion(R,D,nsteps,nparts,plot=False,
+                                         return_coordinates=False,shifts=(sx,sy),
+                 savepath="/home/aurelienb/Data/simulations/2023_06_14/shifts/")
+
     print('elapsed: ',time.time()-t0)

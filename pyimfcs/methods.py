@@ -6,9 +6,8 @@ Created on Fri Feb 17 17:46:51 2023
 @author: aurelienb
 """
 import numpy as np
-from pyimfcs.metrics import intensity_threshold
 
-def downsample_mask(im,nsum,hard_th=True):
+def downsample_mask(im,nsum,hard_th=False):
     """Downsamples a boolean mask"""
     u,v = im.shape
     out = np.zeros((u//nsum,v//nsum))
@@ -24,7 +23,15 @@ def downsample_mask(im,nsum,hard_th=True):
             out[j,k] = px
     return out
             
-
+def downsample_image(im,nsum):
+    """Downsamples an image with simple summing"""
+    u,v = im.shape
+    out = np.zeros((u//nsum,v//nsum))
+    for j in range(u//nsum):
+        for k in range(v//nsum):
+            px = im[j* nsum:(j+1)*nsum, k * nsum:(k+1)*nsum ]
+            out[j,k] = px.mean()
+    return out
 def indices_intensity_threshold(mask,ith,intensities):
     """Takes a mask (label) image and applies the intensity thresholding function
     to each individual element of the labeled mask. Considers the maximum within

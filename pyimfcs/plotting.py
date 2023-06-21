@@ -243,7 +243,7 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
         axes[3].errorbar(ns,dm,yerr=ds,capsize=5)
         
         axes[2].set_title("FCS curve")
-        axes[2].set_xlabel(r"$\rm \tau$")
+        axes[2].set_xlabel(r"$\rm \tau\ [s]$")
         axes[2].set_ylabel(r"$\rm G(\tau)$")
         
         axes[3].set_title("Diffusion coefficients")

@@ -17,6 +17,7 @@ from pyimfcs.blcorr import blexp_double_offset
 import os
 import pandas as pd
 import datetime
+from scipy.interpolate import interp1d
 
 def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
                            plot=False, default_dt= None, default_psize = None, 
@@ -39,8 +40,8 @@ def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
     if fitter is None:
         sigmaxy = sigma_psf*psize
         print("sigmaxy", sigmaxy)
-        parameters_dict = {"a":yscale, "sigma":sigmaxy}
-        ft = Fitter("2D",parameters_dict, ginf=True)
+        parameters_dict = {"mtype":"2D","a":yscale, "sigma":sigmaxy,"ginf":True}
+        ft = Fitter(parameters_dict)
     else:
         ft = fitter
     
@@ -56,9 +57,28 @@ def coord2counts(x,y):
     #!!! in pixel coordinates
     frame = g2d(x,y,sigma_psf)
     return np.random.poisson(frame* brightness*dt)
+
+def coord2counts_exact(x,y):
+    #!!! in pixel coordinates
+    frame = g2d(x,y,sigma_psf)
+    real_counts = np.random.poisson(brightness*dt)
+    psf_lin = frame.reshape(-1)
+    psf_lin = np.cumsum(psf_lin) # cdf
+    
+    psf_lin/=psf_lin[-1]
+    # !! Dabger
+    fi = interp1d(psf_lin,np.arange(frame.size),fill_value="extrapolate")
+    
+    samples = np.random.uniform(low=0,high=1,size=real_counts)
+    coords = fi(samples).astype(int) 
+    
+    out = np.zeros_like(psf_lin)
+    for coord in coords:
+        out[coord]+=1
+    return out.reshape(frame.shape)
+
 def simulate_2D_diff(D,nsteps,nparts, 
                      savepath = "/home/aurelienb/Data/simulations/SLB/",crop=5):
-    
     if not os.path.isdir(savepath):
         os.mkdir(savepath)
     positions = np.random.uniform(size = (nparts,2))*npixels
@@ -119,24 +139,25 @@ def simulate_2D_diff(D,nsteps,nparts,
     # export 
     intensity_threshold = 0
     thr = 0.03
-    merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
-          intensity_threshold = intensity_threshold, ith = thr)
+    print([stack_name[:-4]+".h5"])
+    merge_fcs_results(savefolder+"FCS_results",[stack_name[:-4]+".h5"], 
+          chi_threshold = thr, ith = intensity_threshold)
 
 # pixel size: 100 nm
-psize = 0.1 #um
+psize = 0.3 #um
 sigma_psf = 0.2/psize # pixels
 dt = 10**-3 # s
 D = 2 #um2/s
 
-brightness = 18*10**3 #Hz/molecule
+brightness = 18*10**5 #Hz/molecule
 
 npixels = 100
 
 npix_img = 24
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
-nsteps = 20000
-nparts = 20000
+nsteps = 50000
+nparts = 1000
 
-for D in [5]:
+for D in [1]:
     simulate_2D_diff(D,nsteps,nparts,crop=7,
-         savepath= "/home/aurelienb/Data/simulations/SLB/Ds_multi/" )
+         savepath= "/home/aurelienb/Data/simulations/SLB/psize/" )
