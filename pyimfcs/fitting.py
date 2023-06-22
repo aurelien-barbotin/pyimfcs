@@ -155,13 +155,17 @@ fit_parameters_dict = {"2D":["sigma","ginf"],
 
 fit_parameter_types = {'sigma': float, 'sigmaz':float,"ginf":bool}
 
-fit_p0 = {"2D": [lambda x: 1/x[0,1]/3, lambda x: 0.23**2/4/np.median(x[:,0])],
+fit_p0 = {"2D": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,0])],
           "2D_2c": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0]),
                     lambda x: 0.23/2/np.median(x[:,0]),lambda x:0.5],
           "3D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])],
           "2D_anisotropic": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,0])]
           }
 
+def make_fitp0(mtype,functions):
+    """To update the above dictionary"""
+    fit_p0[mtype] = functions
+    
 class Fitter(object):
     
     def __init__(self,parameters_dict, p0 = None,bounds=None):
@@ -201,11 +205,11 @@ class Fitter(object):
             else:
                 popt,_ = curve_fit(self.fitter,curve[:,0],curve[:,1], p0=self.p0)
             yh = self.fitter(curve[:,0],*popt)
+            if np.any(yh==np.inf):
+                raise ValueError()
             return popt, yh
         except Exception as e:
-            # raise e
-            print("Fitting error")
-            print(e)
+            print("Fitting error",e)
             sig = signature(self.fitter)
             popt = [-1]*(len(sig.parameters)-1)
             yh = np.zeros_like(curve[:,0])
