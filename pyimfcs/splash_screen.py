@@ -53,14 +53,32 @@ art2=r"""
                        ~----"~       \
                                       \
 """
+
+art3=r"""
+I(t)                                           G(τ)
+^                                               ^                             
+|              #                                |  @ @ @                    
+|       #      #   #           #                |         @                    
+|       #      #   #         # #                |           @                   
+|       #  #   ##  ##        # #                |            @                  
+|       #  # # ### ##        # #        ===>    |             @                 
+|    ###############################            |              @                
+|    ##  ##       #    ###      ##              |               @               
+|    #            #              #              |                 @              
+|                 #                             |                    @  @  @        
+------------------------------------> t         ---------------------------> τ                                                                     
+"""
+from PyQt5.QtGui import QFont
+
 art_credits = "<a href=https://www.asciiart.eu/animals/cats> https://www.asciiart.eu/animals/cats  </a>"
 class LoadingWindow(QSplashScreen):
     """Opens a splash screen to let the user know that the program is running"""
     def __init__(self):
         super().__init__()
-        
+        font = QFont("monospace")
         self.textLabel = QLabel("Processing, please wait")
-        self.logo = QLabel(art1)
+        self.logo = QLabel(art3)
+        self.logo.setFont(font)
         self.logo.setTextFormat(0)
         self.art_credits =QLabel(art_credits)
         # set the layout
@@ -68,7 +86,7 @@ class LoadingWindow(QSplashScreen):
         self.setLayout(layout)
         layout.addWidget(self.textLabel,0,0)
         layout.addWidget(self.logo,1,0)
-        layout.addWidget(self.art_credits,2,0)
+        # layout.addWidget(self.art_credits,2,0)
 
 if __name__=="__main__":
     app = QApplication([])
