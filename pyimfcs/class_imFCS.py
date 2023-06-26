@@ -119,8 +119,11 @@ class StackFCS(object):
                 print('frames removed')
                 self.stack = self.stack[trace != 0, :, :]
 
-    def save(self, name=None):
-
+    def save(self, name=None,exclude_list=[]):
+        """Saves StackFCS as an h5 file.
+        Parameters:
+            name: name of target file. If None, named after the original tif file.
+            exclude_list (list): name of dictionaries (from dic_names) that should not be saved"""
         if name is None:
             name = os.path.splitext(self.path)[0] + ".h5"
         if not name.endswith(".h5"):
@@ -132,6 +135,8 @@ class StackFCS(object):
         h5f = h5py.File(name, "w")
 
         for dname in self.dic_names:
+            if dname in exclude_list:
+                continue
             dic = getattr(self, dname)
             for key, item in dic.items():
                 if type(item)==bytes:
@@ -347,21 +352,23 @@ class StackFCS(object):
         nsums = self.fcs_curves_dict.keys()
         for nsum in nsums:
             self.fitter.set_sum(nsum)
+            # updates corels size so that everyone has the same size
+            if xmax is not None:
+                c0 = self.fcs_curves_dict[nsum][0,0,:,0]
+                index0 = np.max(np.where((c0-xmax)<0))
+                self.fcs_curves_dict[nsum] = self.fcs_curves_dict[nsum][:,:,:index0,:]
             correls = self.fcs_curves_dict[nsum]
             popts = []
             yhs = []
             chisquares = []
+            
             for j in range(correls.shape[0]):
                 popt_tmp = []
                 yh_tmp = []
                 chisquares_tmp = []
                 for k in range(correls.shape[1]):
                     corr = correls[j, k]
-                    if xmax is None:
-                        popt, yh = fitter.fit(corr)
-                    else:
-                        corr = corr[corr[:, 0] < xmax, :]
-                        popt, yh = fitter.fit(corr)
+                    popt, yh = fitter.fit(corr)
                     chi = new_chi_square(corr[:, 1], yh)
                     popt_tmp.append(popt)
                     yh_tmp.append(yh)

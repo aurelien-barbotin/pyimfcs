@@ -27,6 +27,9 @@ from pyimfcs.export import merge_fcs_results
 import tifffile
 import pandas as pd
 
+rng = np.random.default_rng()
+
+
 plt.close('all')
 
 def set_axes_equal(ax):
@@ -70,6 +73,7 @@ def cart2spherical(x,y,z):
     phi = np.arctan2(y,x)
     return np.array([phi, theta])
 
+
 def g2d(x0,y0,sigma):
     y,x=coords
     return np.exp(-( (x-x0)**2 + (y-y0)**2)/(2*sigma**2))/sigma**2
@@ -77,7 +81,10 @@ def g2d(x0,y0,sigma):
 def coord2counts(x,y,z):
     # pixel coordinates
     frame = g2d(x,y,sigma_psf/psize)*np.exp(-z*psize/dz_tirf)
-    return np.random.poisson(frame* brightness*dt)
+    # frame=np.random.poisson(frame* brightness*dt)
+    frame=rng.poisson(lam=frame*100,size=frame.shape)
+
+    return frame
 
 
 # ---- processing helpers ------
@@ -88,7 +95,8 @@ def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
 
     stack = StackFCS(path, background_correction = True,                     
                          first_n = first_n, last_n = last_n, clipval = 0)
-
+    
+    print(stack.stack.dtype)
     stack.dt = default_dt
     stack.xscale = default_psize
     stack.yscale = default_psize
@@ -113,14 +121,14 @@ def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
                (10,D*3,1))
     stack.fit_curves(ft,xmax=None)
     
-    stack.save()    
+    stack.save(exclude_list=['traces_dict'])    
 
 def simulate_spherical_diffusion(R,D,nsteps,nparts, 
                  savepath = "/home/aurelienb/Data/simulations/", plot=False,
-                 return_coordinates=False, save=True,shifts=(0,0)):
+                 return_coordinates=False, save=True,shifts=(0,0),delete_tif=True, nsums=[2]):
     if not os.path.isdir(savepath):
         os.mkdir(savepath)
-    stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1))
+    stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1),dtype=int)
     pos0 = np.random.uniform(size = (nparts,2))
     # phi
     pos0[:,0] = pos0[:,0]*2*np.pi
@@ -164,7 +172,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         for k in range(positions_new.shape[0]):
             frame = coord2counts(positions_new[k,0], positions_new[k,1],znew[k])
             stack[j-1]+=frame
-            
+        # print(stack.dtype)
     if plot and return_coordinates:
         if plot:
             plt.figure()
@@ -185,6 +193,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         savefolder = savepath+fname+"/"
         os.mkdir(savefolder)
         stack_name = savefolder+"stack.tif"
+        
         tifffile.imwrite(stack_name,stack)
         
         parameters_dict = {
@@ -206,9 +215,10 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         print('---- Processing FCS acquisition-----')
         # processing
         process_stack(stack_name, first_n = 0,
-                               last_n = 0,nsums = [1,2,3,4,5,8,10,15], default_dt = dt, 
+                               last_n = 0,nsums = nsums, default_dt = dt, 
                                default_psize = psize,shifts=shifts)
-        
+        if delete_tif:
+            os.remove(savefolder+"stack.tif")
         # export 
         intensity_threshold = 0.8
         
@@ -223,7 +233,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
 plot = True
 save = True
 
-psize = 0.1
+psize = 0.08
 dz_tirf = 0.1 # um
 dt = 1*10**-3 # s
 D = 2 #um2/s
@@ -232,24 +242,32 @@ sigma_psf = 0.19
 sigmaz = 4*sigma_psf
 
 R = 2.5 #um, RADIUS!
-brightness = 18*10**3 #Hz/molecule
+brightness = 18*10**4 #Hz/molecule
 
-nsteps = 50000
+nsteps = 20000
 nparts = 500
 npix_img = 15
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 z_cutoff = 50*dz_tirf
 
+process_sums = [2,3,4]
+
 if __name__=='__main__':
     import time
     t0 = time.time()
+
+    nparts = 5000
     #for j in range(4):
-    for sx in [0,2,4]:
-        for sy in [0,3,6]:
-            nparts = max(10,int(1000*(R/10)**2))
-            simulate_spherical_diffusion(R,D,nsteps,nparts,plot=False,
-                                         return_coordinates=False,shifts=(sx,sy),
-                 savepath="/home/aurelienb/Data/simulations/2023_06_14/shifts/")
+    for rad in [3,6,9]:
+        R=rad
+        for sx in [0,2,4]:
+            for sy in [0,3]:
+                nparts = max(10,int(1000*(R/10)**2)//2)
+                simulate_spherical_diffusion(R,D,nsteps,nparts,plot=False,
+                                             return_coordinates=False,shifts=(sx,sy),
+                     savepath="/home/aurelienb/Data/simulations/2023_06_21_radius/radius_int_20kframes/",
+                     delete_tif=False, nsums=process_sums)
+
 
     print('elapsed: ',time.time()-t0)

@@ -4,6 +4,13 @@
 Created on Tue Apr 27 09:27:18 2021
 
 @author: aurelien
+
+See ref (1) for implementation
+
+(1) Ries, J.; Petrov, E. P.; Schwille, P. Total Internal Reflection Fluorescence 
+Correlation Spectroscopy: Effects of Lateral Diffusion and Surface-Generated Fluorescence. 
+Biophysical Journal 2008, 95 (1), 390–399. https://doi.org/10.1529/biophysj.107.126193.
+
 """
 
 import os
@@ -42,8 +49,8 @@ def gim2D(a=0.1,sigma=0.1, ginf=False,**kwargs):
                 D (float): diffusion coeff
                 N (float): number of molecules
                 Ginf (float): offset, should be around 0"""
-            k = a/(2*np.sqrt(D*tau+sigma**2 ) )
-            return 1/N*( erf(k)+(np.exp(-k**2)-1)/(k*np.sqrt(np.pi) ))**2 + Ginf
+            k = a/(2*np.sqrt(D*tau+sigma**2))
+            return 1/N*( erf(k)+(np.exp(-k**2)-1)/(k*np.sqrt(np.pi)) )**2 + Ginf
     else:
         def G_im(tau,N,D):
             """Function to fit ACFs.

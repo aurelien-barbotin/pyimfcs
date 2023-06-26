@@ -20,7 +20,7 @@ coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 psize=0.1
 psf = g2d(npix_img,npix_img,0.2/psize)
 sigma_psf=0.2/psize
-brightness = 18*10**6
+brightness = 18*10**2
 dt = 10**-3
 
 real_counts = np.random.poisson(brightness*dt)

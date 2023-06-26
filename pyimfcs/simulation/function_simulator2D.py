@@ -11,7 +11,7 @@ from skimage.filters import gaussian
 import tifffile
 
 from pyimfcs.class_imFCS import StackFCS
-from pyimfcs.fitting import Fitter
+from pyimfcs.fitting import Fitter, make_fitp0
 from pyimfcs.export import merge_fcs_results
 from pyimfcs.blcorr import blexp_double_offset
 import os
@@ -19,14 +19,14 @@ import pandas as pd
 import datetime
 from scipy.interpolate import interp1d
 
-def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
+def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
                            plot=False, default_dt= None, default_psize = None, 
                            fitter = None, export_summaries = True, 
                            chi_threshold = 0.03, ith=0.8):
 
     stack = StackFCS(path, background_correction = True,                     
                          first_n = first_n, last_n = last_n, clipval = 0)
-
+    make_fitp0("2D",[lambda x:max(10**-3,1/x[0,1]), lambda x: D])
     stack.dt = default_dt
     stack.xscale = default_psize
     stack.yscale = default_psize
@@ -47,7 +47,7 @@ def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
     
     stack.fit_curves(ft,xmax=None)
     
-    stack.save()
+    stack.save(exclude_list=['traces_dict'])
 
 def g2d(x0,y0,sigma):
     y,x=coords
@@ -78,7 +78,8 @@ def coord2counts_exact(x,y):
     return out.reshape(frame.shape)
 
 def simulate_2D_diff(D,nsteps,nparts, 
-                     savepath = "/home/aurelienb/Data/simulations/SLB/",crop=5):
+                     savepath = "/home/aurelienb/Data/simulations/SLB/",crop=5,
+                     delete_tif=False):
     if not os.path.isdir(savepath):
         os.mkdir(savepath)
     positions = np.random.uniform(size = (nparts,2))*npixels
@@ -142,22 +143,30 @@ def simulate_2D_diff(D,nsteps,nparts,
     print([stack_name[:-4]+".h5"])
     merge_fcs_results(savefolder+"FCS_results",[stack_name[:-4]+".h5"], 
           chi_threshold = thr, ith = intensity_threshold)
-
+    if delete_tif:
+        os.remove(savefolder+"stack.tif")
+        
 # pixel size: 100 nm
-psize = 0.3 #um
+psize = 0.1 #um
 sigma_psf = 0.2/psize # pixels
 dt = 10**-3 # s
 D = 2 #um2/s
 
-brightness = 18*10**5 #Hz/molecule
+brightness = 18*10**4 #Hz/molecule
 
-npixels = 100
+npixels = 500
 
-npix_img = 24
+npix_img = 10
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 50000
-nparts = 1000
+nparts = 5000
 
-for D in [1]:
-    simulate_2D_diff(D,nsteps,nparts,crop=7,
-         savepath= "/home/aurelienb/Data/simulations/SLB/psize/" )
+for npix in [3000]:
+    npixels = npix
+    # parts per pixel square
+    parts_density= 5000/(500**2)
+    nparts = int(parts_density*npixels**2)
+    for j in range(6):
+        simulate_2D_diff(D,nsteps,nparts,crop=4,
+             savepath= "/home/aurelienb/Data/simulations/SLB/2023_06_23_npixels/",delete_tif=True )
+    

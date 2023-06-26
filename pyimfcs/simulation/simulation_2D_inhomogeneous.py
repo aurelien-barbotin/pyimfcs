@@ -6,14 +6,11 @@ Created on Fri Apr  9 12:09:25 2021
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-from skimage.filters import gaussian
 import tifffile
 
 from pyimfcs.class_imFCS import StackFCS
-from pyimfcs.fitting import Fitter
-from pyimfcs.io import merge_fcs_results
-from pyimfcs.blcorr import blexp_double_offset
+from pyimfcs.fitting import Fitter, make_fitp0
+from pyimfcs.export import merge_fcs_results
 import os
 import pandas as pd
 import datetime
@@ -34,13 +31,14 @@ def process_stack(path,first_n = 3000, last_n = 0, nsums=[2,3],
     assert(xscale==yscale)
     #stack.set_bleaching_function(blexp_double_offset)
     
+    make_fitp0("2D",[lambda x:max(10**-3,1/x[0,1]), lambda x: D])
     for nSum in nsums:
         stack.correlate_stack(nSum)
     if fitter is None:
         sigmaxy = sigma_psf
         print("sigmaxy", sigmaxy)
-        parameters_dict = {"a":yscale, "sigma":sigmaxy}
-        ft = Fitter("2D",parameters_dict, ginf=True)
+        parameters_dict = {"a":yscale, "sigma":sigmaxy,"mtype":"2D","ginf":True}
+        ft = Fitter(parameters_dict)
     else:
         ft = fitter
     
@@ -56,7 +54,7 @@ def coord2counts(x,y):
     #!!! in pixel coordinates
     cxy= -npix_img
     rr = np.sqrt((x+cxy)**2+(y+cxy)**2)
-    if rr>=R:
+    if rr>=R/psize:
         return 0
     frame = g2d(x,y,sigma_psf/psize)
     
@@ -123,24 +121,25 @@ def simulate_2D_diff(D,nsteps,nparts,
     # export 
     intensity_threshold = 0.8
     thr = 0.03
-    merge_fcs_results([stack_name[:-4]+".h5"], savefolder+"FCS_results", 
-          intensity_threshold = intensity_threshold, chi_threshold = thr)
+    merge_fcs_results(savefolder+"FCS_results",[stack_name[:-4]+".h5"], 
+          chi_threshold = thr, ith = intensity_threshold)
 
 # pixel size: 100 nm
 psize = 0.1 #um/pixels
-sigma_psf = 0.1 # um
+sigma_psf = 0.2 # um
 dt = 10**-3 # s
 D = 1 #um2/s
-dz_tirf = 0.2 #um
-brightness = 18*10**3 #Hz/molecule
+dz_tirf = 0.1 #um
+brightness = 18*10**4 #Hz/molecule
 
 npixels = 500
 
 npix_img = 24
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
-nsteps = 10000
-nparts = 15000
-for j in range(3):
-    for R in [0.25,0.5,2,5,10]:
-        simulate_2D_diff(D,nsteps,nparts,crop=7,
-             savepath= "/home/aurelienb/Data/simulations/SLB/tirf_field/" )
+nsteps = 20000
+nparts = 5000
+
+for j in range(5):
+    for R in [0.5,1,2,5,10]:
+        simulate_2D_diff(D,nsteps,nparts,crop=4,
+             savepath= "/home/aurelienb/Data/simulations/SLB/2023_06_23_tirf_field/" )
