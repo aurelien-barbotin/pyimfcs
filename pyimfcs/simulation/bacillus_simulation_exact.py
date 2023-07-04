@@ -68,6 +68,12 @@ def spherical2cart(R,phi,theta):
     z = R*np.cos(theta)
     return np.array([x, y, z])
 
+def cylindrical2cart(R,theta,xcylindr):
+    x = xcylindr
+    y = R*np.cos(theta)
+    z = R*np.sin(theta)
+    return np.array([x, y, z])
+
 def cart2spherical(x,y,z):
     theta = np.arccos(z)
     phi = np.arctan2(y,x)
@@ -81,8 +87,9 @@ def g2d(x0,y0,sigma):
 def coord2counts(x,y,z):
     # pixel coordinates
     frame = g2d(x,y,sigma_psf/psize)*np.exp(-z*psize/dz_tirf)
-    frame=np.random.poisson(frame* brightness*dt)
-    # frame=rng.poisson(lam=frame*100,size=frame.shape)
+    # frame=np.random.poisson(frame* brightness*dt)
+    frame=rng.poisson(lam=frame* brightness*dt,size=frame.shape)
+
     return frame
 
 
@@ -122,26 +129,72 @@ def process_stack(path,first_n = 0, last_n = 0, nsums=[2,3],
     
     stack.save(exclude_list=['traces_dict'])    
 
-def simulate_spherical_diffusion(R,D,nsteps,nparts, 
+def normal_to_bacillus(xyz):
+    """Calculates a vector normal to a point in a bacillus configuration"""
+    vec_u = xyz.copy()
+    # positive values of x
+    msk_pos = vec_u[:,0]>0
+    vec_u[msk_pos,0] = np.max(
+        np.concatenate(
+            (vec_u[msk_pos,0].reshape(-1,1)-length/2,np.zeros(np.count_nonzero(msk_pos)).reshape(-1,1))
+            ,axis=1)
+        ,axis=1)
+    
+    msk_neg = vec_u[:,0]<=0
+    vec_u[msk_neg,0] = np.min(
+        np.concatenate(
+            (vec_u[msk_neg,0].reshape(-1,1)+length/2,
+             np.zeros(np.count_nonzero(msk_neg)).reshape(-1,1)
+             )
+            ,axis=1) # end concatenate
+        ,axis=1)
+    
+    return vec_u
+
+def simulate_spherical_diffusion(R,length,D,nsteps,nparts,
                  savepath = "/home/aurelienb/Data/simulations/", plot=False,
                  return_coordinates=False, save=True,shifts=(0,0),delete_tif=True, nsums=[2]):
     if not os.path.isdir(savepath):
         os.mkdir(savepath)
     stack = np.zeros((nsteps,npix_img*2+1, npix_img*2+1),dtype=int)
-    pos0 = np.random.uniform(size = (nparts,2))
+    f1 = R/(R+2*length) # fraction on sphere
+    pos0 = np.random.uniform(size = (int(f1*nparts),2))
     # phi
     pos0[:,0] = pos0[:,0]*2*np.pi
     # theta
     pos0[:,1] = np.arccos(2*pos0[:,1]-1)
     
-    # ---------- Calculation of positions-------------------
+    # ---------- Calculation of positions on sphere part-------------------
     x0, y0, z0=spherical2cart(R,pos0[:,0],pos0[:,1])
-    xyz = np.concatenate((x0.reshape(-1,1),
-                              y0.reshape(-1,1),
-                              z0.reshape(-1,1)),axis=1)
+    # cylinder is on x axis
+    x0[x0<0]-=length/2
+    x0[x0>0]+=length/2
     
+    pos1 = np.random.uniform(size = (nparts-int(f1*nparts),2))
+    pos1[:,0] = pos1[:,0]*2*np.pi # theta
+    pos1[:,1] = pos1[:,1]*length-length/2 #x
+    x1,y1,z1 = cylindrical2cart(R, pos1[:,0], pos1[:,1])
+    xyz = np.concatenate((np.concatenate((x0,x1)).reshape(-1,1),
+                          np.concatenate((y0,y1)).reshape(-1,1),
+                          np.concatenate((z0,z1)).reshape(-1,1) ),axis=1)
+    
+    if plot:
+        plt.figure()
+        ax = plt.axes(projection='3d')
+        # set_axes_equal(ax)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+        # ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
+        # ax.plot3D(x0,y0,z0)
+        # ax.scatter(x0,y0,z0)
+        # ax.scatter(x1,y1,z1)
+        ax.scatter(xyz[:,0],xyz[:,1],xyz[:,2])
+        set_axes_equal(ax)
+
+        
     if return_coordinates:
-        out_coords = np.zeros((nsteps,nparts,3))
+        out_coords = np.zeros((nsteps+1,nparts,3))
         out_coords[0] = xyz
         
     for j in range(1,nsteps+1):
@@ -149,20 +202,24 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
             print("Processing frame {}".format(j))
             
         bm = np.random.normal(scale=np.sqrt(2*D*dt)/R,size=(nparts,3))
+
+        vec_u = normal_to_bacillus(xyz) # has norm R in physical coordinates
         
-        # norm xyz is R
-        d_xyz = np.cross(xyz,bm)
+        d_xyz = np.cross(vec_u,bm)
         xyz_new = xyz+d_xyz
-        xyz_new = R*xyz_new/norm(xyz_new,axis=1)[:,np.newaxis]
+        norm_u=norm(vec_u,axis=1)[:,np.newaxis]
+        xyz_new = xyz_new + (R-norm_u)*vec_u/norm_u
+        # xyz_new = R*xyz_new/norm_new[:,np.newaxis]
         
         if return_coordinates:
             out_coords[j]=xyz_new
         xyz=xyz_new.copy()
         x1, y1, z1 = xyz_new[:,0],xyz_new[:,1],xyz_new[:,2].copy() # to not contaminate z
         z1+=R
-        
         # pixel coordinates
-        positions_new = np.array([x1,y1]).T/psize + npix_img
+        positions_new = np.array([x1,y1]).T/psize
+        # print(positions_new.min(),positions_new.max())
+        positions_new+=npix_img
         
         msk0 = np.logical_and(positions_new>=0,positions_new<npix_img*2+1).all(axis=1)
         msk3 = np.logical_and(msk0,z1<z_cutoff)
@@ -171,6 +228,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
         for k in range(positions_new.shape[0]):
             frame = coord2counts(positions_new[k,0], positions_new[k,1],znew[k])
             stack[j-1]+=frame
+            
         # print(stack.dtype)
     if plot and return_coordinates:
         if plot:
@@ -183,9 +241,8 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
             # ax.scatter3D(x[-1], y[-1], z[-1],color="C0")
             for j in range(20):
                 # ax.scatter3D(x[:,j], y[:,j], z[:,j],color="C0")
-                print(out_coords[:,j].shape)
-                
                 ax.plot3D(out_coords[:,j,0],out_coords[:,j,1], out_coords[:,j,2])
+                set_axes_equal(ax)
             
     if save:
         fname = datetime.datetime.now().__str__()[:19]
@@ -203,6 +260,7 @@ def simulate_spherical_diffusion(R,D,nsteps,nparts,
             "dt": dt,
             "D":D,
             "R": R,
+            "length":length,
             "brightness": brightness,
             "nsteps": nsteps,
             "nparts": nparts
@@ -240,33 +298,27 @@ D = 2 #um2/s
 sigma_psf = 0.19
 sigmaz = 4*sigma_psf
 
-R = 2.5 #um, RADIUS!
+R = 0.5 #um, RADIUS!
+length=3
 brightness = 18*10**4 #Hz/molecule
 
-nsteps = 20000
+nsteps = 50000
 nparts = 500
-npix_img = 15
+npix_img = 30
 
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
-z_cutoff = 50*dz_tirf
+z_cutoff = 10**3*dz_tirf
 
 process_sums = [2,3,4]
 
 if __name__=='__main__':
     import time
     t0 = time.time()
-
-    nparts = 5000
-    #for j in range(4):
-    for rad in [3,6,9]:
-        R=rad
-        for sx in [0,2,4]:
-            for sy in [0,3]:
-                nparts = max(10,int(1000*(R/10)**2)//2)
-                simulate_spherical_diffusion(R,D,nsteps,nparts,plot=False,
-                                             return_coordinates=False,shifts=(sx,sy),
-                     savepath="/home/aurelienb/Data/simulations/2023_06_21_radius/radius_int_20kframes/",
-                     delete_tif=False, nsums=process_sums)
+   
+    simulate_spherical_diffusion(R,length,D,nsteps,nparts,plot=False,
+                                 return_coordinates=False,
+         savepath="/home/aurelienb/Data/simulations/2023_07_03_bacillus/",
+         delete_tif=False, nsums=process_sums)
 
 
     print('elapsed: ',time.time()-t0)

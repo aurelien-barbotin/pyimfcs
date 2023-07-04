@@ -41,11 +41,12 @@ class StackFCS(object):
     def __init__(self, path, background_correction=True,
                  blcorrf=None, first_n=0, last_n=0, fitter=None, dt=None,
                  remove_zeroes=False, clipval=0, load_stack=True):
-
-        self.path = path
+        
         self.load_stack = load_stack
         self.first_n = first_n
         self.last_n = last_n
+        self.path = path
+   
         if load_stack:
             self.stack = tifffile.imread(path)
             if len(self.stack.shape) == 2:

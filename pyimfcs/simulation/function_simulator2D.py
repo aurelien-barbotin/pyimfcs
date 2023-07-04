@@ -134,7 +134,7 @@ def simulate_2D_diff(D,nsteps,nparts,
     print('---- Processing FCS acquisition-----')
     # processing
     process_stack(stack_name, first_n = 0,
-                           last_n = 0,nsums = [1,2,3,4,8], default_dt = dt, 
+                           last_n = 0,nsums = [1,2], default_dt = dt, 
                            default_psize = psize)
     
     # export 
@@ -156,17 +156,17 @@ brightness = 18*10**4 #Hz/molecule
 
 npixels = 500
 
-npix_img = 10
+npix_img = 4
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 50000
 nparts = 5000
 
-for npix in [3000]:
+for npix in [15]:
     npixels = npix
     # parts per pixel square
     parts_density= 5000/(500**2)
     nparts = int(parts_density*npixels**2)
     for j in range(6):
-        simulate_2D_diff(D,nsteps,nparts,crop=4,
+        simulate_2D_diff(D,nsteps,nparts,crop=3,
              savepath= "/home/aurelienb/Data/simulations/SLB/2023_06_23_npixels/",delete_tif=True )
     
