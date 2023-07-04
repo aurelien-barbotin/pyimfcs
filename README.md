@@ -8,7 +8,7 @@ A package to analyse imFCS data.It features, in a graphical user interface:
 - Saving/Loading processed datasets in hdf5 format
 - Extraction of data in a human-readable excel file.
 
-![A screenshot of the graphical interface of pyimfcs](https://github.com/aurelien-barbotin/imFCS/images/screenshot_imFCS.png)
+![A screenshot of the graphical interface of pyimfcs](https://github.com/aurelien-barbotin/imFCS/blob/main/images/screenshot_imFCS.png)
 
 Installation:
 -------------
