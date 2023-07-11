@@ -81,7 +81,7 @@ def gim2D_anisotropic(a=0.1,sigma=0.1,ginf=True,f=2,**kwargs):
             N (float): number of molecules
             Ginf (float): offset, should be around 0"""
         k1 = a/(2*np.sqrt(D*tau+sigma**2 ) )
-        k2 = a/(2*np.sqrt(2*D*tau+sigma**2 ) )
+        k2 = a/(2*np.sqrt(f*D*tau+sigma**2 ) )
         component1 = np.sqrt(( erf(k1)+(np.exp(-k1**2)-1)/(k1*np.sqrt(np.pi) ))**2)
         component2 = np.sqrt(( erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi) ))**2)
         return 1/N*component1*component2 + Ginf

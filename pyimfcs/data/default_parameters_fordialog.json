@@ -1,12 +1,12 @@
 {
-  "first_n": 1500,
+  "first_n": 10000,
   "last_n": 0,
   "nsums": [
     2,
     3
   ],
   "nreg": 0,
-  "dt": 0.00126,
+  "dt": 0.00272,
   "xscale": 0.16,
   "yscale": 0.16,
   "psize": 0.16,
