@@ -41,6 +41,21 @@ all_par_names = {"gain": gain_name,
                  'yresolution':yresolution_name,
                  'creation date':creationdate_name
                  }
+
+def get_parameter(easy_name, metadata):
+    """Given a human readable name, key to names_to_test, finds the corresponding
+    parameter in a metadata dict"""
+    name = names_to_test[easy_name] 
+    if name in metadata:
+        ref = metadata[name]
+    else:
+        candidates_list = list(filter(lambda x: name in x,metadata.keys()))
+        if len(candidates_list)==1:
+            ref = metadata[candidates_list[0]]
+        else:
+            ref = 'Not found'
+    return ref
+
 short = lambda x: x.split("/")[-1].split(".")[0]
 def compare_channel_file(path, verbose = True):
     all_same = True
