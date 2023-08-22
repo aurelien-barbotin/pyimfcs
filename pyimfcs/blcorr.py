@@ -67,8 +67,14 @@ def blexp_offset(trace, plot=False):
 def blexp_double_offset(trace, plot=False, downsample = True, ndowns = 500):
     def expf(x,f0,tau,b,tau2,c):
         return f0*((1-b)*np.exp(-x/tau)+b*np.exp(-x/tau2))+c
-    
+    if trace.size<2*ndowns:
+        errm='''Bleaching correction error: you are downsampling the trace by a factor \
+{} but the trace has size {}. Perhaps the intensity timetrace is not long enough
+'''.format(ndowns,trace.size)
+        raise ValueError(errm)
     subtr = trace/trace.max()
+    xt = (np.arange(subtr.size)+0.5)
+    
     if downsample:
         nn0 = subtr.size//ndowns # take one point every nn0
         subtr = subtr[:nn0*ndowns]
