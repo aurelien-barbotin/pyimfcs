@@ -89,6 +89,27 @@ def gim2D_anisotropic(a=0.1,sigma=0.1,ginf=True,f=2,**kwargs):
             
     return G_im
 
+def gim2D_sphericalbias(a=0.1,sigma=0.1,ginf=True,f=2,**kwargs):
+    """2D fitting model accounting for rod-shapedness
+    
+    Parameters:
+        a (float): pixel side length
+        sigma (float): Gaussian standard deviation """
+        
+
+    def G_im(tau,N,D,Ginf):
+        """Function to fit ACFs.
+        Parameters:
+            tau (ndarray): lag 
+            D (float): diffusion coeff
+            N (float): number of molecules
+            Ginf (float): offset, should be around 0"""
+        k2 = a/(2*np.sqrt(f*D*tau+sigma**2 ) )
+        return 1/N*( erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi)) )**2 + Ginf
+
+            
+    return G_im
+
 def gim2D_2components(a=0.1,sigma=0.1, ginf=False,**kwargs):
     """Creates a fit function taking into account paramters of PSF
     
@@ -151,13 +172,15 @@ def gim3D(a=0.1,sigmaxy=0.1,sigmaz=0.5, ginf=False,**kwargs):
 fit_functions = {"2D":gim2D,
                  "3D":gim3D,
                  "2D_2c":gim2D_2components,
-                 "2D_anisotropic":gim2D_anisotropic}
+                 "2D_anisotropic":gim2D_anisotropic,
+                 "2D_spherical":gim2D_sphericalbias}
 
 # microscope-dependent parameters for fitting model
 fit_parameters_dict = {"2D":["sigma","ginf"],
                        "3D":["sigma","sigmaz","ginf"],
                        "2D_2c":['sigma',"ginf"],
                        "2D_anisotropic":["sigma","ginf","f"],
+                       "2D_spherical":["sigma","ginf","f"],
                        }
 
 fit_parameter_types = {'sigma': float, 'sigmaz':float,"ginf":bool}
@@ -166,7 +189,8 @@ fit_p0 = {"2D": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,
           "2D_2c": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0]),
                     lambda x: 0.23/2/np.median(x[:,0]),lambda x:0.5],
           "3D": [lambda x: 1/x[0,1]/3, lambda x: 0.23/4/np.median(x[:,0])],
-          "2D_anisotropic": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,0])]
+          "2D_anisotropic": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,0])],
+          "2D_spherical":[lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,0])]
           }
 
 def make_fitp0(mtype,functions):
