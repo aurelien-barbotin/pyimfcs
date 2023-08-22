@@ -134,7 +134,7 @@ def simulate_2D_diff(D,nsteps,nparts,
     print('---- Processing FCS acquisition-----')
     # processing
     process_stack(stack_name, first_n = 0,
-                           last_n = 0,nsums = [1,2], default_dt = dt, 
+                           last_n = 0,nsums = [1,2,4], default_dt = dt, 
                            default_psize = psize)
     
     # export 
@@ -147,26 +147,26 @@ def simulate_2D_diff(D,nsteps,nparts,
         os.remove(savefolder+"stack.tif")
         
 # pixel size: 100 nm
-psize = 0.1 #um
-sigma_psf = 0.2/psize # pixels
+psize = 0.08 #um
+sigma_psf = 0.19/psize # pixels
 dt = 10**-3 # s
-D = 2 #um2/s
+D = 1 #um2/s
 
-brightness = 18*10**4 #Hz/molecule
+brightness = 20000 #Hz/molecule
 
 npixels = 500
 
-npix_img = 4
+npix_img = 7
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 50000
 nparts = 5000
 
-for npix in [15]:
+for npix in [30,60,120,150,200,400,600,800,1500,2000]:
     npixels = npix
     # parts per pixel square
     parts_density= 5000/(500**2)
     nparts = int(parts_density*npixels**2)
     for j in range(6):
-        simulate_2D_diff(D,nsteps,nparts,crop=3,
-             savepath= "/home/aurelienb/Data/simulations/SLB/2023_06_23_npixels/",delete_tif=True )
+        simulate_2D_diff(D,nsteps,nparts,crop=4,
+             savepath= "/home/aurelienb/Data/simulations/SLB/2023_07_17_npixels/",delete_tif=True )
     

@@ -41,7 +41,7 @@ def calculate_dmax(exp_time,aeff):
 
 if __name__=='__main__':
     plt.close('all')
-    bins = np.arange(1,10)
+    bins = np.arange(1,4)
     a_effs = bins*0.16
     w0 = 0.19 #um, also called sigma psf
     finterval = 1*10**-3 #s, innterval between frames
@@ -56,10 +56,16 @@ if __name__=='__main__':
     for j in range(len(dmax)):
         print("binning {}, Dmax {:.2f}".format(bins[j], dmax[j]))
         print("D {} µm2/s, binning {}, tauD {:.2f}".format(Dinterest,bins[j], transit_times[j]))
+
+    d_mins = [0.01,0.1]
+    for dd in d_mins:
+        transit_time = tauD_fromfit(dd, 0.32, w0)
+        min_acq_time = 100*transit_time
+        print('D {}: min acq time: {}'.format(dd,min_acq_time))
     
     g2 = gim2D(a=0.16*3,sigma=0.2)
-    taus = np.logspace(-3,1)*1.26
-    ds = [1,5,7,10]
+    taus = np.logspace(-3,2)*1.26
+    ds = [0.01,0.1,1,5,10]
     
     plt.figure()
     for dd in ds:
