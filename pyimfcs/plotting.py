@@ -18,7 +18,9 @@ from pyimfcs.io import get_dict
 from pyimfcs.class_imFCS import new_chi_square
 from pyimfcs.methods import indices_intensity_threshold
 
-def plot_combined(combined,xname,measured,repeat, order = None,size = 12, showmedian=False):
+def plot_combined(combined,xname,measured,repeat, order = None,size = 5, 
+                  showmedian=False, show_individual_points=True,colors=None,
+                  verbose=True,stripplot=True):
     """Plots results stored in a Dataframe using the SUperplots paradigm.
     
     Parameters:
@@ -36,21 +38,46 @@ def plot_combined(combined,xname,measured,repeat, order = None,size = 12, showme
         mes="median"
     ReplicateAverages = combined.groupby([xname,repeat], as_index=False).agg(
         {measured: mes})
-    
+    if verbose:
+        print(order)
+        print("Number of measurement points: ",
+              [ len( combined[combined['condition']==x] ) for x in order] )
+        for cond in order:
+            ds = combined[combined['condition']==cond][measured]
+            print('Mean {}: {}, median : {}, std {}'.format(
+                measured,ds.mean(),np.median(ds),np.std(ds)))
+            print('Per replicates:')
+            ds = ReplicateAverages[ReplicateAverages['condition']==cond][measured]
+            print('Mean {}: {}, median : {}, std {}'.format(
+                measured,ds.mean(),np.median(ds),np.std(ds)))
+            print()
     fig, ax = plt.subplots(1,1)
-    
+
     # all
-    sns.swarmplot(x=xname, y=measured, hue=repeat, data=combined, order = order,ax=ax)
+    if show_individual_points:
+        sns.swarmplot(x=xname, y=measured, hue=repeat, data=combined, 
+                      order = order,ax=ax)
     # averages of replicates
-    sns.swarmplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
-                       linewidth=2, data=ReplicateAverages, size=size, 
-                       order = order,ax=ax)
+    if stripplot:
+        sns.stripplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
+              linewidth=1, data=ReplicateAverages, size=size, 
+              order = order,ax=ax,zorder=20)
+    else:
+            
+        sns.swarmplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
+                           linewidth=1, data=ReplicateAverages, size=size, 
+                           order = order,ax=ax,zorder=20)
+    palette=None
+    if colors is not None:
+        palette=dict(zip(order,colors))
+    sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax, inner=None,
+                   zorder=10,palette=palette)
     sns.boxplot(x=xname, y=measured, data=combined, order = order,ax=ax,
-                   boxprops={"facecolor": (.0, .6, .8, .0)})
+                   boxprops={"facecolor": (.0, .6, .8, .0),"zorder":15},zorder=15)
     ax.set_ylim(bottom=0)
     ax.legend_.remove()
     sns.reset_orig()
-    
+    return fig,ax
 
 
 def export_results(files_list_list, conditions, nsum="nsum 3", 
@@ -102,7 +129,9 @@ def export_results(files_list_list, conditions, nsum="nsum 3",
     return all_dfs[nsum]
 
 def superplot_files(files_list_list, conditions, nsum="nsum 3", 
-                    keep_single_indices=True, showmedian=False):
+                    keep_single_indices=True, showmedian=False, 
+                    show_individual_points = True, colors=None,
+                    measured = "D [µm²/s]"):
     
     if len(files_list_list)>1 and conditions is None:
         return ValueError('Please specify condition names')
@@ -146,8 +175,9 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3",
         dfs = pd.concat(dfs)
         all_dfs[name] = dfs
     xname = "condition"
-    measured = "D [µm²/s]"
-    plot_combined(all_dfs[nsum],xname,measured,'repeat',order=conditions, showmedian=showmedian)
+    return plot_combined(all_dfs[nsum],xname,measured,'repeat',order=conditions, 
+                  showmedian=showmedian,show_individual_points=show_individual_points,
+                  colors=colors)
 
 plt.ion()
 class FakeEvent():
