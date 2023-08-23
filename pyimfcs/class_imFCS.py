@@ -47,11 +47,16 @@ class StackFCS(object):
         self.last_n = last_n
         self.path = path
    
+        self.mask = None
         if load_stack:
             self.stack = tifffile.imread(path)
             if len(self.stack.shape) == 2:
                 raise ValueError('imFCS data must be 3-dimensional')
             self.stack = self.stack[self.first_n:self.stack.shape[0] - self.last_n]
+            maskpath = path.rstrip('.tif')+"_mask.tif"
+            if os.path.isfile(maskpath):
+                print('Mask found at ',maskpath)
+                self.mask = tifffile.imread(maskpath)
         else:
             self.stack = np.zeros((10, 50, 50))
 
@@ -71,8 +76,6 @@ class StackFCS(object):
         # shift correction
         self.nreg = 0
         self.shifts = np.zeros(1)
-        self.mask = None
-        
         # resuts dictionaries
         self.fcs_curves_dict = {}
         self.traces_dict = {}
