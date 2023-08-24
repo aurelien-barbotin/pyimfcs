@@ -32,6 +32,7 @@ from pyimfcs.export import merge_fcs_results
 from pyimfcs.process import batch_bacteria_process, get_metadata_zeiss
 from pyimfcs.fitting import Fitter
 from pyimfcs.splash_screen import LoadingWindow
+from pyimfcs.make_masks import make_masks
 
 BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
@@ -241,6 +242,12 @@ class FCS_Visualisator(QWidget):
                 msg1.show()
                 app.processEvents()
                 parameters_dict = pdial.model_parameter_dict
+                
+                if pdial.make_masks_bool:
+                    for file in files:
+                        print('Generating mask for file: ',file)
+                        make_masks(file,psize=pdial.psize,
+                                   celldiam=pdial.masks_diameter)
                 parameters_dict["a"] = pdial.psize
                 # fitter = Fitter(parameters_dict)
                 
@@ -392,7 +399,7 @@ class FCS_Visualisator(QWidget):
         self.lightDisplayCheckBox.toggled.connect(lambda : self.update_plot(load_stack= not self.lightDisplayCheckBox.isChecked()))
         
         self.useMaskCheckBox = QCheckBox("Use masks")
-        self.useMaskCheckBox.setChecked(False)
+        self.useMaskCheckBox.setChecked(True)
         self.useMaskCheckBox.toggled.connect(lambda : self.update_plot(load_stack=False))
         
         toplay.addWidget(QLabel("Binning"),0,0)
@@ -457,6 +464,12 @@ class ParametersDialog(QDialog):
         self.registrationSpinBox.setMinimum(0)
         self.registrationSpinBox.setValue(self.nreg)
         
+        self.makeMasksCheckBox = QCheckBox("Make masks")
+        self.makeMasksCheckBox .setChecked(self.make_masks_bool)
+        
+        self.masksDiameterLineEdit = QLineEdit(str(self.masks_diameter))
+        self.masksDiameterLineEdit.setText(str(self.masks_diameter))
+        
         shift_row= 1 # to move everything up or down if needed
         self.layout.addWidget(QLabel('Fitting model'), shift_row-1, 0, 1, 1)
         self.layout.addWidget(self.modelsComboBox, shift_row-1, 1, 1, 1)
@@ -472,6 +485,10 @@ class ParametersDialog(QDialog):
         self.layout.addWidget(self.psizeLineEdit,4+shift_row,1)
         self.layout.addWidget(QLabel('Registration pooling value'),5+shift_row,0)
         self.layout.addWidget(self.registrationSpinBox,5+shift_row,1)
+        
+        self.layout.addWidget(self.makeMasksCheckBox,6+shift_row,0,1,2)
+        self.layout.addWidget(QLabel('Expected mask diameter (µm):'),7+shift_row,0)
+        self.layout.addWidget(self.masksDiameterLineEdit)
         
         self.layout.addWidget(self.buttonBox,10,0,1,2)
         self.setLayout(self.layout)
@@ -505,6 +522,9 @@ class ParametersDialog(QDialog):
         self.yscale=self.psize
         self.default_parameter_dialog['yscale'] = self.yscale
         
+        self.make_masks_bool = self.makeMasksCheckBox.isChecked()
+        self.default_parameter_dialog['make_masks_bool'] = self.make_masks_bool
+        self.default_parameter_dialog['masks_diameter'] = self.masks_diameter
         self.save_params()
       
         
@@ -533,6 +553,7 @@ class ParametersDialog(QDialog):
         self.modelsComboBox.setCurrentIndex(index)
         
     def load_params(self):
+        print('loading params')
         try:
             with open(os.path.join(BUNDLE_DIR,"data/default_parameters_fordialog.json")
                       ,"r") as f:
@@ -544,7 +565,10 @@ class ParametersDialog(QDialog):
                                          "nreg":4000,
                                          "dt":1,
                                          "xscale":1,
-                                         "yscale":1}
+                                         "yscale":1,
+                                         "make_masks_bool":False,
+                                         "masks_diameter":1}
+            
         self.first_n = self.default_parameter_dialog['first_n']
         self.last_n = self.default_parameter_dialog['last_n']
         self.nsums = self.default_parameter_dialog['nsums']
@@ -554,6 +578,16 @@ class ParametersDialog(QDialog):
         self.yscale=self.default_parameter_dialog['yscale']
         self.set_model_combobox_fromname(self.default_parameter_dialog['fit_model_name'])
         
+        # legacy of previous versions when these keys were not part of the program
+        try:
+            self.make_masks_bool = self.default_parameter_dialog['make_masks_bool']
+            self.masks_diameter = self.default_parameter_dialog['masks_diameter']
+        except:
+            self.make_masks_bool = False
+            self.masks_diameter = 1
+            self.default_parameter_dialog['make_masks_bool'] = self.make_masks_bool
+            self.default_parameter_dialog['masks_diameter'] = self.masks_diameter
+            
     def save_params(self):
         with open(os.path.join(BUNDLE_DIR,"data/default_parameters_fordialog.json")
                   ,"w") as f:
