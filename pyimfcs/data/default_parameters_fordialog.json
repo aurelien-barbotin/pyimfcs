@@ -10,7 +10,7 @@
   "xscale": 0.16,
   "yscale": 0.16,
   "psize": 0.16,
-  "fit_model_name": "2D_spherical_staph",
+  "fit_model_name": "2D_listeria",
   "make_masks_bool": true,
   "masks_diameter": 1
 }

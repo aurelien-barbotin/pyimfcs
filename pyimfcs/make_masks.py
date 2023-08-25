@@ -53,8 +53,6 @@ def make_masks(path, plot=False, psize = None, celldiam = None, save = True):
     if save:
         tifffile.imwrite(path.rstrip('.tif')+'_mask.tif',masks)
     return masks
-path="/run/user/1000/gvfs/smb-share:server=data.micalis.com,share=proced/microscopy/ZEISS/Aurelien/2023_07_28/2_RNR-stat_1hinPBS/Image 95.tif"
-make_masks(path,plot=True,psize=0.16,celldiam=1)
 
 if __name__=="__main__":
     # Script to call in command line
