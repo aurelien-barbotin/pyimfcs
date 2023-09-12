@@ -652,7 +652,7 @@ def interactive_fcs_plot_2components(stack,nsum, normsize=1, fig = None,
     else:
         axes = []
         for j in range(nlines*ncols):
-            if j==1:
+            if j>0 and j<4:
                 axes.append(fig.add_subplot(nlines,ncols,j+1,sharex=axes[0],sharey=axes[0]))
             else:
                 axes.append(fig.add_subplot(nlines,ncols,j+1))
@@ -673,8 +673,9 @@ def interactive_fcs_plot_2components(stack,nsum, normsize=1, fig = None,
         axes[4].cla()
         
         barvals=np.array([dmap[jj0,ii0],dmap2[jj0,ii0]])
-        barvals[np.isnan(barvals)]=0
+        barvals[np.isnan(barvals)]=None
         axes[4].bar(['slow','fast'],barvals)
+        axes[4].set_yscale('log')
         """if not light_version:
             axes[4].cla()
             axes[5].cla()
@@ -718,6 +719,7 @@ def interactive_fcs_plot_2components(stack,nsum, normsize=1, fig = None,
         axes[5].set_ylabel(r"$\rm G(\tau)$")
         
         axes[4].set_title("Diffusion coefficients")
+        axes[4].set_ylabel("D [µm²/s]")
         """if not light_version:
             ns, nnm, nns = stack.get_param_coord(nsum,jj0,ii0,parn=0)
             axes[6].cla()
