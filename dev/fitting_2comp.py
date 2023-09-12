@@ -20,8 +20,6 @@ plt.close('all')
 
 path="/home/aurelienb/Data/simulations/SLB/2023_09_12/"
 
-path=datapath+"/2023_09_06/S2_14h15/deltaMFD/Image 86.tif"
-
 sigma = 0.19
 a=0.08
 
@@ -42,10 +40,10 @@ def fit_corr_2comp(corr):
     popt,_ = curve_fit(G_im,x,y,bounds=bounds)
     #print('Measured D1 {:.3f}, D2 {:.3f}, theory: 5 and 0.1 (6 and 0.15)'.format(popt[2],popt[1]))
     yh = G_im(x,*popt)
-    plt.figure()
+    """plt.figure()
     plt.semilogx(corr[:,0], corr[:,1])
 
-    plt.semilogx(x,yh,'k--')
+    plt.semilogx(x,yh,'k--')"""
     # plt.semilogx(x,yh2,'r--')
 
 
@@ -70,7 +68,7 @@ for i in range(xc):
         ds = fit_corr_2comp(corr)
         all_ds.append(ds)
 all_ds = np.array(all_ds)
-print('D_low = {}, D high = {}'.format( all_ds[:,0].mean(),all_ds[:,1].mean() ) )
+print('D_low = {}, D high = {}'.format( np.median(all_ds[:,0]),np.median(all_ds[:,1]) ) )
 
 """
 plt.figure()
