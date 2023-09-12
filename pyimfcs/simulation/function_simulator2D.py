@@ -156,16 +156,16 @@ brightness = 20000 #Hz/molecule
 
 npixels = 500
 
-npix_img = 7
+npix_img = 20
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 50000
 nparts = 5000
 
 # parts per pixel square
-parts_density= 5000/(500**2)
+parts_density= 1
 nparts = int(parts_density*npixels**2)
-for dd in [5]:
+for dd in [0.1,1]:
     D=dd
     simulate_2D_diff(D,nsteps,nparts,crop=4,
-         savepath= "/home/aurelienb/Data/simulations/SLB/2023_09_12/",delete_tif=False )
+         savepath= "/home/aurelienb/Data/simulations/SLB/2023_09_12/try2/",delete_tif=False )
     

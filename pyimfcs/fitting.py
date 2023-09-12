@@ -182,6 +182,24 @@ fit_parameters_dict = {"2D":["sigma","ginf"],
                        "2D_anisotropic":["sigma","ginf","f"],
                        "2D_spherical":["sigma","ginf","f"],
                        }
+# dict of dict. Each element inside is a dict with parameter names and their position in popt
+class DefaultDict(dict):
+    def __init__(self,default,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.default=default
+    def __getitem__(self, k):
+        if k not in self.keys():
+            return self.default
+        return super().__getitem__(k)
+    
+default_fit_resnames = {"D [µm²/s]":1,
+                        "N":0}
+
+fit_result_names_dict=DefaultDict(default_fit_resnames)
+fit_result_names_dict["2D_2c"] = {"D_fast  [µm²/s]":1,
+                                "D_slow  [µm²/s]":2,
+                                "ratio slow/fast":3,
+                                "N":0}
 
 fit_parameter_types = {'sigma': float, 'sigmaz':float,"ginf":bool}
 
@@ -221,6 +239,8 @@ class Fitter(object):
         mtype = parameters_dict['mtype']
         self.parameters_dict = parameters_dict
         self.ginf = ginf
+        if type(mtype)==bytes:
+            mtype=mtype.decode('utf-8')
         self.mtype = mtype
         if self.mtype not in fit_functions:
             raise KeyError('Unknown fitter')
@@ -260,6 +280,9 @@ class Fitter(object):
             yh = np.zeros_like(curve[:,0])
             return popt, yh
 
+    def get_parameter_names(self):
+        return fit_result_names_dict[self.mtype]
+    
 def create_model_dict(name,parameters_dict):
     """Method used to create a parameter dictionary"""
     filename = BUNDLE_DIR+"/models/"+name+".json"

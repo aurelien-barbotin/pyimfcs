@@ -577,7 +577,7 @@ class StackFCS(object):
             fits_reshaped = curves_fits.reshape((curves.shape[0]*curves.shape[1],curves.shape[2]))
             
             msk = np.ones_like(intensities, dtype = bool)
-            msk[diffcoeffs.reshape(-1)<0] = False
+            msk[(self.fit_results_dict[2]==-1).all(axis=-1)] = False
             indices=np.zeros_like(intensities)
             # set mask for measurements. msk is boolean
                 
@@ -611,8 +611,8 @@ class StackFCS(object):
             intensities = intensities.reshape(-1)[msk]
             
             results["diffusion_coefficients"][nsum] = diffs
-            results["non_linear_chis"][nsum] = chis_new
             results["number_molecules"][nsum] = nmols
+            results["non_linear_chis"][nsum] = chis_new
             results["indices"][nsum] = indices
             results["square_errors"][nsum] = square_errors
             results["intensities"][nsum] = intensities
