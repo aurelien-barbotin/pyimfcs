@@ -386,7 +386,7 @@ def findindex(x,y,xy):
     return ind0
 
 def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi', 
-               ylabel = 'new chi', xlog = False, ylog = False):
+               ylabel = 'new chi', xlog = False, ylog = False,curve_marker=None):
     """Plots a hoverable plot that displays FCS curves.
     Parameters:
         x (list): list of value arrays for different conditions
@@ -438,7 +438,7 @@ def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi',
         corrind = findindex(xx, yy, pos)
         xcurve = curves[corrind][:,0]
         ycurve = curves[corrind][:,1]
-        ax1.semilogx(xcurve, ycurve/ycurve.max())
+        ax1.semilogx(xcurve, ycurve/ycurve.max(),marker=curve_marker)
         ax1.semilogx(xcurve,fits[corrind]/ycurve.max(), color="k",linestyle="--")
         ax1.set_title(str(predictions[corrind])+" index "+str(corrind))
         ax1.set_ylim(top=1)

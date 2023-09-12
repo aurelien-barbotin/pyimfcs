@@ -11,7 +11,8 @@ from scipy.special import erf
 from pyimfcs.fitting import gim2D
 import matplotlib.pyplot as plt
 
-datapath = "/run/user/1000/gvfs/smb-share:server=data.micalis.com,share=proced/microscopy/ZEISS/Aurelien/"
+datapath = "/run/user/1001/gvfs/smb-share:server=data.micalis.com,share=proced/microscopy/ZEISS/Aurelien/"
+
 
 def calculate_a_eff(a,w0):
     """Calculates effective observation area in imFCS from parameter a (pixel size)

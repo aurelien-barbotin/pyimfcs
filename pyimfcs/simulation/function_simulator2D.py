@@ -161,12 +161,11 @@ coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 50000
 nparts = 5000
 
-for npix in [30,60,120,150,200,400,600,800,1500,2000]:
-    npixels = npix
-    # parts per pixel square
-    parts_density= 5000/(500**2)
-    nparts = int(parts_density*npixels**2)
-    for j in range(6):
-        simulate_2D_diff(D,nsteps,nparts,crop=4,
-             savepath= "/home/aurelienb/Data/simulations/SLB/2023_07_17_npixels/",delete_tif=True )
+# parts per pixel square
+parts_density= 5000/(500**2)
+nparts = int(parts_density*npixels**2)
+for dd in [5]:
+    D=dd
+    simulate_2D_diff(D,nsteps,nparts,crop=4,
+         savepath= "/home/aurelienb/Data/simulations/SLB/2023_09_12/",delete_tif=False )
     

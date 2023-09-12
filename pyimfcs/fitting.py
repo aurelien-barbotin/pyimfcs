@@ -117,23 +117,23 @@ def gim2D_2components(a=0.1,sigma=0.1, ginf=False,**kwargs):
         a (float): pixel side length
         sigma (float): Gaussian standard deviation """
     if ginf:
-        def G_im(tau,N,D1,D2,A2,Ginf):
+        def G_im(tau,N,D1,D2,A2, Ginf):
             """"""
-            k1 = a/(2*np.sqrt(D1*tau+sigma**2 ))
-            k2 = a/(2*np.sqrt(D2*tau+sigma**2 ))
+            k1 = a/(2*np.sqrt(D1*tau+sigma**2 ) )
+            k2 = a/(2*np.sqrt(D2*tau+sigma**2 ) )
             return 1/N*( 
-                erf(k1)+(np.exp(-k1**2)-1)/(k1*np.sqrt(np.pi)) +
-                A2* (erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi)))
-                        )**2 + Ginf
+                A2*(erf(k1)+(np.exp(-k1**2)-1)/(k1*np.sqrt(np.pi)))**2 +
+                (1-A2)*(erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi)))**2
+                        ) + Ginf
     else:
         def G_im(tau,N,D1,D2,A2):
             """"""
             k1 = a/(2*np.sqrt(D1*tau+sigma**2 ) )
             k2 = a/(2*np.sqrt(D2*tau+sigma**2 ) )
             return 1/N*( 
-                erf(k1)+(np.exp(-k1**2)-1)/(k1*np.sqrt(np.pi)) +
-                A2* (erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi)))
-                        )**2
+                A2*(erf(k1)+(np.exp(-k1**2)-1)/(k1*np.sqrt(np.pi)))**2 +
+                (1-A2)*(erf(k2)+(np.exp(-k2**2)-1)/(k2*np.sqrt(np.pi)))**2
+                        )
             
     return G_im
 
@@ -193,6 +193,17 @@ fit_p0 = {"2D": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,
           "2D_spherical":[lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,0])]
           }
 
+def postprocess_2components(popt):
+    if popt[1]>popt[2]:
+        new_popt = [w for w in popt]
+        new_popt[1] = popt[2]
+        new_popt[2] = popt[1]
+        new_popt[3] = 1-popt[3]
+        popt = new_popt
+    return popt
+
+postprocess_dict={"2d_2c":postprocess_2components}
+
 def make_fitp0(mtype,functions):
     """To update the above dictionary"""
     fit_p0[mtype] = functions
@@ -238,6 +249,9 @@ class Fitter(object):
             yh = self.fitter(curve[:,0],*popt)
             if np.any(yh==np.inf):
                 raise ValueError()
+            
+            if self.mtype in postprocess_dict.keys():
+                popt = postprocess_dict[self.mtype](popt)
             return popt, yh
         except Exception as e:
             print("Fitting error",e)
