@@ -54,7 +54,8 @@ files = glob.glob(path+"*/*.tif")
 
 stacks = np.array([tifffile.imread(f) for f in files])
 
-new_stack = stacks.sum(axis=0)[2:-2,2:-2]
+new_stack = stacks.sum(axis=0)
+
 print(new_stack.shape)
 
 xc,yc = 3,5
@@ -69,7 +70,7 @@ for i in range(xc):
         all_ds.append(ds)
 all_ds = np.array(all_ds)
 print('D_low = {}, D high = {}'.format( np.median(all_ds[:,0]),np.median(all_ds[:,1]) ) )
-
+tifffile.imwrite('2components.tif',new_stack.astype(np.uint8))
 """
 plt.figure()
 plt.subplot(121)

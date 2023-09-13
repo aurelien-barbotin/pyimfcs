@@ -239,6 +239,7 @@ class FCS_Visualisator(QWidget):
             pdial = ParametersDialog(files)
             if pdial.exec():
                 msg1 = LoadingWindow()
+                app.processEvents()
                 msg1.show()
                 app.processEvents()
                 parameters_dict = pdial.model_parameter_dict

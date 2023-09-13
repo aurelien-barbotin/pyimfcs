@@ -156,13 +156,13 @@ brightness = 20000 #Hz/molecule
 
 npixels = 500
 
-npix_img = 20
+npix_img = 15
 coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
 nsteps = 50000
-nparts = 5000
+nparts = 500
 
 # parts per pixel square
-parts_density= 1
+parts_density= 0.6
 nparts = int(parts_density*npixels**2)
 for dd in [0.1,1]:
     D=dd

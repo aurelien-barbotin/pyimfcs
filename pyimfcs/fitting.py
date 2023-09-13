@@ -196,10 +196,16 @@ default_fit_resnames = {"D [µm²/s]":1,
                         "N":0}
 
 fit_result_names_dict=DefaultDict(default_fit_resnames)
-fit_result_names_dict["2D_2c"] = {"D_fast  [µm²/s]":1,
-                                "D_slow  [µm²/s]":2,
+fit_result_names_dict["2D"] = default_fit_resnames
+fit_result_names_dict["2D_2c"] = {"D_fast  [µm²/s]":2,
+                                "D_slow  [µm²/s]":1,
                                 "ratio slow/fast":3,
                                 "N":0}
+
+possible_fit_parameters = []
+for k in fit_result_names_dict.keys():
+    possible_fit_parameters.extend(fit_result_names_dict[k].keys())
+possible_fit_parameters = list(set(possible_fit_parameters))
 
 fit_parameter_types = {'sigma': float, 'sigmaz':float,"ginf":bool}
 

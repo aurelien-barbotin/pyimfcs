@@ -10,26 +10,30 @@ import numpy as np
 import pandas as pd
 
 from pyimfcs.class_imFCS import StackFCS
+from pyimfcs.fitting import possible_fit_parameters
 
-def summarise_df(df):
+def summarise_df(df, val_keys=['D [µm²/s]']):
     """Merges results of a Dataframe containing multiple experiments"""
-    means = df.groupby('repeat')['D [µm²/s]'].mean()
-    std = df.groupby('repeat')['D [µm²/s]'].std()
-    medians = df.groupby('repeat')['D [µm²/s]'].median()
-    count = df.groupby('repeat')['D [µm²/s]'].count()
+    # General stuff independent of fitting model
     repeat = df.groupby('repeat')['repeat'].last()
     filename = df.groupby('repeat')['filename'].last()
     binning = df.groupby('repeat')['binning'].last()
-    valid_fractions = df.groupby("repeat")["valid fraction"].mean()
-    out_df = pd.DataFrame.from_dict({
-                        "filename": filename,
-                        "binning": binning,
-                        "repeat":repeat,
-                        "Mean":means,
-                        "Stdev": std,
-                        "Median":medians,
-                        "Count":count,
-                        "valid fraction": valid_fractions})
+    valid_fractions = df.groupby("repeat")["valid_fraction"].mean()
+    
+    out_dict={
+            "filename": filename,
+            "binning": binning,
+            "repeat":repeat,
+            "valid_fraction": valid_fractions,
+            }
+    # summarises every parameter
+    for val_key in val_keys:
+        out_dict[val_key+" mean"] = df.groupby('repeat')[val_key].mean()
+        out_dict[val_key+" std"] = df.groupby('repeat')[val_key].std()
+        out_dict[val_key+" median"] = df.groupby('repeat')[val_key].median()
+        out_dict[val_key+"_end"]="" # stupid hack for better vis
+    out_dict["count"] = df.groupby('repeat')[val_key].count()
+    out_df = pd.DataFrame.from_dict(out_dict)
     return out_df
     
 def merge_fcs_results(out_name, files, ith = None, 
@@ -52,14 +56,9 @@ def merge_fcs_results(out_name, files, ith = None,
         
         stack_res = stack.extract_results(ith=ith,
                                         chi_threshold=chi_threshold,use_mask=use_mask)
-        diffs = stack_res["diffusion_coefficients"]
-        chis = stack_res["non_linear_chis"]
-        nmolecules = stack_res["number_molecules"]
-        indices = stack_res['indices']
-        square_errors = stack_res['square_errors']
-        valid_fraction=stack_res["valid_fraction"]
+        res_keys=list(stack_res.keys())
         # check that nsums are identical in all files
-        nsums_tmp = sorted(diffs.keys())
+        nsums_tmp = sorted(stack_res[res_keys[0]].keys())
         if nsums is None:
             nsums = nsums_tmp
             for ns in nsums:
@@ -68,33 +67,35 @@ def merge_fcs_results(out_name, files, ith = None,
             for j in range(max(len(nsums),len(nsums_tmp))):
                 if nsums[j]!=nsums_tmp[j]:
                     raise KeyError('All files were not processed identically')
-                    
+        
+        
         # populates dataframes
         for nsum in nsums:
             fname = description['filename']
-            diff = diffs[nsum]
-            chi = chis[nsum]
-            nmol = nmolecules[nsum]
-            square_error = square_errors[nsum]
-            indice = indices[nsum].astype(int)
-            repeats_arr = np.full(diff.size, nfile)
-            name_arr = np.full(diff.size, fname)
-            nsum_arr = np.full(diff.size, nsum)
-            valid_fraction_arr = np.ones_like(diff)*valid_fraction[nsum]
-            out_arr = np.array([name_arr,repeats_arr, diff, nsum_arr, chi, 
-                                nmol,indice, square_error,valid_fraction_arr]).T
             
-            df = pd.DataFrame(out_arr, columns = 
-                              ["filename", "repeat","D [µm²/s]","binning",
-                               "fit error", "N","label","square error","valid fraction"])
-            df = df.astype({'filename':"str",
+            out_dict = dict(zip(stack_res.keys(),[stack_res[w][nsum] for w in stack_res.keys()]))
+            out_dict['filename'] = description['filename']
+            out_dict['binning'] = nsum
+            out_dict['repeat'] = nfile
+            df = pd.DataFrame.from_dict(out_dict)
+            
+            # specifies types in the Dataframe
+            default_type="float"
+            specific_types={'filename':"str",
                            "repeat":"int",
+                           "label":"int",}
+            types_dict={}
+            for k in out_dict.keys():
+                if k in specific_types.keys():
+                    types_dict[k] = specific_types[k]
+                else:
+                    types_dict[k] = 'float'
+            """df = df.astype({
                            "D [µm²/s]":"float",
                            "fit error":"float",
                            "N": "float",
-                           "label":"int",
                            "square error": "float",
-                           "valid fraction":"float"})
+                           "valid fraction":"float"})"""
             all_dfs[nsum].append(df)
             
     parameters_dict = {"chi_threshold": chi_threshold,
@@ -102,25 +103,30 @@ def merge_fcs_results(out_name, files, ith = None,
     # Extracts global parameters
     global_summaries = []
     global_names = []
+    parameters_to_summarise = list(filter(
+        lambda x: x in possible_fit_parameters,all_dfs[nsums[0]][0].keys()))
     for nsum in nsums:
         all_dfs[nsum] = pd.concat(all_dfs[nsum])
         knm = "nsum {}".format(nsum)
         global_names.append(knm)
-        sum_dict={"Median":np.median(all_dfs[nsum]["D [µm²/s]"].values),
-                  "Mean": np.mean(all_dfs[nsum]["D [µm²/s]"].values),
-                  "stdev":np.std(all_dfs[nsum]["D [µm²/s]"].values),
-                  "valid fractions": np.mean(all_dfs[nsum]["valid fraction"].values)
-                  }
+        sum_dict={}
+        for pp in parameters_to_summarise:
+            sum_dict[pp+" Median"] = np.median(all_dfs[nsum][pp].values)
+            sum_dict[pp+" mean"] = np.mean(all_dfs[nsum][pp].values)
+            sum_dict[pp+" std"] = np.std(all_dfs[nsum][pp].values)
+            sum_dict[pp+" end"] = ""
+        sum_dict[pp+" valid fractions"] = np.mean(all_dfs[nsum]["valid_fraction"].values)
+        print(sum_dict)
         global_summaries.append(sum_dict)
 
     # Writes in excel file
     if not out_name.endswith(".xlsx"):
         out_name = out_name + ".xlsx"
-    with pd.ExcelWriter(out_name) as writer:  
+    with pd.ExcelWriter(out_name) as writer:
         dfs_total = []
         for nsum in nsums:
             dfpooled = all_dfs[nsum]
-            dfs_total.append(summarise_df(all_dfs[nsum]))
+            dfs_total.append(summarise_df(all_dfs[nsum],val_keys=parameters_to_summarise))
             dfpooled.to_excel(writer, sheet_name = "nsum {}".format(nsum))
         dfs_total = pd.concat(dfs_total)
         dfs_total.to_excel(writer, sheet_name = "summaries file by file")

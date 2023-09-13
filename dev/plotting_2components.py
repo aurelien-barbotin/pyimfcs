@@ -254,3 +254,9 @@ results_ns2 = dict(zip(results.keys(),[results[w][2] for w in results.keys()]))
 import pandas as pd
 
 df = pd.DataFrame.from_dict(results_ns2)
+
+import glob
+
+files=glob.glob("/run/user/1001/gvfs/microscopy/ZEISS/Aurelien/2023_09_06/S2_14h15/deltaMFD/*.h5")
+from pyimfcs.export import merge_fcs_results
+merge_fcs_results('out_delta.xlsx',files,ith=0.8,chi_threshold=0.03)
