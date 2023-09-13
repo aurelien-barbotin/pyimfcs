@@ -18,6 +18,7 @@ from pyimfcs.shift_correction import stackreg
 from pyimfcs.io import get_image_metadata
 from pyimfcs.metrics import new_chi_square, intensity_threshold
 from pyimfcs.methods import downsample_mask, indices_intensity_threshold
+from pyimfcs.fitting import Fitter
 
 # dictionary of old names used in StackFCS. Keys are old names, values new ones
 legacy_dic_names = {"fcs_curves_dict":"correlations", 
@@ -540,14 +541,21 @@ class StackFCS(object):
         
         mk_outdic= lambda:dict(zip(nsums,[[] for w in nsums]))
         # results: a dictionary containing results dictionaries
-        results = {"diffusion_coefficients": mk_outdic(),
-                   "non_linear_chis":mk_outdic(),
-                   "number_molecules":mk_outdic(),
+        
+        results = {"non_linear_chis":mk_outdic(),
                    "indices":mk_outdic(),
                    "square_errors":mk_outdic(),
                    "intensities":mk_outdic(),
                    "valid_fraction":mk_outdic() # fraction of curves removed from chi
                    }
+        # populates results dict with every interesting fitting parameter
+        if self.fitter is None:
+            self.fitter = Fitter(self.fitting_parameters_dict)
+        parameter_names_dict = self.fitter.get_parameter_names_dict()
+        
+        for k in parameter_names_dict:
+            results[k] = mk_outdic()
+            
         self.calculate_chisquares()
         self.calculate_square_error()
         
@@ -555,8 +563,6 @@ class StackFCS(object):
             use_mask=False
             
         for jj, nsum in enumerate(nsums):
-            diffcoeffs = self.fit_results_dict[nsum][:,:,1]
-            nmols = self.fit_results_dict[nsum][:,:,0]
             curves = self.fcs_curves_dict[nsum]
             curves_fits = self.yh_dict[nsum]
             intensities = self.thumbnails_dict[nsum].reshape(-1)
@@ -577,7 +583,8 @@ class StackFCS(object):
             fits_reshaped = curves_fits.reshape((curves.shape[0]*curves.shape[1],curves.shape[2]))
             
             msk = np.ones_like(intensities, dtype = bool)
-            msk[(self.fit_results_dict[2]==-1).all(axis=-1)] = False
+            
+            msk[(self.fit_results_dict[nsum]==-1).all(axis=-1).reshape(-1)] = False
             indices=np.zeros_like(intensities)
             # set mask for measurements. msk is boolean
                 
@@ -604,14 +611,21 @@ class StackFCS(object):
             chis_new = chis_new.reshape(-1)[msk]
             curves_reshaped = curves_reshaped[msk]
             fits_reshaped = fits_reshaped[msk]
-            diffs = diffcoeffs.reshape(-1)[msk]
-            nmols = nmols.reshape(-1)[msk]
+            
             indices = indices.reshape(-1)[msk]
             square_errors = square_errors.reshape(-1)[msk]
             intensities = intensities.reshape(-1)[msk]
-            
+            # For loop populates
+            for k in parameter_names_dict.keys():
+                ind = parameter_names_dict[k]
+                val = self.fit_results_dict[nsum][:,:,ind]
+                results[k][nsum] = val.reshape(-1)[msk]
+            """diffcoeffs = self.fit_results_dict[nsum][:,:,1]
+            nmols = self.fit_results_dict[nsum][:,:,0]
+            diffs = diffcoeffs.reshape(-1)[msk]
+            nmols = nmols.reshape(-1)[msk]
             results["diffusion_coefficients"][nsum] = diffs
-            results["number_molecules"][nsum] = nmols
+            results["number_molecules"][nsum] = nmols"""
             results["non_linear_chis"][nsum] = chis_new
             results["indices"][nsum] = indices
             results["square_errors"][nsum] = square_errors

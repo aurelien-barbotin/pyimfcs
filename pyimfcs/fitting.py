@@ -280,7 +280,7 @@ class Fitter(object):
             yh = np.zeros_like(curve[:,0])
             return popt, yh
 
-    def get_parameter_names(self):
+    def get_parameter_names_dict(self):
         return fit_result_names_dict[self.mtype]
     
 def create_model_dict(name,parameters_dict):

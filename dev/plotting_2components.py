@@ -210,7 +210,7 @@ def mask_outlier_fraction(img,outlier_factor=5):
     msk = np.logical_or(img > (mean+outlier_factor*np.percentile(img[msk],75)),
                          img < (mean-outlier_factor*np.percentile(img[msk],25)) )
     return msk
-    
+
 from pyimfcs.class_imFCS import StackFCS
 path = "/run/user/1001/gvfs/microscopy/ZEISS/Aurelien/2023_09_06/S2_14h15/deltaMFD/Image 95.h5"
 
@@ -235,7 +235,6 @@ dmap2[mask_outlier_fraction(dmap2)]=np.nan
 
 ratios[chi_map>chi_threshold] = np.nan
 
-
 plt.figure()
 plt.subplot(311)
 plt.imshow(dmap1)
@@ -248,3 +247,10 @@ plt.imshow(ratios,vmin=0,vmax=1,cmap="RdYlGn")
 plt.colorbar()
 
 out = interactive_fcs_plot_2components(stack, 2,vmin=3,vmax=3,ith=0.8,chi_threshold=0.03)
+
+results=stack.extract_results()
+
+results_ns2 = dict(zip(results.keys(),[results[w][2] for w in results.keys()]))
+import pandas as pd
+
+df = pd.DataFrame.from_dict(results_ns2)
