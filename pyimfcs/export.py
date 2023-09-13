@@ -68,11 +68,8 @@ def merge_fcs_results(out_name, files, ith = None,
                 if nsums[j]!=nsums_tmp[j]:
                     raise KeyError('All files were not processed identically')
         
-        
         # populates dataframes
         for nsum in nsums:
-            fname = description['filename']
-            
             out_dict = dict(zip(stack_res.keys(),[stack_res[w][nsum] for w in stack_res.keys()]))
             out_dict['filename'] = description['filename']
             out_dict['binning'] = nsum
@@ -89,13 +86,7 @@ def merge_fcs_results(out_name, files, ith = None,
                 if k in specific_types.keys():
                     types_dict[k] = specific_types[k]
                 else:
-                    types_dict[k] = 'float'
-            """df = df.astype({
-                           "D [µm²/s]":"float",
-                           "fit error":"float",
-                           "N": "float",
-                           "square error": "float",
-                           "valid fraction":"float"})"""
+                    types_dict[k] = default_type
             all_dfs[nsum].append(df)
             
     parameters_dict = {"chi_threshold": chi_threshold,
@@ -116,7 +107,6 @@ def merge_fcs_results(out_name, files, ith = None,
             sum_dict[pp+" std"] = np.std(all_dfs[nsum][pp].values)
             sum_dict[pp+" end"] = ""
         sum_dict[pp+" valid fractions"] = np.mean(all_dfs[nsum]["valid_fraction"].values)
-        print(sum_dict)
         global_summaries.append(sum_dict)
 
     # Writes in excel file
