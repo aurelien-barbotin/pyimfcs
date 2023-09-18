@@ -18,7 +18,7 @@ from scipy.optimize import curve_fit
 from pyimfcs.constants import datapath
 plt.close('all')
 
-path="/home/aurelienb/Data/simulations/SLB/2023_09_12/"
+path="/home/aurelienb/Data/simulations/SLB/2023_09_12/try2/"
 
 sigma = 0.19
 a=0.08
@@ -42,12 +42,8 @@ def fit_corr_2comp(corr):
     yh = G_im(x,*popt)
     """plt.figure()
     plt.semilogx(corr[:,0], corr[:,1])
-
     plt.semilogx(x,yh,'k--')"""
     # plt.semilogx(x,yh2,'r--')
-
-
-    
     return sorted(popt[1:3])
 
 files = glob.glob(path+"*/*.tif")
@@ -68,9 +64,11 @@ for i in range(xc):
         corr = multipletau.autocorrelate(trace,m=32,normalize=True,deltat=10**-3)[1:]
         ds = fit_corr_2comp(corr)
         all_ds.append(ds)
+        
 all_ds = np.array(all_ds)
 print('D_low = {}, D high = {}'.format( np.median(all_ds[:,0]),np.median(all_ds[:,1]) ) )
 tifffile.imwrite('2components.tif',new_stack.astype(np.uint8))
+
 """
 plt.figure()
 plt.subplot(121)

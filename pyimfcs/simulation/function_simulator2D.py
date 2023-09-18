@@ -166,6 +166,6 @@ parts_density= 0.6
 nparts = int(parts_density*npixels**2)
 for dd in [0.1,1]:
     D=dd
-    simulate_2D_diff(D,nsteps,nparts,crop=4,
+    simulate_2D_diff(D,nsteps,nparts,crop=6,
          savepath= "/home/aurelienb/Data/simulations/SLB/2023_09_12/try2/",delete_tif=False )
     

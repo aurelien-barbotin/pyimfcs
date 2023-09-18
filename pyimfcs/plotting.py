@@ -404,7 +404,9 @@ def hover_plot(x,y,curves_subsets, fits_subsets,labels, xlabel = 'chi',
     #curves = np.concatenate(curves_subsets,axis=0)
     curves = np.array([x for w in curves_subsets for x in w])
     fits = np.array([x for w in fits_subsets for x in w])
+    print(curves.shape,fits.shape)
     predictions = [ [labels[w] for uu in curves_subsets[w]] for w in range(len(labels))]
+    
     predictions = np.array(predictions)
     predictions = np.concatenate(predictions,axis=0)
     

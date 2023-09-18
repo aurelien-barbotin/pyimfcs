@@ -40,4 +40,4 @@ if __name__=="__main__":
         if len(stack.shape)<3:
             continue
         avg = stack.mean(axis=0)
-        tifffile.imsave(file[:-4]+"_sum.tif",avg)
+        tifffile.imwrite(file[:-4]+"_sum.tif",avg)
