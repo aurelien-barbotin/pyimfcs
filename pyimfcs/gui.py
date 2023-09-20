@@ -232,37 +232,42 @@ class FCS_Visualisator(QWidget):
         fd.setAcceptDrops(True)
         
         folder = str(fd.getExistingDirectory(self, "Select Directory",os.getcwd()))
+        print(folder)
         if folder=="":
             return
         files = glob.glob(folder+"/*.tif")
-        if len(files)>0:
-            pdial = ParametersDialog(files)
-            if pdial.exec():
-                msg1 = LoadingWindow()
-                app.processEvents()
-                msg1.show()
-                app.processEvents()
-                parameters_dict = pdial.model_parameter_dict
-                
-                if pdial.make_masks_bool:
-                    for file in files:
-                        print('Generating mask for file: ',file)
-                        make_masks(file,psize=pdial.psize,
-                                   celldiam=pdial.masks_diameter)
-                parameters_dict["a"] = pdial.psize
-                # fitter = Fitter(parameters_dict)
-                
-                batch_bacteria_process(files, first_n = pdial.first_n,
-                                       last_n = pdial.last_n,nsums = pdial.nsums,
-                                       nreg = pdial.nreg, default_dt = pdial.dt, 
-                                       default_psize = pdial.psize, 
-                                       default_fitparams=parameters_dict)
-                
-                self.loadFiles(folder=folder)
-                msg1.close()
-                msg = QMessageBox()
-                msg.setText('Processing Finished')
-                msg.exec_()
+        pdial = ParametersDialog(files)
+        if pdial.exec():
+            msg1 = LoadingWindow()
+            app.processEvents()
+            msg1.show()
+            app.processEvents()
+            parameters_dict = pdial.model_parameter_dict
+            if pdial.recursive_search_bool:
+                print('recursive search',folder+"/**/*.tif")
+                files = glob.glob(folder+"/**/*.tif",recursive=True)
+                print(files)
+            if len(files)==0:
+                return
+            if pdial.make_masks_bool:
+                for file in files:
+                    print('Generating mask for file: ',file)
+                    make_masks(file,psize=pdial.psize,
+                               celldiam=pdial.masks_diameter)
+            parameters_dict["a"] = pdial.psize
+            # fitter = Fitter(parameters_dict)
+            
+            batch_bacteria_process(files, first_n = pdial.first_n,
+                                   last_n = pdial.last_n,nsums = pdial.nsums,
+                                   nreg = pdial.nreg, default_dt = pdial.dt, 
+                                   default_psize = pdial.psize, 
+                                   default_fitparams=parameters_dict)
+            
+            self.loadFiles(folder=folder)
+            msg1.close()
+            msg = QMessageBox()
+            msg.setText('Processing Finished')
+            msg.exec_()
                 
     def set_masks(self):
         print('setting masks')
@@ -465,8 +470,11 @@ class ParametersDialog(QDialog):
         self.registrationSpinBox.setMinimum(0)
         self.registrationSpinBox.setValue(self.nreg)
         
+        self.recursiveSearchCheckBox = QCheckBox("Process files in subfolders")
+        self.recursiveSearchCheckBox.setChecked(False)
+        
         self.makeMasksCheckBox = QCheckBox("Make masks")
-        self.makeMasksCheckBox .setChecked(self.make_masks_bool)
+        self.makeMasksCheckBox.setChecked(self.make_masks_bool)
         
         self.masksDiameterLineEdit = QLineEdit(str(self.masks_diameter))
         self.masksDiameterLineEdit.setText(str(self.masks_diameter))
@@ -487,11 +495,12 @@ class ParametersDialog(QDialog):
         self.layout.addWidget(QLabel('Registration pooling value'),5+shift_row,0)
         self.layout.addWidget(self.registrationSpinBox,5+shift_row,1)
         
-        self.layout.addWidget(self.makeMasksCheckBox,6+shift_row,0,1,2)
-        self.layout.addWidget(QLabel('Expected mask diameter (µm):'),7+shift_row,0)
+        self.layout.addWidget(self.recursiveSearchCheckBox,6+shift_row,0,1,2)
+        self.layout.addWidget(self.makeMasksCheckBox,7+shift_row,0,1,2)
+        self.layout.addWidget(QLabel('Expected mask diameter (µm):'),8+shift_row,0)
         self.layout.addWidget(self.masksDiameterLineEdit)
         
-        self.layout.addWidget(self.buttonBox,10,0,1,2)
+        self.layout.addWidget(self.buttonBox,9+shift_row,0,1,2)
         self.setLayout(self.layout)
     
     def update_params(self):
@@ -524,6 +533,7 @@ class ParametersDialog(QDialog):
         self.default_parameter_dialog['yscale'] = self.yscale
         
         self.make_masks_bool = self.makeMasksCheckBox.isChecked()
+        self.recursive_search_bool = self.recursiveSearchCheckBox.isChecked()
         self.default_parameter_dialog['make_masks_bool'] = self.make_masks_bool
         self.default_parameter_dialog['masks_diameter'] = self.masks_diameter
         self.save_params()
@@ -597,11 +607,12 @@ class ParametersDialog(QDialog):
     def accept(self):
         self.update_params()
         super().accept()
-        
-app = QApplication([])
-#files = glob.glob("/home/aurelienb/Data/2022_09_22/*.tif")
-#win = ParametersDialog(files)
 
-win = FCS_Visualisator()
-win.show()
-app.exec_()
+if __name__=='__main__':
+    app = QApplication([])
+    #files = glob.glob("/home/aurelienb/Data/2022_09_22/*.tif")
+    #win = ParametersDialog(files)
+    
+    win = FCS_Visualisator()
+    win.show()
+    app.exec_()

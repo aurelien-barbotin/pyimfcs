@@ -57,8 +57,12 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
     for path in files:
         print('Processing',path)
         fname = "".join(path.split(os.sep)[-1].split('.')[:-1])
-        export_folder = export_path+fname+"/"
         if export_summaries:
+            export_path = os.path.split(path)[0]+"/summaries/"
+            if not os.path.isdir(export_path):
+                os.mkdir(export_path)
+                
+            export_folder = export_path+fname+"/"
             if not os.path.isdir(export_folder):
                 os.mkdir(export_folder)
         try:

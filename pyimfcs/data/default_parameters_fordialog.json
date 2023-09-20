@@ -6,11 +6,11 @@
     3
   ],
   "nreg": 0,
-  "dt": 0.00526,
+  "dt": 0.00126,
   "xscale": 0.16,
   "yscale": 0.16,
   "psize": 0.16,
-  "fit_model_name": "2D_2components",
-  "make_masks_bool": false,
+  "fit_model_name": "2D_spherical_staph",
+  "make_masks_bool": true,
   "masks_diameter": 1
 }
