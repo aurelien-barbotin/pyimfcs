@@ -23,6 +23,8 @@ Usage:
 It is recommended to use pyimfcs with its gui, for this simply run
 
 	python -m pyimfcs.gui
+
+A manual can be found in [docs/manual.md](../blob/main/docs/manual.md)
 	
 Credit:
 -------
