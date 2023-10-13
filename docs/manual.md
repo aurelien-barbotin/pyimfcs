@@ -50,6 +50,7 @@ Once you browsed to the right folder, click on 'Open'. This will prompt the open
 
 ## Data visualisation and export
 
+### Visualisation
 Once the processing is done, it is possible (and recommended !) to inspect the processed dataset. Processed stacks are stored on a file with a h5 extension, bearing the same name as the original stack. For instance, the processing results of 'stack1.tif' are stored in a file 'stack1.h5'. You can inspect any processed stack by clicking on its name in the list on the top left of the GUI.
 
 ![A screenshot of the pyimfcs GUI with a dataset open](https://github.com/aurelien-barbotin/imFCS/blob/main/images/manual/4_data_processed.png)
@@ -66,6 +67,10 @@ Different display options can be found on the bottom left of the GUI.
 If you want to use your own masks, but are unhappy with the masks generated automatically, you can create them manually. They have to be 2d images of the same size as the original stack (e.g if the image stack is 50000 frames x 128 x 10 pixels, the mask must have a size of 128x10 pixels). Masks contain only integer values, with pixels having the same value belonging to the same object. To create a mask for the file 'stack1.tif', place it in the same folder under the name 'stack1_mask.tif' then click on 'Set masks' in the GUI.
 
 If a mask is present in the processed dataset and the 'Use mask' option is selected, the outlines of different masks will be shown in different colors in the 'Intensity' panel.
+
+### Export
+
+Results are exported folder by folder. To export all the results within a folder, load these results in the GUI of pyimfcs. You can then click on 'export' to generate an excel file containing all the results.
 
 ## Naming convention for output files
 
