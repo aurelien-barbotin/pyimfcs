@@ -22,7 +22,7 @@ if __name__=='__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description=
-         'Merge excel files located in subfolders')
+         'Exports results stored in h5 files')
     
     parser.add_argument("-d", "--directory", help="Target directory", default='.')
     """parser.add_argument("-n", "--sheet_name", help="Name of the sheet to be considered",
@@ -45,11 +45,15 @@ excels in given export folder (renames them accordingly)',
     parser.add_argument('-n','--savename', 
                         help='name of excel file to write. Overwritten if export_folder is provided',
                         default='results')
+    
+    parser.add_argument('-r','--recursive', 
+                        help='Boolean True by default. If True, exports also results in all subfolders.',
+                        default=True, type=bool)
     args = parser.parse_args()
     
     folder=args.directory
     #print(folder)
-    subfolders = glob.glob(folder+'/**/',recursive=True)
+    subfolders = glob.glob(folder+'/**/',recursive=args.recursive)
     #print(subfolders)
     for subfolder in subfolders:
         files = glob.glob(subfolder+'/*.h5')
