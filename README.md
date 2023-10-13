@@ -23,3 +23,10 @@ Usage:
 It is recommended to use pyimfcs with its gui, for this simply run
 
 	python -m pyimfcs.gui
+	
+Credit:
+-------
+
+If you used this package for your research, please cite: 
+
+
