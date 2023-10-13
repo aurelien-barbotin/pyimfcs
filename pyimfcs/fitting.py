@@ -218,6 +218,7 @@ fit_p0 = {"2D": [lambda x: max(0,1/x[0,1]/3), lambda x: 0.23**2/4/np.median(x[:,
           }
 
 def postprocess_2components(popt):
+    """Ensures that the first diffusion coefficient is always the slow one"""
     if popt[1]>popt[2]:
         new_popt = [w for w in popt]
         new_popt[1] = popt[2]
