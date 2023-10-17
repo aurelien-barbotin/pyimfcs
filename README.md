@@ -23,9 +23,9 @@ It is recommended to use pyimfcs with its gui, for this simply run
 
 	python -m pyimfcs.gui
 
-A user manual can be found in [docs/manual.md](../blob/main/docs/manual.md)
+A user manual can be found in [docs/manual.md](../main/docs/manual.md)
 
-Using pyimfcs on one's custom setup requires setting up fitting models. The procedure to do this can be found in [docs/calibration.md](../blob/main/docs/calibration.md)
+Using pyimfcs on one's custom setup requires setting up fitting models. The procedure to do this can be found in [docs/calibration.md](../main/docs/calibration.md)
 
 ## Credit:
 
