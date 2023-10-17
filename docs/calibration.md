@@ -24,5 +24,6 @@ This requires minimum Python programming skills. If you are unhappy with current
 
 ## References
 [1]  Ries, J., E.P. Petrov, and P. Schwille. 2008. Total Internal Reflection Fluorescence Correlation Spectroscopy: Effects of Lateral Diffusion and Surface-Generated Fluorescence. Biophysical Journal. 95:390–399.
+
 [2] Barbotin, A.; Billaudeau, C.; Sezgin, E.; Carballido Lopez, R. Quantification of Membrane Fluidity in Bacteria Using TIR-FCS; preprint; Biophysics, 2023. https://doi.org/10.1101/2023.10.13.562271.
 
