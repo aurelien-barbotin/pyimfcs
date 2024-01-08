@@ -620,12 +620,6 @@ class StackFCS(object):
                 ind = parameter_names_dict[k]
                 val = self.fit_results_dict[nsum][:,:,ind]
                 results[k][nsum] = val.reshape(-1)[msk]
-            """diffcoeffs = self.fit_results_dict[nsum][:,:,1]
-            nmols = self.fit_results_dict[nsum][:,:,0]
-            diffs = diffcoeffs.reshape(-1)[msk]
-            nmols = nmols.reshape(-1)[msk]
-            results["diffusion_coefficients"][nsum] = diffs
-            results["number_molecules"][nsum] = nmols"""
             results["non_linear_chis"][nsum] = chis_new
             results["indices"][nsum] = indices
             results["square_errors"][nsum] = square_errors

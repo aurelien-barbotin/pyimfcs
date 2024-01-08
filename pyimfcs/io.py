@@ -159,8 +159,25 @@ def get_metadata_bioformats(path):
     if path[-4:]!=".czi":
         raise ValueError('Incorrect file format')
     img = czifile.CziFile(path)
+    meta_dict = {}
     metadata = img.metadata()
-    
+    description = metadata.split('\n')
+    for d in description:
+        if len(d)>1 and '=' in d:
+            oo = d.split('=')
+            if len(oo)==2:
+                k, val = oo
+            elif len(oo)>2:
+                k = oo[0]
+                val = "=".join(oo[1:])
+            k = k.strip(' ')
+            val = val.strip(' ')
+            try:
+                meta_dict[k] = float(val)
+            except:
+                meta_dict[k] = val
+    return meta_dict
+
 def save_tiff_withmetadata(outname,st, meta_dict):
     
     writer = tifffile.TiffWriter(outname,imagej=True)

@@ -37,8 +37,15 @@ def summarise_df(df, val_keys=['D [µm²/s]']):
     return out_df
     
 def merge_fcs_results(out_name, files, ith = None, 
-                      chi_threshold = None,use_mask=False):
-    """Wrapper function to merge all experiment results in a single excel file"""
+                      chi_threshold = None,use_mask=False, labeldict=None):
+    """Wrapper function to merge all experiment results in a single excel file
+    Parameters:
+        out_name (str): name of output excel file, ends with .xlsx
+        file (list): list of h5 files output of FCS experiments
+        chi_threshold (float): quality metric thr
+        use_mask (bool): if True, exports results using masks if any
+        labeldict (dict): used when the label number in a mask contains information.
+            if provided, specifies which label corresponds to what sub-condtion"""
     
     # Step1: browse through every file and extract what we want
     if len(files)==0:
@@ -71,6 +78,11 @@ def merge_fcs_results(out_name, files, ith = None,
         # populates dataframes
         for nsum in nsums:
             out_dict = dict(zip(stack_res.keys(),[stack_res[w][nsum] for w in stack_res.keys()]))
+            if labeldict is not None:
+                indices = out_dict['indices']
+                nclasses=len(labeldict)
+                subconditions =  [labeldict[w%nclasses] for w in indices]
+                out_dict["condition_indices"] = subconditions
             out_dict['filename'] = description['filename']
             out_dict['binning'] = nsum
             out_dict['repeat'] = nfile

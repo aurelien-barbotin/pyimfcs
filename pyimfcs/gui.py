@@ -270,6 +270,7 @@ class FCS_Visualisator(QWidget):
             msg.exec_()
                 
     def set_masks(self):
+        # !!! to move to imFCS class
         print('setting masks')
         folder = self.folder
         files = glob.glob(folder+"/*.h5")

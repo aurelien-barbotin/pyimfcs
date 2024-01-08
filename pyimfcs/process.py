@@ -62,9 +62,8 @@ def batch_bacteria_process(files,first_n = 3000, last_n = 0, nsums=[2,3], nreg=4
             if not os.path.isdir(export_path):
                 os.mkdir(export_path)
                 
-            export_folder = export_path+fname+"/"
-            if not os.path.isdir(export_folder):
-                os.mkdir(export_folder)
+            export_folder = export_path+fname+"_"
+            
         try:
             stack = StackFCS(path, background_correction = True,                     
                                  first_n = first_n, last_n = last_n, clipval = 0)
