@@ -64,6 +64,8 @@ class StackFCS(object):
         self.fitter = fitter
 
         self.threshold_map = None
+        self.intensity_threshold_f = intensity_threshold # the intensity threshold function
+        
         # removes clipval points before and after the intensity timetrace
         # before correlation. To remove artefacts from bleaching correction
         # or image registration
@@ -352,7 +354,7 @@ class StackFCS(object):
             axes[1].axhline(0, color="k")
         return all_corrs
 
-    def fit_curves(self, fitter, xmax=None):
+    def fit_curves(self, fitter, xmax=None, xmin=None):
         self.fitter = fitter
         nsums = self.fcs_curves_dict.keys()
         for nsum in nsums:
@@ -362,6 +364,10 @@ class StackFCS(object):
                 c0 = self.fcs_curves_dict[nsum][0,0,:,0]
                 index0 = np.max(np.where((c0-xmax)<0))
                 self.fcs_curves_dict[nsum] = self.fcs_curves_dict[nsum][:,:,:index0,:]
+            if xmin is not None:
+                c0 = self.fcs_curves_dict[nsum][0,0,:,0]
+                index0 = np.min(np.where((c0-xmin)>0))
+                self.fcs_curves_dict[nsum] = self.fcs_curves_dict[nsum][:,:,index0:,:]
             correls = self.fcs_curves_dict[nsum]
             popts = []
             yhs = []
@@ -593,7 +599,7 @@ class StackFCS(object):
             # mask of values we want to keep, regardless of validity
             msk_for_values =np.ones_like(intensities,dtype=bool)
             if ith is not None and not use_mask:
-                ithr = intensity_threshold(ith,intensities)
+                ithr = self.intensity_threshold_f(ith,intensities)
                 msk = np.logical_and(msk,
                                      intensities>ithr)
                 indices[msk]=1

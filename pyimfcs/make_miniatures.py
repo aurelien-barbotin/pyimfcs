@@ -18,7 +18,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Makes t-axis projections on 3D FCS stacks')
     parser.add_argument("-a", "--all", help="Projects a single tif file")
     parser.add_argument("-n", "--name", help="Projects all tif files in a folder")
-    parser.add_argument("-e", "--empty", help="Also creates empty tif file to manually make the mask", default=True)
+    parser.add_argument("-e", "--empty", help="Also creates empty tif file to manually make the mask", default=False)
     args = parser.parse_args()
     
     if args.all is not None:
@@ -35,5 +35,8 @@ if __name__=="__main__":
         avg = stack.mean(axis=0)
         tifffile.imwrite(file[:-4]+"_sum.tif",avg)
         if args.empty:
+            print('Making mask')
             tifffile.imwrite(file[:-4]+"_mask.tif",np.zeros_like(avg))
+        else:
+            print('Not making mask')
         
