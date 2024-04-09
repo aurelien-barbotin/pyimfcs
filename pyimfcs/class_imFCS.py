@@ -602,7 +602,6 @@ class StackFCS(object):
             curves_fits = self.yh_dict[nsum]
             intensities = self.thumbnails_dict[nsum].reshape(-1)
             square_errors = self.square_err_dict[nsum].reshape(-1)
-            distances_to_masks =  self.distance_to_masks_dict[nsum].reshape(-1)
             
             ycurves = curves[:,:,:,1]
             
@@ -662,6 +661,7 @@ class StackFCS(object):
             results["intensities"][nsum] = intensities
             results["valid_fraction"][nsum] = valid_measures
             if len(self.distance_to_masks_dict )>0:
+                distances_to_masks =  self.distance_to_masks_dict[nsum].reshape(-1)
                 results["distance_to_mask_{}".format(self.mask_index)][nsum] = distances_to_masks[msk]
         return results
     
