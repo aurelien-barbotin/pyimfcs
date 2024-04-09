@@ -16,9 +16,9 @@ if __name__=="__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Makes t-axis projections on 3D FCS stacks')
-    parser.add_argument("-a", "--all", help="Projects a single tif file")
-    parser.add_argument("-n", "--name", help="Projects all tif files in a folder")
-    parser.add_argument("-e", "--empty", help="Also creates empty tif file to manually make the mask", default=False)
+    parser.add_argument("-a", "--all", help="Projects all tif files in a folder")
+    parser.add_argument("-n", "--name", help="Projects a single tif file")
+    parser.add_argument("-e", "--empty", help="Also creates empty tif file to manually make the mask. Default: False.", default=False)
     args = parser.parse_args()
     
     if args.all is not None:

@@ -37,7 +37,7 @@ def summarise_df(df, val_keys=['D [µm²/s]']):
     return out_df
     
 def merge_fcs_results(out_name, files, ith = None, 
-                      chi_threshold = None,use_mask=False, labeldict=None):
+                      chi_threshold = None,use_mask=False, labeldict=None, distance_labels = None ):
     """Wrapper function to merge all experiment results in a single excel file
     Parameters:
         out_name (str): name of output excel file, ends with .xlsx
@@ -45,7 +45,11 @@ def merge_fcs_results(out_name, files, ith = None,
         chi_threshold (float): quality metric thr
         use_mask (bool): if True, exports results using masks if any
         labeldict (dict): used when the label number in a mask contains information.
-            if provided, specifies which label corresponds to what sub-condtion"""
+            if provided, specifies which label corresponds to what sub-condtion
+        distance_labels (list): optional. if provided, expects 2 elements [distance_label, max_index].
+            Calculates distance of every item in mask to the centroid of masks 
+            labeled with distance_label. max_index is the number of classes expected 
+            in the labeled image"""
     
     # Step1: browse through every file and extract what we want
     if len(files)==0:
@@ -60,7 +64,8 @@ def merge_fcs_results(out_name, files, ith = None,
         
         description = stack.describe()
         descriptions.append(description)
-        
+        if distance_labels is not None:
+            stack.distance2mask(distance_labels[0], nindices=distance_labels[1])
         stack_res = stack.extract_results(ith=ith,
                                         chi_threshold=chi_threshold,use_mask=use_mask)
         res_keys=list(stack_res.keys())

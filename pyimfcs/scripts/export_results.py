@@ -24,11 +24,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description=
          'Exports results stored in h5 files')
     
-    parser.add_argument("-d", "--directory", help="Target directory", default='.')
-    """parser.add_argument("-n", "--sheet_name", help="Name of the sheet to be considered",
-                        default=0)
-    parser.add_argument("-s", "--save_name", help="Output name",
-                        default="merged.xlsx")"""
+    parser.add_argument("-p", "--path", help="Target directory", default='.')
     
     parser.add_argument('-i','--intensity_threshold', 
                         help='intensity threshold',default=0.8, type=float)
@@ -49,9 +45,13 @@ excels in given export folder (renames them accordingly)',
     parser.add_argument('-r','--recursive', 
                         help='Boolean True by default. If True, exports also results in all subfolders.',
                         default=True, type=bool)
+    parser.add_argument('-d','--distances', 
+                        help='''If provided, calculates in every stack the distance to a reference label (first argument),\
+expecting n classes (2nd argument)''',
+                        default=None, type=int,nargs='+')
     args = parser.parse_args()
     
-    folder=args.directory
+    folder=args.path
     #print(folder)
     subfolders = glob.glob(folder+'/**/',recursive=args.recursive)
     #print(subfolders)
@@ -67,5 +67,5 @@ excels in given export folder (renames them accordingly)',
             merge_fcs_results(out_name, files, 
                               ith=float(args.intensity_threshold),
                               chi_threshold=float(args.chi_threshold),
-                              use_mask=args.use_mask)
+                              use_mask=args.use_mask, distance_labels=args.distances)
     
