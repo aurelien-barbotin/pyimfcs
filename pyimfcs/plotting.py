@@ -131,7 +131,8 @@ def export_results(files_list_list, conditions, nsum="nsum 3",
 def superplot_files(files_list_list, conditions, nsum="nsum 3", 
                     keep_single_indices=True, showmedian=False, 
                     show_individual_points = True, colors=None,
-                    measured = "D [µm²/s]"):
+                    measured = "D [µm²/s]", 
+                    xname = "condition"):
     
     if len(files_list_list)>1 and conditions is None:
         return ValueError('Please specify condition names')
@@ -174,7 +175,6 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3",
                 
         dfs = pd.concat(dfs)
         all_dfs[name] = dfs
-    xname = "condition"
     return plot_combined(all_dfs[nsum],xname,measured,'repeat',order=conditions, 
                   showmedian=showmedian,show_individual_points=show_individual_points,
                   colors=colors)
