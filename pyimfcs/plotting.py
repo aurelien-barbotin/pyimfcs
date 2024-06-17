@@ -311,7 +311,8 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
         
         
         fig.canvas.draw_idle()
-        
+        return ii0,jj0
+    
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
     image = stack.thumbnails_dict[nsum]
 

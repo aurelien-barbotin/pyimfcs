@@ -79,8 +79,8 @@ class MatplotlibWindow(QDialog):
     plot_clicked = QtCore.Signal(int)
     back_to_plot = QtCore.Signal()
     image_clicked = QtCore.Signal(np.ndarray)
-    onclickf = None
     onclick_function = lambda x: print('no thing to display')
+    current_coords = 0,0
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -111,7 +111,7 @@ class MatplotlibWindow(QDialog):
     def onclick(self,event):
         if self.onclick_function is None:
             return
-        self.onclick_function(event)
+        self.current_coords = self.onclick_function(event)
        
     def onpick(self,event):
         artist = event.artist
@@ -139,6 +139,7 @@ class FCS_Visualisator(QWidget):
         self.exportButton = QPushButton("Export")
         self.processingPushButton = QPushButton("Process Files")
         self.maskPushButton = QPushButton('Set masks')
+        self.extractCurveButton = QPushButton('Extract FCS curve')
         
         self.newAnalystButton.clicked.connect(lambda :
             self.loadFiles(str(QFileDialog.getExistingDirectory(self, "Select Directory"))))
@@ -147,6 +148,7 @@ class FCS_Visualisator(QWidget):
         self.exportButton.clicked.connect(self.export_measurements)
         self.processingPushButton.clicked.connect(self.process_measurements)
         self.maskPushButton.clicked.connect(self.set_masks)
+        self.extractCurveButton.clicked.connect(self.extract_curve)
         
         self.current_mode = None
         self.expListWidget = ExperimentListWidget()
@@ -169,13 +171,31 @@ class FCS_Visualisator(QWidget):
         self.grid.addWidget(self.exportButton,0,3,1,1)
         self.grid.addWidget(self.processingPushButton,0,4,1,1)
         self.grid.addWidget(self.maskPushButton,0,5,1,1)
+        self.grid.addWidget(self.extractCurveButton,0,6,1,1)
         
         self.grid.addWidget(self.expListWidget,1,0,9,1)
         
         self.grid.addWidget(self.plotBox,1,1,10,10)
         self.grid.addWidget(self.metrics_tab,10,0,1,1)
         
-        
+    def extract_curve(self):
+        nsum = int(self.binningComboBox.currentText())
+        current_coordinates = self.plotBox.current_coords
+        fcs_curve = self.current_stack.fcs_curves_dict[nsum][current_coordinates[1],
+                                                             current_coordinates[0]]
+        fit = self.current_stack.yh_dict[nsum][current_coordinates[1],
+                                                             current_coordinates[0]]
+        filename = str(QFileDialog.getSaveFileName(self, "Select File name", 
+                                    os.path.join(os.getcwd(),"results.xlsx"),
+                                    filter="*.xlsx")[0])
+        if filename == "":
+            return
+        # fcs_curve: array size (n,2) with n number of points, first index in pos 2 is time second is G(tau)
+        import pandas as pd
+        print(fcs_curve.shape,fit.shape)
+        df = pd.DataFrame(np.concatenate((fcs_curve,fit.reshape(-1,1)), axis=1),
+                          columns = ['tau [ms]', 'G(tau)','fit'])
+        df.to_excel(filename)
     def dragEnterEvent(self, e):
         e.accept()
     
