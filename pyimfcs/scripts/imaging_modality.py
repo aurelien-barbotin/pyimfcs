@@ -47,22 +47,6 @@ if __name__=='__main__':
     files = sorted(glob.glob(path+"/*.czi"))
     print('{} files found'.format(len(files)))
     for file in files:
-        # dic = get_metadata_bioformats(file)
-        
-        img = czifile.CziFile(file)
-        meta_dict = {}
-        metadata = img.metadata()
-        description = metadata.split('\n')
-        # dirty hack
-        acq_modes = list(filter(lambda x: '<AcquisitionMode>' in x, description))[:1]
-        if len(acq_modes)>1:
-            acq_mode = 'undefined'
-        else:
-            acq_mode = acq_modes[0]
-        # acq_mode = 
-        acq_mode = remove_tags(acq_mode)
-        angle = remove_tags(list(filter(lambda x: 'Angle' in x, description))[0])
-        ff = remove_tags(list(filter(lambda x: '<Filter>' in x, description))[0])
         if filterval is None:
             print("file",file.split('/')[-1],':', get_acqmode(file))
         elif filterval==get_acqmode(file):
