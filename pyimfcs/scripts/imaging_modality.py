@@ -38,17 +38,21 @@ if __name__=='__main__':
                         help="Filters results: shows only selected imaging types. If not specified, shows all imaging types", 
                         default=None,
                         choices=['BF','epi','TIRF'])
-    
+    parser.add_argument('-r','--recursive', 
+                        help='Boolean False by default. If True, analyses also files in all subfolders.',
+                        default=False, type=bool)
     args = parser.parse_args()
     
     path=args.path
     filterval = args.filter
-    
     files = sorted(glob.glob(path+"/*.czi"))
+    if args.recursive:
+        files = sorted(glob.glob(path+"/**/*.czi",recursive=args.recursive))
     print('{} files found'.format(len(files)))
     for file in files:
+        fname = file[len(path):]
         if filterval is None:
-            print("file",file.split('/')[-1],':', get_acqmode(file))
+            print("file",fname,':', get_acqmode(file))
         elif filterval==get_acqmode(file):
-            print("file",file.split('/')[-1],':', get_acqmode(file))
+            print("file",fname,':', get_acqmode(file))
        
