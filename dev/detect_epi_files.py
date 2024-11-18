@@ -27,7 +27,8 @@ def get_acqmode(file):
         return 'epi'
     else:
         return 'TIRF'
-path="/run/user/1001/gvfs/smb-share:server=data.micalis.com,share=proced/microscopy/ZEISS/Aurelien/2023_10_19/1_expo_22deg/subtilis"
+    
+path="/run/user/1001/gvfs/smb-share:server=data.micalis.com,share=proced/microscopy/ZEISS/Aurelien/2024_08_01/1_NRNY/"
 
 files = sorted(glob.glob(path+"/*.czi"))
 print('{} files found'.format(len(files)))
@@ -48,6 +49,7 @@ for file in files:
     acq_mode = remove_tags(acq_mode)
     angle = remove_tags(list(filter(lambda x: 'Angle' in x, description))[0])
     ff = remove_tags(list(filter(lambda x: '<Filter>' in x, description))[0])
+    
     if get_acqmode(file)=="epi":
         print('------')
         print(angle)
