@@ -31,7 +31,7 @@ if __name__=='__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description=
-         'Exports results stored in h5 files')
+         'Browses through czi files in a given location and determines their mode of acquisition')
     
     parser.add_argument("-p", "--path", help="Target directory", default='.')
     parser.add_argument("-f", "--filter", 

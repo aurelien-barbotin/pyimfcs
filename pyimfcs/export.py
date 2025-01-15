@@ -58,7 +58,6 @@ def merge_fcs_results(out_name, files, ith = None,
     all_dfs={}
     descriptions = []
     for nfile,file in enumerate(files):
-        print(file)
         stack = StackFCS(file,load_stack=False)
         stack.load()
         
