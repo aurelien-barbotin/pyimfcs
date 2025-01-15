@@ -145,27 +145,24 @@ def simulate_2D_diff(D,nsteps,nparts,
           chi_threshold = thr, ith = intensity_threshold)
     if delete_tif:
         os.remove(savefolder+"stack.tif")
-        
-# pixel size: 100 nm
-psize = 0.08 #um
-sigma_psf = 0.19/psize # pixels
-dt = 10**-3 # s
-D = 1 #um2/s
 
-brightness = 20000 #Hz/molecule
-
-npixels = 500
-
-npix_img = 15
-coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
-nsteps = 50000
-nparts = 500
-
-# parts per pixel square
-parts_density= 0.6
-nparts = int(parts_density*npixels**2)
-for dd in [0.1,1]:
-    D=dd
-    simulate_2D_diff(D,nsteps,nparts,crop=6,
-         savepath= "/home/aurelienb/Data/simulations/SLB/2023_09_12/try2/",delete_tif=False )
+if __name__=='__main__':
+    # pixel size: 100 nm
+    psize = 0.08 #um
+    sigma_psf = 0.19/psize # pixels
+    dt = 10**-3 # s
+    D = 1 #um2/s
+    
+    brightness = 20000 #Hz/molecule
+    
+    npixels = 200
+    
+    npix_img = 50
+    coords = np.meshgrid(np.arange(2*npix_img+1),np.arange(2*npix_img+1))
+    nsteps = 50000
+    
+    # parts per pixel square
+    for nparts in [200,500,1000,2000,3000,4000]:
+        simulate_2D_diff(D,nsteps,nparts,crop=5,
+             savepath= "/home/aurelienb/Data/simulations/debug/oldCode/",delete_tif=False )
     

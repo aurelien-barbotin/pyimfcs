@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 datapath = "/run/user/1001/gvfs/smb-share:server=data.micalis.com,share=proced/microscopy/ZEISS/Aurelien/"
 
-
 def calculate_a_eff(a,w0):
     """Calculates effective observation area in imFCS from parameter a (pixel size)
     and w., 1/e2 radius of Gaussian PSF
@@ -58,12 +57,16 @@ if __name__=='__main__':
         print("binning {}, Dmax {:.2f}".format(bins[j], dmax[j]))
         print("D {} µm2/s, binning {}, tauD {:.2f}".format(Dinterest,bins[j], transit_times[j]))
 
-    d_mins = [0.01,0.1]
+    d_mins = [0.01,0.1,1,10]
+    print("Binning 2 -----")
     for dd in d_mins:
         transit_time = tauD_fromfit(dd, 0.32, w0)
         min_acq_time = 100*transit_time
-        print('D {}: min acq time: {}'.format(dd,min_acq_time))
-    
+        print('D {}: min acq time: {} s'.format(dd,min_acq_time))
+    for dd in d_mins:
+        transit_time = tauD_fromfit(dd, 0.32, w0)
+        min_frate = transit_time/10
+        print('D {}: min frame rate: {} ms'.format(dd,min_frate*10**3))
     g2 = gim2D(a=0.16*3,sigma=0.2)
     taus = np.logspace(-3,2)*1.26
     ds = [0.01,0.1,1,5,10]

@@ -20,7 +20,7 @@ from pyimfcs.methods import indices_intensity_threshold
 
 def plot_combined(combined,xname,measured,repeat, order = None,size = 5, 
                   showmedian=False, show_individual_points=True,colors=None,
-                  verbose=True,stripplot=True):
+                  verbose=True,stripplot=True,hue_field='repeat'):
     """Plots results stored in a Dataframe using the SUperplots paradigm.
     
     Parameters:
@@ -30,13 +30,15 @@ def plot_combined(combined,xname,measured,repeat, order = None,size = 5,
         repeat (str): name of the repeat field
         order (list): list of condition names in the order the plots need to appear
         """
+    if hue_field is None:
+        hue_field = repeat
     if order is None:
         order = np.unique(combined[xname].values)
     # First measure
     mes = "mean"
     if showmedian:
         mes="median"
-    ReplicateAverages = combined.groupby([xname,repeat], as_index=False).agg(
+    ReplicateAverages = combined.groupby([xname,repeat,hue_field], as_index=False).agg(
         {measured: mes})
     if verbose:
         print(order)
@@ -59,19 +61,19 @@ def plot_combined(combined,xname,measured,repeat, order = None,size = 5,
                       order = order,ax=ax)
     # averages of replicates
     if stripplot:
-        sns.stripplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
+        sns.stripplot(x=xname, y=measured, hue=hue_field, edgecolor="k", 
               linewidth=1, data=ReplicateAverages, size=size, 
-              order = order,ax=ax,zorder=20)
+              order = order,ax=ax,zorder=20, palette="deep")
     else:
             
-        sns.swarmplot(x=xname, y=measured, hue=repeat, edgecolor="k", 
+        sns.swarmplot(x=xname, y=measured, hue=hue_field, edgecolor="k", 
                            linewidth=1, data=ReplicateAverages, size=size, 
-                           order = order,ax=ax,zorder=20)
+                           order = order,ax=ax,zorder=20, palette="deep")
     palette=None
     if colors is not None:
         palette=dict(zip(order,colors))
     sns.violinplot(x=xname, y=measured, data=combined, order = order,ax=ax, inner=None,
-                   zorder=10,palette=palette)
+                   zorder=10,fill=False)
     sns.boxplot(x=xname, y=measured, data=combined, order = order,ax=ax,
                    boxprops={"facecolor": (.0, .6, .8, .0),"zorder":15},zorder=15)
     ax.set_ylim(bottom=0)
@@ -131,7 +133,8 @@ def export_results(files_list_list, conditions, nsum="nsum 3",
 def superplot_files(files_list_list, conditions, nsum="nsum 3", 
                     keep_single_indices=True, showmedian=False, 
                     show_individual_points = True, colors=None,
-                    measured = "D [µm²/s]"):
+                    measured = "D [µm²/s]", 
+                    xname = "condition", stripplot=True):
     
     if len(files_list_list)>1 and conditions is None:
         return ValueError('Please specify condition names')
@@ -140,10 +143,6 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3",
     files = [w for flist in files_list_list for w in flist]
     excels = [pd.ExcelFile(w) for w in files]
     
-    if conditions is not None:
-        conditions_list = [conditions[j] for j, flist in 
-                           enumerate(files_list_list) for w in flist]
-    
     all_names = [w.sheet_names for w in excels]
     names0 = all_names[0]
     kept_names = list()
@@ -151,33 +150,35 @@ def superplot_files(files_list_list, conditions, nsum="nsum 3",
           if np.all([name in sublist for sublist in all_names]):
               kept_names.append(name)
     
+    excels = [[pd.ExcelFile(x) for x in w] for w in files_list_list]
     all_dfs = {}
     for name in kept_names:
         dfs = []
-        maxindex = 0
-        for j, xl in enumerate(excels):
-            df = xl.parse(sheet_name=name, index_col = 0)
-            if name=="parameters":
-                fname = files[j]
-                df["file"] = fname
-                
-            elif "nsum" in name:
-                if keep_single_indices:
-                    df['repeat']+=maxindex
-                    maxindex = df['repeat'].values.max()+1
-                else:
-                    df['repeat'] = maxindex
-                    maxindex += 1
-            if conditions is not None:
-                df["condition"] = conditions_list[j]
-            dfs.append(df)
+        for j, xl_list in enumerate(excels):
+            maxindex = 0
+            for k,xl in enumerate(xl_list):
+                df = xl.parse(sheet_name=name, index_col = 0)
+                if name=="parameters":
+                    fname = files[j]
+                    df["file"] = fname
+                    
+                elif "nsum" in name:
+                    df['file nr'] = k
+                    if keep_single_indices:
+                        df['repeat']+=maxindex
+                        maxindex = df['repeat'].values.max()+1
+                    else:
+                        df['repeat'] = maxindex
+                        maxindex += 1
+                if conditions is not None:
+                    df["condition"] = conditions[j]
+                dfs.append(df)
                 
         dfs = pd.concat(dfs)
         all_dfs[name] = dfs
-    xname = "condition"
     return plot_combined(all_dfs[nsum],xname,measured,'repeat',order=conditions, 
                   showmedian=showmedian,show_individual_points=show_individual_points,
-                  colors=colors)
+                  colors=colors, stripplot=stripplot,hue_field='file nr')
 
 plt.ion()
 class FakeEvent():
@@ -311,7 +312,8 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
         
         
         fig.canvas.draw_idle()
-        
+        return ii0,jj0
+    
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
     image = stack.thumbnails_dict[nsum]
 

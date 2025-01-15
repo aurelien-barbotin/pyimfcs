@@ -64,6 +64,8 @@ class StackFCS(object):
         self.fitter = fitter
 
         self.threshold_map = None
+        self.intensity_threshold_f = intensity_threshold # the intensity threshold function
+        
         # removes clipval points before and after the intensity timetrace
         # before correlation. To remove artefacts from bleaching correction
         # or image registration
@@ -86,6 +88,7 @@ class StackFCS(object):
         self.thumbnails_dict = {}
         self.square_err_dict = {}
         self.fitting_parameters_dict = {}
+        self.distance_to_masks_dict = {}
         
         self.metadata_dict = {}
         self.metadata_fully_loaded = False
@@ -193,19 +196,7 @@ class StackFCS(object):
         self.stack, shifts = stackreg(self.stack, nreg, plot=plot)
         self.nreg = nreg
         self.shifts = shifts
-        
-    def set_mask(self,msk):
-        # probably obsolete
-        self.mask = msk
-        
-    def downsample_time(self, ndown):
-        """Downsamples an image stack in time"""
-        nframes = (self.stack.shape[0]//ndown)*ndown
-        self.stack = self.stack[:nframes]
-        self.stack = self.stack.reshape((ndown,nframes//ndown,self.stack.shape[1],
-                            self.stack.shape[2]),order="F").mean(axis=0)
-        self.dt = self.dt*ndown
-        
+
     def set_threshold_map(self, th_map):
         self.threshold_map = th_map
 
@@ -352,7 +343,7 @@ class StackFCS(object):
             axes[1].axhline(0, color="k")
         return all_corrs
 
-    def fit_curves(self, fitter, xmax=None):
+    def fit_curves(self, fitter, xmax=None, xmin=None):
         self.fitter = fitter
         nsums = self.fcs_curves_dict.keys()
         for nsum in nsums:
@@ -362,6 +353,10 @@ class StackFCS(object):
                 c0 = self.fcs_curves_dict[nsum][0,0,:,0]
                 index0 = np.max(np.where((c0-xmax)<0))
                 self.fcs_curves_dict[nsum] = self.fcs_curves_dict[nsum][:,:,:index0,:]
+            if xmin is not None:
+                c0 = self.fcs_curves_dict[nsum][0,0,:,0]
+                index0 = np.min(np.where((c0-xmin)>0))
+                self.fcs_curves_dict[nsum] = self.fcs_curves_dict[nsum][:,:,index0:,:]
             correls = self.fcs_curves_dict[nsum]
             popts = []
             yhs = []
@@ -532,6 +527,42 @@ class StackFCS(object):
                 out[i, j] = px
         return out
 
+    def downsample_time(self, ndown):
+        """Downsamples an image stack in time"""
+        nframes = (self.stack.shape[0]//ndown)*ndown
+        self.stack = self.stack[:nframes]
+        self.stack = self.stack.reshape((ndown,nframes//ndown,self.stack.shape[1],
+                            self.stack.shape[2]),order="F").mean(axis=0)
+        self.dt = self.dt*ndown
+    
+    def distance2mask(self, index, nindices = None):
+        """Calculates distances of every point in each mask to the centroid of a 
+        given mask"""
+        nsums = self.fcs_curves_dict.keys()
+        if nindices is None:
+            raise KeyError("Please indicate what is the number of classes in your masks")
+            
+        self.distance_to_masks_dict = dict(zip(nsums,[[] for w in nsums]))
+        self.mask_index = index
+        
+        for nsum in nsums:
+            maxind = self.mask.max()
+            ncells = int(np.ceil(maxind/nindices))
+            # indices = sorted(list(filter(lambda x: x!=0, np.unique(self.mask))))
+            out_map = np.zeros_like(self.thumbnails_dict[nsum])
+            for ncell in range(ncells):
+                indices = np.arange(1,nindices+1) + ncell*nindices
+                msk = downsample_mask(self.mask, nsum)
+                index_ref = index + ncell*nindices
+                centroid = np.array([np.mean(x) for x in np.where(msk==index_ref)])
+                for ind in indices:
+                    coords = np.array(np.where(ind==msk))
+                    for j in range(coords.shape[1]):
+                        vec = coords[:,j]
+                        dist = np.linalg.norm(vec-centroid)
+                        out_map[*vec] = dist
+            self.distance_to_masks_dict[nsum] = out_map
+
     def extract_results(self, ith = None, 
                       chi_threshold = None, use_mask=True):
         """Extracts results like diffusion coefficient, chisquares etc. Meant to replace
@@ -546,8 +577,12 @@ class StackFCS(object):
                    "indices":mk_outdic(),
                    "square_errors":mk_outdic(),
                    "intensities":mk_outdic(),
-                   "valid_fraction":mk_outdic() # fraction of curves removed from chi
+                   "valid_fraction":mk_outdic(), # fraction of curves removed from chi
                    }
+        
+        if len(self.distance_to_masks_dict )>0:
+            results["distance_to_mask_{}".format(self.mask_index)] = mk_outdic()
+            
         # populates results dict with every interesting fitting parameter
         if self.fitter is None:
             self.fitter = Fitter(self.fitting_parameters_dict)
@@ -593,7 +628,7 @@ class StackFCS(object):
             # mask of values we want to keep, regardless of validity
             msk_for_values =np.ones_like(intensities,dtype=bool)
             if ith is not None and not use_mask:
-                ithr = intensity_threshold(ith,intensities)
+                ithr = self.intensity_threshold_f(ith,intensities)
                 msk = np.logical_and(msk,
                                      intensities>ithr)
                 indices[msk]=1
@@ -620,17 +655,14 @@ class StackFCS(object):
                 ind = parameter_names_dict[k]
                 val = self.fit_results_dict[nsum][:,:,ind]
                 results[k][nsum] = val.reshape(-1)[msk]
-            """diffcoeffs = self.fit_results_dict[nsum][:,:,1]
-            nmols = self.fit_results_dict[nsum][:,:,0]
-            diffs = diffcoeffs.reshape(-1)[msk]
-            nmols = nmols.reshape(-1)[msk]
-            results["diffusion_coefficients"][nsum] = diffs
-            results["number_molecules"][nsum] = nmols"""
             results["non_linear_chis"][nsum] = chis_new
             results["indices"][nsum] = indices
             results["square_errors"][nsum] = square_errors
             results["intensities"][nsum] = intensities
             results["valid_fraction"][nsum] = valid_measures
+            if len(self.distance_to_masks_dict )>0:
+                distances_to_masks =  self.distance_to_masks_dict[nsum].reshape(-1)
+                results["distance_to_mask_{}".format(self.mask_index)][nsum] = distances_to_masks[msk]
         return results
     
     def plot_parameter_maps(self, nsums, parn=1, cmap="jet", vmin=None,
