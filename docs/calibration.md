@@ -3,15 +3,29 @@
 In conventional point FCS, the only assumption needed to fit data is that the observation area is Gaussian (at least in 2D). In imaging FCS, this is different: the detection area is a convolution of the pixel area by the point spread function (PSF). To account for this, the size of the detection PSF is a parameter of the standard imFCS 2D diffusion fitting model (see ref [1]).
 
 ## Defining a new fitting model
-In pyimfcs, fitting models are stored in a '.json' file in the folder `pyimfcs/models/`. To create a fitting model from an existing template using the parameters of your experiments, you need to create a json file containing the necessary information. It is recommended to use one of the files already existing as a template. For example, if you create a file 'default_model.json' in `pyimfcs/models/`. containing this:
+In pyimfcs, fitting models are stored in a '.json' file in the folder `pyimfcs/models/`. To create a fitting model from an existing template using the parameters of your experiments, you need to create a json file containing the necessary information. This json file represents a Python dictionary, having as keys:
+- "mtype": the name of the model type. Available model types can be found as keys to the dictionary `fit_functions` in `pyimfcs/fitting.py`. They currently include: "2D", "3D","2D_2c" (2 component diffusion in 2D), "2D_anisotropic" (2D diffusion in e.g a rod, see ref. [2]) "2D_spherical" (isotropic diffusion in a sphere of small dimensions as compared to the PSF size, see also ref. [2]).
+- the parameter names, as string (e.g 'sigma' for the Gaussian standard deviation of the PSF).
+
+The parameters associated with each model currently implemented are:
+- "2D":"sigma","ginf"
+- "3D":"sigma","sigmaz","ginf",
+- "2D_2c":"sigma","ginf",
+- "2D_anisotropic":"sigma","ginf","f"
+- "2D_spherical":"sigma","ginf","f"
+
+Short definition of these parameters:
+- "sigma": float, Gaussian standard deviation of the PSF, that needs to be calibrated for each microscope/wavelength. In µm.
+- "ginf": boolean, equal to true or false. If True, allows the fit to converge towards a non-zero value.
+- "f": float, correction factor to account for membrane curvature. Calculated from simulations, as described in ref. [2].
+
+It is recommended to use one of the files already existing as a template. For example, if you create a file 'default_model.json' in `pyimfcs/models/`. containing this:
 
 	{
 	  "mtype": "2D"
 	  "sigma": 0.19,
 	  "ginf": true,
 	}
-
-pyimfcs will add a fitting model of type '2D', with a PSF is standard deviation 0.19 µm, and that accepts convergence towards non-zero values (parameter 'ginf'). The possible model types can be found as keys to the dictionary `fit_functions` in `pyimfcs/fitting.py`. They currently include: "2D", "3D","2D_2c" (2 component diffusion in 2D), "2D_anisotropic" (2D diffusion in e.g a rod, see ref. [2]) "2D_spherical" (isotropic diffusion in a sphere of small dimensions as compared to the PSF size, see also ref. [2]).
 
 ## Implementation of a new fitting class
 

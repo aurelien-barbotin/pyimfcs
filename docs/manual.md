@@ -38,7 +38,7 @@ Once you browsed to the right folder, click on 'Open'. This will prompt the open
 
 ![A screenshot of a the processing dialog](https://github.com/aurelien-barbotin/imFCS/blob/main/images/manual/3_processing_dialog.png)
 
-- Fitting model: Choose among pre-defined (see [calibration](../blob/main/docs/calibration.md)) fitting models for FCS curves
+- Fitting model: Choose among pre-defined (see [calibration]((https://github.com/aurelien-barbotin/imFCS/blob/main/docs/calibration.md)) fitting models for FCS curves
 - Remove first n frames: remove n frames at the beginning of each stack. Set to 0 to keep all frames
 - Remove last n frames: remove n frames at the end of each stack. Set to 0 to keep all frames
 - Binning values: groups pixels by binning values before processing. It is possible to use several binning values, separated by a coma.
