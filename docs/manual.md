@@ -1,6 +1,6 @@
 # pyimfcs User's manual
 
-This document explains how to use the package pyimfcs once the package is installed and the setup is calibrated, that is that a fitting model accounting for PSF size was derived. For calibration and setting up the fitting model, see [calibration](../blob/main/docs/calibration.md).
+This document explains how to use the package pyimfcs once the package is installed and the setup is calibrated, that is that a fitting model accounting for PSF size was derived. For calibration and setting up the fitting model, see [calibration](https://github.com/aurelien-barbotin/imFCS/blob/main/docs/calibration.md).
 
 Assuming that the package was properly installed, let's first start a session of the GUI of pyimfcs:
 
