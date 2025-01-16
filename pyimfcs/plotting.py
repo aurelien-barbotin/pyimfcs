@@ -224,6 +224,8 @@ def interactive_fcs_plot(stack,nsum, parn=1, normsize=1, fig = None,
         mutable_object['click'] = X_coordinate
         
         ii0,jj0=math.floor(event.xdata+0.5), math.floor(event.ydata+0.5)
+        ii0 = np.array([ii0])
+        jj0 = np.array([jj0])
         
         line0.set_data(ii0,jj0)
         line1.set_data(ii0,jj0)
